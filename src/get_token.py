@@ -32,6 +32,7 @@ def get_token():
     headers = {"Accept": "application/json"}
     auth = HTTPBasicAuth(CLIENT_ID, SECRET_KEY)
     r = requests.post(url, json=request_json, headers=headers, auth=auth)
+    print(r.text)
     if r.status_code == 200:
         token = r.json()['access_token']
         return token
