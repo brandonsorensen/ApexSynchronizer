@@ -29,8 +29,8 @@ class ApexAccessToken(object):
         # subtracting `PADDING` seconds to give some leeway
         self.expiration = datetime.now() + timedelta(seconds=expires_in - ApexAccessToken.PADDING)
         
-    @staticmethod
-    def get_new_token():
+    @classmethod
+    def get_new_token(cls):
         try:
             client_id = os.environ['CONSUMER_KEY']
             secret_key = os.environ['SECRET_KEY']
@@ -48,7 +48,7 @@ class ApexAccessToken(object):
         auth = HTTPBasicAuth(client_id, secret_key)
         r = requests.post(url, json=request_json, headers=headers, auth=auth)
         if r.status_code == 200:
-            return ApexAccessToken(r)
+            return cls(r)
 
         # TODO: Add proper exception handling
         raise Exception('Could not get token')
