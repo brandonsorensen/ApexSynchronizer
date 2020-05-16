@@ -35,7 +35,7 @@ class ApexAccessToken(object):
             client_id = os.environ['CONSUMER_KEY']
             secret_key = os.environ['SECRET_KEY']
         except KeyError:
-            raise EnvironmentError('ClientID or secret key are not in the environment.')
+            raise EnvironmentError('`CONSUMER_KEY` or `SECRET_KEY` are not in the environment.')
 
         url = BASE_URL + 'token'
         request_json = {
