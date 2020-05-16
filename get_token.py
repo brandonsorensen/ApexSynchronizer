@@ -57,17 +57,25 @@ def put_students(students: list):
     return requests.post(url=url, data=student_json, headers=header) 
 
 
+def get_students():
+    token = get_token()
+    header = get_header(token)
+    url = BASE_URL + 'students'
+    return requests.get(url=url, headers=header)
+
 def main():
     high_code = 'Z8102253'
+    high_org_id = '501'
     url = BASE_URL + 'products/' + high_code
     #url = BASE_URL + 'students' 
-    student = Student(ImportUserId='123456', ImportOrgId=high_code, FirstName='Brandon',
+    user_id = os.environ['APEX_ID']
+    student = Student(ImportUserId=user_id, ImportOrgId=high_org_id, FirstName='Brandon',
                       MiddleName='Loyal', LastName='Sorensen', Email='sorensen.12@gmail.com',
                       Role='S', GradeLevel=10, LoginId='LoginId', LoginPw='LoginPw',
                       CoachEmails='test@test.com')
 
-                     
-    r = put_students([student])
+    r = get_students()
+    #r = put_students([student])
     print(r.text)
 
 
