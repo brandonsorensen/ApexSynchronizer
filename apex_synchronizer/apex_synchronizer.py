@@ -9,8 +9,6 @@ class ApexSynchronizer(object):
 
     def __init__(self):
         self._access_token = ApexAccessToken.get_new_token()
-        print(self.access_token)
-
 
     @property
     def access_token(self):
