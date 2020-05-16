@@ -2,13 +2,14 @@ import os
 import requests
 from requests.auth import HTTPBasicAuth
 from datetime import datetime, timedelta
-from utils import BASE_URL
+from .utils import BASE_URL
 
 
 class ApexSynchronizer(object):
 
     def __init__(self):
         self._token = ApexAccessToken.get_new_token()
+        print(self.token)
 
 
     @property
