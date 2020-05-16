@@ -19,13 +19,15 @@ class ApexSynchronizer(object):
 
 class ApexAccessToken(object):
 
+    PADDING = 10  # token will expire this many seconds before real expiration
+
     def __init__(self, token_reponse):
         as_json = token_reponse.json()
         self.token = as_json['access_token']
 
         expires_in = int(as_json['expire_in'])
-        # subtracting ten seconds to give some leeway
-        self.expiration = datetime.now() + timedelta(seconds=expires_in - 10)
+        # subtracting `PADDING` seconds to give some leeway
+        self.expiration = datetime.now() + timedelta(seconds=expires_in - ApexAccessToken.PADDING)
         
     @staticmethod
     def get_new_token():
