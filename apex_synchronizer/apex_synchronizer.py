@@ -8,15 +8,15 @@ from .utils import BASE_URL
 class ApexSynchronizer(object):
 
     def __init__(self):
-        self._token = ApexAccessToken.get_new_token()
-        print(self.token)
+        self._access_token = ApexAccessToken.get_new_token()
+        print(self.access_token)
 
 
     @property
-    def token(self):
-        if self._token.expiration < datetime.now():
-            self._token = ApexAccessToken.get_new_token()
-        return self._token
+    def access_token(self):
+        if self._access_token.expiration < datetime.now():
+            self._access_token = ApexAccessToken.get_new_token()
+        return self._access_token
 
 
 class ApexAccessToken(object):
