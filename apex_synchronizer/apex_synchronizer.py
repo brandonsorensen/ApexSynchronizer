@@ -52,3 +52,9 @@ class ApexAccessToken(object):
 
         # TODO: Add proper exception handling
         raise Exception('Could not get token')
+
+    def __str__(self):
+        return self.token
+
+    def __repr__(self):
+        return f'ApexAccessToken({self.token})'
