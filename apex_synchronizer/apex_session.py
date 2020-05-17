@@ -2,7 +2,7 @@ import os
 import requests
 from requests.auth import HTTPBasicAuth
 from datetime import datetime, timedelta
-from .util import BASE_URL
+from .utils import BASE_URL
 
 
 class ApexSession(object):

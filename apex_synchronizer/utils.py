@@ -7,5 +7,6 @@ def get_header(token, custom_args: dict = None) -> dict:
         'Accept': 'application/json'
     }
 
-    header.update(custom_args)
+    if custom_args is not None:
+        header.update(custom_args)
     return header
