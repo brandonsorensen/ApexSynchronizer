@@ -16,6 +16,15 @@ class ApexSynchronizer(object):
             self._access_token = ApexAccessToken.get_new_token()
         return self._access_token
 
+    def get_header(self, custom_args: dict = None) -> dict:
+        header = {
+            'Authorization': f'Bearer {token}',
+            'Accept': 'application/json'
+        }
+
+        header.update(custom_args)
+        return header
+
 
 class ApexAccessToken(object):
 
@@ -35,7 +44,7 @@ class ApexAccessToken(object):
             client_id = os.environ['CONSUMER_KEY']
             secret_key = os.environ['SECRET_KEY']
         except KeyError:
-            raise EnvironmentError('`CONSUMER_KEY` or `SECRET_KEY` are not in the environment.')
+            raise EnvironmentError('ClientID or secret key are not in the environment.')
 
         url = BASE_URL + 'token'
         request_json = {
