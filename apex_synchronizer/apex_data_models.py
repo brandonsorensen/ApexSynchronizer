@@ -1,27 +1,42 @@
 import requests
+import json
 from abc import ABC, abstractmethod
 from collections import namedtuple
 from typing import List
+from requests.models import Response
 from .utils import BASE_URL, get_header
 
 
 class ApexDataObject(object):
 
-    @staticmethod
+    @classmethod
     @abstractmethod
-    def get(token, import_id) -> 'ApexDataObject':
+    def get(cls, token, import_id) -> 'ApexDataObject':
+        pass
+
+    @classmethod
+    @abstractmethod
+    def get_all(cls, token) -> List['ApexDataObject']:
+        pass
+
+    @abstractmethod
+    def post_to_apex(self) -> Response:
         pass
 
     @staticmethod
     @abstractmethod
-    def get_all(token) -> List['ApexDataObject']:
+    def post_batch(self) -> Response:
+        pass
+
+    @abstractmethod
+    def put_to_apex(self) -> Reponse:
         pass
 
     def to_dict() -> dict:
         return self.__dict__
 
 
-class Student(object):
+class ApexStudent(object):
 
     role = 'S'
 
@@ -40,13 +55,19 @@ class Student(object):
         self.login_password = login_password
         self.coach_emails = coach_emails
     
-    def get(token, user_id: int) -> 'Student':
+    def get(cls, token, user_id: int) -> 'ApexStudent':
         pass
 
-    def get_all(token) -> List['Student']:
+    def get_all(cls, token) -> List['ApexStudent']:
         url = BASE_URL + 'students'
         r = requests.get(url=url, headers=get_header(token))
         print(r.text)
+
+
+class ApexStaffMember(ApexDataObject):
+
+    def __init__(self):
+        pass
 
 
 class ApexDataObjectException(Exception):
