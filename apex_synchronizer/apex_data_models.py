@@ -19,9 +19,10 @@ class ApexDataObject(ABC):
         pass
 
     @classmethod
-    @abstractmethod
     def get_all(cls, token) -> List['ApexDataObject']:
-        pass
+        print(cls.url)
+        r = requests.get(url=cls.url, headers=get_header(token))
+        print(r.text)
 
     def post_to_apex(self, token) -> Response:
         return self.post_batch(token, [self])
@@ -47,9 +48,10 @@ class ApexDataObject(ABC):
         return {snake_to_camel(key): value for key, value in self.to_dict().items()}
 
 
-class ApexStudent(object):
+class ApexStudent(ApexDataObject):
 
     role = 'S'
+    url = urljoin(BASE_URL, 'students')
 
     def __init__(self, import_user_id: int, import_org_id: int, first_name: str,
                  middle_name: str, last_name: str, email: str, grade_level: int,
@@ -68,11 +70,6 @@ class ApexStudent(object):
     
     def get(cls, token, user_id: int) -> 'ApexStudent':
         pass
-
-    def get_all(cls, token) -> List['ApexStudent']:
-        url = BASE_URL + 'students'
-        r = requests.get(url=url, headers=get_header(token))
-        print(r.text)
 
 
 class ApexStaffMember(ApexDataObject):
@@ -118,11 +115,6 @@ class ApexStaffMember(ApexDataObject):
         r = requests.post(url=ApexStaffMember.url, data=payload, headers=header)
         # TODO: Error handling
         return r
-
-    @classmethod
-    def get_all(cls, token) -> List['ApexStaffMember']:
-        r = requests.get(url=cls.url, headers=get_header(token))
-        print(r.text)
 
     def get_classrooms(token):
         # TODO
