@@ -35,6 +35,11 @@ class ApexDataObject(ABC):
     def put_to_apex(self, token) -> Response:
         pass
 
+    @property
+    @abstractmethod
+    def url(self):
+        pass
+
     def to_dict(self) -> dict:
         return self.__dict__
 
@@ -72,7 +77,7 @@ class ApexStudent(object):
 
 class ApexStaffMember(ApexDataObject):
 
-    staff_url = urljoin(BASE_URL, 'staff')
+    url = urljoin(BASE_URL, 'staff')
     role_set = set(['M', 'T', 'TC', 'SC'])
     """
     m = mentor
@@ -110,20 +115,18 @@ class ApexStaffMember(ApexDataObject):
     def post_batch(token, staff_members):
         header = get_header(token)
         payload = json.dumps({'staffUsers': [mem.to_json() for mem in staff_members]})
-        r = requests.post(url=ApexStaffMember.staff_url, data=payload, headers=header)
+        r = requests.post(url=ApexStaffMember.url, data=payload, headers=header)
         # TODO: Error handling
         return r
 
     @classmethod
     def get_all(cls, token) -> List['ApexStaffMember']:
-        url = BASE_URL + 'staff'
-        r = requests.get(url=url, headers=get_header(token))
+        r = requests.get(url=cls.url, headers=get_header(token))
         print(r.text)
 
     def get_classrooms(token):
         # TODO
         pass
-
 
 
 class ApexDataObjectException(Exception):
