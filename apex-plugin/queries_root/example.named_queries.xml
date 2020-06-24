@@ -1,0 +1,48 @@
+<queries>
+    <query name="com.apex.learning.school.students" coreTable="" flattened="false">
+        <description>Gets students to update Apex Learning environment.</description>
+        <args>
+        </args>
+        <columns>
+			<column column="STUDENTS.ID">STUDENT_ID</column>
+			<column column="STUDENTS.FIRST_NAME">STUDENT_FIRST_NAME</column>
+			<column column="STUDENTS.MIDDLE_NAME">STUDENT_MIDDLE_NAME</column>
+			<column column="STUDENTS.LAST_NAME">STUDENT_LAST_NAME</column>
+			<column column="STUDENTS.WEB_ID">WEB_ID</column>
+			<column column="STUDENTS.WEB_PASSWORD">WEB_PASSWORD</column>
+ 		</columns>
+        <sql>
+			<![CDATA[
+				SELECT students.id,
+				students.First_Name,
+				students.Middle_Name,
+				students.Last_Name,
+				students.Web_ID,
+				students.Web_Password
+				FROM students
+			]]>
+        </sql>
+    </query>
+    <query name="com.apex.learning.school.classrooms" coreTable="" flattened="false">
+        <description>Gets sections to update Apex Learning classrooms.</description>
+        <args>
+        </args>
+        <columns>
+			<column column="SECTIONS.ID">SECTION_ID</column>
+			<column column="SECTIONS.COURSE_NUMBER">COURSE_NUMBER</column>
+			<column column="SECTIONS.GRADE_LEVEL">SECTION_GRADE_LEVEL</column>
+			<column column="SECTIONS.SECTION_NUMBER">SECTION_NUMBER</column>
+			<column column="SECTIONS.TERMID">TERM_ID</column>
+ 		</columns>
+        <sql>
+			<![CDATA[
+				SELECT sections.id,
+				sections.course_number,
+				sections.grade_level,
+				sections.section_number,
+				sections.termid
+				FROM sections 
+			]]>
+        </sql>
+    </query>
+</queries>

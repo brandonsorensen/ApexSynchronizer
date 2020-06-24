@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin xmlns="http://plugin.powerschool.pearson.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://plugin.powerschool.pearson.com plugin.xsd" name="Apex Test Plugin" version="0.16" description="Apex Access Plugin">
+  <oauth/>
+  <publisher name="Brandon">
+    <contact email="sorensen.12@gmail.com"/>
+  </publisher>
+  <access_request>
+    <field table="students" field="grade_level" access="ViewOnly"/>
+    <field table="courses" field="programid" access="ViewOnly"/>
+    <field table="courses" field="dcid" access="ViewOnly"/>
+    <field table="courses" field="status" access="ViewOnly"/>
+    <field table="courses" field="course_number" access="ViewOnly"/>
+    <field table="courses" field="sched_concurrentflag" access="ViewOnly"/>
+    <field table="schools" field="dcid" access="ViewOnly"/>
+    <field table="courses" field="sectionstooffer" access="ViewOnly"/>
+    <field table="courses" field="sched_consecutiveterms" access="ViewOnly"/>
+    <field table="schools" field="id" access="ViewOnly"/>
+    <field table="courses" field="id" access="ViewOnly"/>
+    <field table="schools" field="abbreviation" access="ViewOnly"/>
+    <field table="courses" field="code" access="ViewOnly"/>
+    <field table="students" field="id" access="ViewOnly"/>
+    <field table="courses" field="schoolid" access="ViewOnly"/>
+    <field table="courses" field="course_name" access="ViewOnly"/>
+    <field table="sections" field="SchoolID" access="ViewOnly"/>
+    <field table="sections" field="ID" access="ViewOnly"/>
+    <field table="sections" field="Teacher" access="ViewOnly"/>
+    <field table="sections" field="Course_Number" access="ViewOnly"/>
+    <field table="sections" field="Grade_Level" access="ViewOnly"/>
+    <field table="sections" field="Section_Number" access="ViewOnly"/>
+    <field table="sections" field="TermID" access="ViewOnly"/>
+    <field table="students" field="SchoolID" access="ViewOnly"/>
+    <field table="students" field="First_Name" access="ViewOnly"/>
+    <field table="students" field="Middle_Name" access="ViewOnly"/>
+    <field table="students" field="Last_Name" access="ViewOnly"/>
+    <field table="students" field="Web_ID" access="ViewOnly"/>
+    <field table="students" field="Web_Password" access="ViewOnly"/>
+    <field table="terms" field="FirstDay" access="ViewOnly"/>
+    <field table="terms" field="LastDay" access="ViewOnly"/>
+    <field table="teachers" field="id" access="ViewOnly"/>
+    <field table="teachers" field="First_Name" access="ViewOnly"/>
+    <field table="teachers" field="Middle_Name" access="ViewOnly"/>
+    <field table="teachers" field="Last_Name" access="ViewOnly"/>
+    <field table="teachers" field="Email_Addr" access="ViewOnly"/>
+    <field table="teachers" field="TeacherNumber" access="ViewOnly"/>
+    <field table="teachers" field="TeacherLoginPW" access="ViewOnly"/>
+    <field table="teachers" field="SchoolID" access="ViewOnly"/>
+  </access_request>
+</plugin>
