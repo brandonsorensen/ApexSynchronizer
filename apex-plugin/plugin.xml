@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<plugin xmlns="http://plugin.powerschool.pearson.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://plugin.powerschool.pearson.com plugin.xsd" name="Apex Test Plugin" version="0.33" description="Apex Access Plugin">
+<plugin xmlns="http://plugin.powerschool.pearson.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://plugin.powerschool.pearson.com plugin.xsd" name="Apex Test Plugin" version="0.38" description="Apex Access Plugin">
   <oauth/>
   <publisher name="Brandon">
     <contact email="sorensen.12@gmail.com"/>
   </publisher>
   <access_request>
     <field table="students" field="grade_level" access="ViewOnly"/>
+    <field table="students" field="State_StudentNumber" access="ViewOnly"/>
     <field table="courses" field="programid" access="ViewOnly"/>
     <field table="courses" field="dcid" access="ViewOnly"/>
     <field table="courses" field="status" access="ViewOnly"/>
@@ -33,6 +34,8 @@
     <field table="students" field="Web_Password" access="ViewOnly"/>
     <field table="terms" field="FirstDay" access="ViewOnly"/>
     <field table="terms" field="LastDay" access="ViewOnly"/>
+    <field table="terms" field="id" access="ViewOnly"/>
+    <field table="terms" field="schoolid" access="ViewOnly"/>
     <field table="teachers" field="id" access="ViewOnly"/>
     <field table="teachers" field="First_Name" access="ViewOnly"/>
     <field table="teachers" field="Middle_Name" access="ViewOnly"/>

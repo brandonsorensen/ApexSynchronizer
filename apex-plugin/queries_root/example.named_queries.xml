@@ -10,6 +10,7 @@
 			<column column="STUDENTS.LAST_NAME">STUDENT_LAST_NAME</column>
 			<column column="STUDENTS.WEB_ID">WEB_ID</column>
 			<column column="STUDENTS.WEB_PASSWORD">WEB_PASSWORD</column>
+			<column column="STUDENTS.STATE_STUDENTNUMBER">EDUID</column>
  		</columns>
         <sql>
 			<![CDATA[
@@ -18,9 +19,11 @@
 						students.Middle_Name,
 						students.Last_Name,
 						students.Web_ID,
-						students.Web_Password
+						students.Web_Password,
+						students.State_StudentNumber
 				FROM    students
 				WHERE   students.schoolid in (501, 601, 616)
+				ORDER BY students.id
 			]]>
         </sql>
     </query>
@@ -58,8 +61,8 @@
 					   LEFT JOIN terms 
 							  ON terms.id = s.termid 
 								 AND terms.schoolid = s.schoolid 
-				WHERE  course_name LIKE '%(Apex)'
-					   AND s.schoolid = 616
+				WHERE  s.schoolid = 616
+				ORDER BY sec_id
 			]]>
         </sql>
     </query>
@@ -87,7 +90,7 @@
 					   teacherloginpw
 				FROM   teachers
 				WHERE  teachers.schoolid in (501, 601, 616)
-
+				ORDER BY teachers.id
 			]]>
         </sql>
     </query>
