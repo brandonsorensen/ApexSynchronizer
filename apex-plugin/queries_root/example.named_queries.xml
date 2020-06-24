@@ -13,13 +13,14 @@
  		</columns>
         <sql>
 			<![CDATA[
-				SELECT students.id,
-				students.First_Name,
-				students.Middle_Name,
-				students.Last_Name,
-				students.Web_ID,
-				students.Web_Password
-				FROM students
+				SELECT  students.id,
+						students.First_Name,
+						students.Middle_Name,
+						students.Last_Name,
+						students.Web_ID,
+						students.Web_Password
+				FROM    students
+				WHERE   students.schoolid in (501, 601, 616)
 			]]>
         </sql>
     </query>
@@ -29,19 +30,64 @@
         </args>
         <columns>
 			<column column="SECTIONS.ID">SECTION_ID</column>
-			<column column="SECTIONS.COURSE_NUMBER">COURSE_NUMBER</column>
-			<column column="SECTIONS.GRADE_LEVEL">SECTION_GRADE_LEVEL</column>
+			<column column="SECTIONS.SCHOOLID">SCHOOL_ID</column>
+			<column column="COURSES.COURSE_NAME">COURSE_NAME</column>
 			<column column="SECTIONS.SECTION_NUMBER">SECTION_NUMBER</column>
-			<column column="SECTIONS.TERMID">TERM_ID</column>
+			<column column="TEACHERS.ID">TEACHER_ID</column>
+			<column column="TEACHERS.FIRST_NAME">TEACHER_FIRST_NAME</column>
+			<column column="TEACHERS.MIDDLE_NAME">TEACHER_MIDDLE_NAME</column>
+			<column column="TEACHERS.LAST_NAME">TEACHER_LAST_NAME</column>
+			<column column="TERMS.FIRSTDAY">FIRST_DAY</column>
  		</columns>
         <sql>
 			<![CDATA[
-				SELECT sections.id,
-				sections.course_number,
-				sections.grade_level,
-				sections.section_number,
-				sections.termid
-				FROM sections 
+				SELECT s.id as sec_id, 
+					   s.schoolid,
+					   c.course_name, 
+					   s.section_number, 
+					   t.id as t_id,
+					   t.first_name, 
+					   t.middle_name,
+					   t.last_name, 
+					   terms.firstday 
+				FROM   sections s 
+					   INNER JOIN courses c 
+							   ON c.course_number = s.course_number 
+					   INNER JOIN teachers t 
+							   ON s.teacher = t.id 
+					   LEFT JOIN terms 
+							  ON terms.id = s.termid 
+								 AND terms.schoolid = s.schoolid 
+				WHERE  course_name LIKE '%(Apex)'
+					   AND s.schoolid = 616
+			]]>
+        </sql>
+    </query>
+    <query name="com.apex.learning.school.teachers" coreTable="" flattened="false">
+        <description>Gets sections to update Apex Learning classrooms.</description>
+        <args>
+        </args>
+        <columns>
+			<column column="TEACHERS.ID">TEACHER_ID</column>
+			<column column="TEACHERS.FIRST_NAME">FIRST_NAME</column>
+			<column column="TEACHERS.MIDDLE_NAME">MIDDLE_NAME</column>
+			<column column="TEACHERS.LAST_NAME">LAST_NAME</column>
+			<column column="TEACHERS.EMAIL_ADDR">EMAIL</column>
+			<column column="TEACHERS.TEACHERNUMBER">TEACHER_NUMBER</column>
+			<column column="TEACHERS.TEACHERLOGINPW">LOGIN_PW</column>
+ 		</columns>
+        <sql>
+			<![CDATA[
+				SELECT id,
+					   first_name,
+					   middle_name,
+					   last_name,
+					   email_addr,
+					   teachernumber,
+					   teacherloginpw
+				FROM   teachers
+				WHERE  teachers.schoolid in (501, 601, 616)
+
 			]]>
         </sql>
     </query>

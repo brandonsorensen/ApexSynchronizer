@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<plugin xmlns="http://plugin.powerschool.pearson.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://plugin.powerschool.pearson.com plugin.xsd" name="Apex Test Plugin" version="0.16" description="Apex Access Plugin">
+<plugin xmlns="http://plugin.powerschool.pearson.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://plugin.powerschool.pearson.com plugin.xsd" name="Apex Test Plugin" version="0.33" description="Apex Access Plugin">
   <oauth/>
   <publisher name="Brandon">
     <contact email="sorensen.12@gmail.com"/>
@@ -10,10 +10,7 @@
     <field table="courses" field="dcid" access="ViewOnly"/>
     <field table="courses" field="status" access="ViewOnly"/>
     <field table="courses" field="course_number" access="ViewOnly"/>
-    <field table="courses" field="sched_concurrentflag" access="ViewOnly"/>
-    <field table="schools" field="dcid" access="ViewOnly"/>
     <field table="courses" field="sectionstooffer" access="ViewOnly"/>
-    <field table="courses" field="sched_consecutiveterms" access="ViewOnly"/>
     <field table="schools" field="id" access="ViewOnly"/>
     <field table="courses" field="id" access="ViewOnly"/>
     <field table="schools" field="abbreviation" access="ViewOnly"/>
