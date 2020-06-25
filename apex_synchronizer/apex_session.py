@@ -1,3 +1,4 @@
+import logging
 import os
 import requests
 from requests.auth import HTTPBasicAuth
@@ -9,6 +10,8 @@ class ApexSession(object):
 
     def __init__(self):
         self._access_token = ApexAccessToken.get_new_token()
+        self.logger = logging.getLogger(__name__)
+        self.logger.info('Session opened.')
 
     @property
     def access_token(self):
@@ -50,6 +53,9 @@ class ApexAccessToken(object):
         if r.status_code == 200:
             return cls(r)
 
+        self.logger.debug('New token generated')
+
+        self.logger.error('Token could not be generated')
         # TODO: Add proper exception handling
         raise Exception('Could not get token')
 

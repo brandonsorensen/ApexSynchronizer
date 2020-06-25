@@ -20,7 +20,6 @@ class ApexDataObject(ABC):
 
     @classmethod
     def get_all(cls, token) -> List['ApexDataObject']:
-        print(cls.url)
         r = requests.get(url=cls.url, headers=get_header(token))
         print(r.text)
 
