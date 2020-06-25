@@ -136,8 +136,6 @@ class ApexClassroom(ApexDataObject):
         'teacher_id': 'import_user_id',
         'school_id': 'import_org_id',
         'section_id': 'import_classroom_id',
-        'first_day': 'classroom_start_date',
-        'apex_program_code': 'product_codes'
     }
 
     def __init__(self, import_org_id: int, import_classroom_id: int,
@@ -187,6 +185,7 @@ class ApexClassroom(ApexDataObject):
                 + json_obj['section_number']
 
         kwargs['program_code'] = course2program_code[int(json_obj['school_id'])]
+        kwargs['product_codes'] = [json_obj['apex_program_code']]
 
         return cls(**kwargs)
 
