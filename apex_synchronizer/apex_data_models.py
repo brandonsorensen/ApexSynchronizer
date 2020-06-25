@@ -2,6 +2,8 @@ import requests
 import json
 from abc import ABC, abstractmethod
 from collections import namedtuple
+from datetime import datetime
+from .ps_agent import course2program_code
 from typing import List
 from requests.models import Response
 from urllib.parse import urljoin
@@ -38,6 +40,11 @@ class ApexDataObject(ABC):
     @property
     @abstractmethod
     def url(self):
+        pass
+
+    @classmethod 
+    @abstractmethod 
+    def from_powerschool(cls, ps_json):
         pass
 
     def to_dict(self) -> dict:
@@ -119,6 +126,76 @@ class ApexStaffMember(ApexDataObject):
         # TODO
         pass
 
+
+class ApexClassroom(ApexDataObject):
+
+    url = urljoin(BASE_URL, 'classrooms')
+    role = 'T'
+    ps2apex_field_map = {
+        'first_day': 'classroom_start_date',
+        'teacher_id': 'import_user_id',
+        'school_id': 'import_org_id',
+        'section_id': 'import_classroom_id',
+        'first_day': 'classroom_start_date',
+        'apex_program_code': 'product_codes'
+    }
+
+    def __init__(self, import_org_id: int, import_classroom_id: int,
+                 classroom_name: str, product_codes: [str], import_user_id: int,
+                 classroom_start_date: str, program_code: str):
+        super().__init__(import_user_id)
+        self.import_org_id = import_org_id
+        self.import_classroom_id = import_classroom_id
+        self.classroom_name = classroom_name
+        self.product_codes = product_codes
+        self.classroom_start_date = classroom_start_date
+        self.program_code = program_code
+        # Can either be `datetime` or `str`
+#       if not isinstance(self.classroom_start_date, datetime):
+#           self.classroom_start_date = datetime.strptime(self.classroom_start_date,
+#                                                         '%Y-%m-%d')
+
+    @staticmethod
+    def get(token, user_id):
+        # TODO
+        pass
+
+    @staticmethod
+    def post_batch(token, classrooms):
+        header = get_header(token)
+        payload = json.dumps({'classroomEntries': [c.to_json() for c in classrooms]})
+        url = ApexClassroom.url if len(classrooms) <= 50 else urljoin(self.url, 'batch')
+        r = requests.post(url=url, data=payload, headers=header)
+        # TODO: Error handling
+        return r
+
+    def get_classrooms(token):
+        # TODO
+        pass
+
+    def put_to_apex(self, token) -> Response:
+        pass
+
+    @classmethod
+    def from_powerschool(cls, json_obj):
+        kwargs = {}
+        json_obj = cls._flatten_ps_json(json_obj)
+        for ps_key, apex_key in cls.ps2apex_field_map.items():
+            kwargs[apex_key] = json_obj[ps_key]
+
+        kwargs['classroom_name'] = json_obj['course_name'] + ' - ' \
+                + json_obj['section_number']
+
+        kwargs['program_code'] = course2program_code[int(json_obj['school_id'])]
+
+        return cls(**kwargs)
+
+    @staticmethod
+    def _flatten_ps_json(json_obj):
+        flattened = {}
+        for table in json_obj['tables'].values():
+            flattened.update(table)
+        return flattened
 
 class ApexDataObjectException(Exception):
     
