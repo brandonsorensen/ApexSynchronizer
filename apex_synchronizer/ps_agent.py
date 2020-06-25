@@ -12,5 +12,5 @@ def fetch_classrooms():
             '/ws/schema/query/com.apex.learning.school.classrooms')
 
     r = requests.post(url, headers=header, params=payload)
-    return r.json()
+    return r.json()['record']
 
