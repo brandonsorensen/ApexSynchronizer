@@ -54,14 +54,15 @@
 					   t.last_name, 
 					   terms.firstday 
 				FROM   sections s 
-					   INNER JOIN courses c 
-							   ON c.course_number = s.course_number 
-					   INNER JOIN teachers t 
-							   ON s.teacher = t.id 
+					   LEFT JOIN courses c 
+							  ON c.course_number = s.course_number 
+					   LEFT JOIN teachers t 
+							  ON s.teacher = t.id 
 					   LEFT JOIN terms 
 							  ON terms.id = s.termid 
 								 AND terms.schoolid = s.schoolid 
 				WHERE  s.schoolid = 616
+					   AND c.course_name LIKE '%(APEX)'
 				ORDER BY sec_id
 			]]>
         </sql>
