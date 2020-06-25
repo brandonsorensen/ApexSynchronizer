@@ -41,6 +41,7 @@
 			<column column="TEACHERS.MIDDLE_NAME">TEACHER_MIDDLE_NAME</column>
 			<column column="TEACHERS.LAST_NAME">TEACHER_LAST_NAME</column>
 			<column column="TERMS.FIRSTDAY">FIRST_DAY</column>
+			<column column="SECTIONS.DEPENDENT_SECS">APEX_PROGRAM_CODE</column>
  		</columns>
         <sql>
 			<![CDATA[
@@ -52,7 +53,8 @@
 					   t.first_name, 
 					   t.middle_name,
 					   t.last_name, 
-					   terms.firstday 
+					   terms.firstday ,
+					   s.dependent_secs
 				FROM   sections s 
 					   LEFT JOIN courses c 
 							  ON c.course_number = s.course_number 
