@@ -80,7 +80,7 @@
 			<column column="TEACHERS.LAST_NAME">LAST_NAME</column>
 			<column column="TEACHERS.EMAIL_ADDR">EMAIL</column>
 			<column column="TEACHERS.TEACHERNUMBER">TEACHER_NUMBER</column>
-			<column column="TEACHERS.TEACHERLOGINPW">LOGIN_PW</column>
+			<column column="TEACHERS.SCHOOLID">SCHOOL_ID</column>
  		</columns>
         <sql>
 			<![CDATA[
@@ -90,7 +90,7 @@
 					   last_name,
 					   email_addr,
 					   teachernumber,
-					   teacherloginpw
+					   schoolid
 				FROM   teachers
 				WHERE  teachers.schoolid in (501, 601, 616)
 				ORDER BY teachers.id
