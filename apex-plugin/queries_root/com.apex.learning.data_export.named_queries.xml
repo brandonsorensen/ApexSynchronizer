@@ -5,12 +5,13 @@
         </args>
         <columns>
 			<column column="STUDENTS.ID">STUDENT_ID</column>
-			<column column="STUDENTS.FIRST_NAME">STUDENT_FIRST_NAME</column>
-			<column column="STUDENTS.MIDDLE_NAME">STUDENT_MIDDLE_NAME</column>
-			<column column="STUDENTS.LAST_NAME">STUDENT_LAST_NAME</column>
+			<column column="STUDENTS.FIRST_NAME">FIRST_NAME</column>
+			<column column="STUDENTS.MIDDLE_NAME">MIDDLE_NAME</column>
+			<column column="STUDENTS.LAST_NAME">LAST_NAME</column>
 			<column column="STUDENTS.WEB_ID">WEB_ID</column>
-			<column column="STUDENTS.WEB_PASSWORD">WEB_PASSWORD</column>
 			<column column="STUDENTS.STATE_STUDENTNUMBER">EDUID</column>
+			<column column="STUDENTS.GRADE_LEVEL">GRADE_LEVEL</column>
+			<column column="STUDENTS.SCHOOLID">SCHOOL_ID</column>
  		</columns>
         <sql>
 			<![CDATA[
@@ -19,8 +20,9 @@
 						students.Middle_Name,
 						students.Last_Name,
 						students.Web_ID,
-						students.Web_Password,
-						students.State_StudentNumber
+						students.State_StudentNumber,
+						students.Grade_Level,
+						students.schoolid
 				FROM    students
 				WHERE   students.schoolid in (501, 601, 616)
 				ORDER BY students.id
