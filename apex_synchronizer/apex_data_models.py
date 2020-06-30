@@ -1,12 +1,16 @@
 import requests
 import json
 from abc import ABC, abstractmethod
-from collections import namedtuple
-from .ps_agent import course2program_code
-from typing import List
+from datetime import datetime
+from .ps_agent import course2program_code, fetch_staff
+from typing import List, Union, Tuple
 from requests.models import Response
-from urllib.parse import urljoin
-from .utils import BASE_URL, get_header, snake_to_camel, camel_to_snake
+from urllib.parse import urljoin, urlparse
+from .utils import BASE_URL, get_header, snake_to_camel, camel_to_snake, levenshtein_distance
+
+
+APEX_DATETIME_FORMAT = '%a, %d %b %Y %H:%M:%S %Z'
+PS_DATETIME_FORMAT = '%Y/%m/%d'
 
 
 class ApexDataObject(ABC):
@@ -71,33 +75,71 @@ class ApexDataObject(ABC):
     @property
     @abstractmethod
     def url(self) -> str:
+        """The class's base URL."""
         pass
 
     @property
     @abstractmethod
     def post_heading(self) -> str:
+        """The heading required for a POST call."""
         pass
 
     @property
     @abstractmethod
     def role(self) -> str:
+        """The role of a given class, either T or S"""
         pass
 
     @property
     @abstractmethod
     def ps2apex_field_map(self) -> dict:
+        """
+        A mapping from field names return by PowerSchool queries to their respective
+        Apex JSON fields for each class.
+        """
+        pass
+
+    @classmethod
+    @abstractmethod
+    def from_powerschool(cls, json_obj: dict) -> 'ApexDataObject':
+        """
+        Creates an instance of the class from a JSON object returned from PowerSchool.
+
+        :param json_obj: the PowerSchool JSON object
+        :return: an instance of type cls representing the JSON object
+        """
         pass
 
     @classmethod
     def _init_kwargs_from_ps(cls, json_obj):
+        """
+        A helper method for the `from_powerschool` method. Takes the PowerSchool JSON and
+        transforms it according to `ps2apex_field_map` mappings.
+
+        :param json_obj: the PowerSchool JSON object
+        :return: the same JSON object with transformed keys.
+        """
         kwargs = {}
         json_obj = cls._flatten_ps_json(json_obj)
         for ps_key, apex_key in cls.ps2apex_field_map.items():
             kwargs[apex_key] = json_obj[ps_key]
         return kwargs
 
+    @classmethod
+    def _init_kwargs_from_get(cls, r: Response) -> Tuple[dict, dict]:
+        json_obj = json.loads(r.text)
+        kwargs = {}
+        params = set(cls.ps2apex_field_map.values())
+        for key, value in json_obj.items():
+            snake_key = camel_to_snake(key)
+            if snake_key in params:
+                kwargs[snake_key] = value
+
+        return kwargs, json_obj
+
     @staticmethod
     def _flatten_ps_json(json_obj) -> dict:
+        """Takes the 3D dict returned by PowerSchool and flattens it into 1D."""
         flattened = {}
         for table in json_obj['tables'].values():
             flattened.update(table)
@@ -151,15 +193,8 @@ class ApexStudent(ApexDataObject):
         # TODO: Add graduation year?
 
     @classmethod
-    def _parse_get_response(cls, r):
-        json_obj = json.loads(r.text)
-        kwargs = {}
-        params = set(cls.ps2apex_field_map.values())
-        for key, value in json_obj.items():
-            snake_key = camel_to_snake(key)
-            if snake_key in params:
-                kwargs[snake_key] = value
-
+    def _parse_get_response(cls, r: Response):
+        kwargs, json_obj = cls._init_kwargs_from_get(r)
         # Just returns the first organization in the list
         # Students should only be assigned to a single org
         kwargs['import_org_id'] = json_obj['Organizations'][0]['ImportOrgId']
@@ -171,12 +206,11 @@ class ApexStudent(ApexDataObject):
         url = urljoin(self.url + '/', self.import_user_id)
         payload = self.to_json()
         del payload['ImportUserId']  # Given in the URL
-        print(payload)
         r = requests.put(url=url, headers=header, data=payload)
         return r
 
     @classmethod
-    def from_powerschool(cls, json_obj):
+    def from_powerschool(cls, json_obj: dict) -> 'ApexStudent':
         kwargs = cls._init_kwargs_from_ps(json_obj=json_obj)
         if kwargs['import_user_id'] is None:
             kwargs['import_user_id'] = '10'
@@ -184,11 +218,29 @@ class ApexStudent(ApexDataObject):
 
         return cls(**kwargs)
 
-    def get_enrollments(self):
+    def get_enrollments(self, token) -> List['ApexClassroom']:
+        header = get_header(token)
+        r = requests.get(url=self.classroom_url, headers=header)
+        print(r.text)
+
+    def transfer(self, token, old_classroom_id, new_classroom_id, new_org_id=None) -> Response:
+        header = get_header(token)
+        url = urljoin(self.classroom_url + '/', old_classroom_id)
+        params = {'newClassroomID': new_classroom_id}
+        if new_org_id is not None:
+            params['toOrgId'] = new_org_id
+
+        r = requests.put(url=url, headers=header, params=params)
+        return r
+
+    def enroll(self, token, classroom_id) -> Response:
         pass
 
-    def transfer(self, new_classroom_id):
-        pass
+    @property
+    def classroom_url(self) -> str:
+        url = urljoin(self.url + '/', self.import_user_id)
+        url = urljoin(url + '/', 'classrooms')
+        return url
 
 
 class ApexStaffMember(ApexDataObject):
@@ -225,13 +277,13 @@ class ApexStaffMember(ApexDataObject):
         self.login_pw = login_password
 
     @classmethod
-    def from_powerschool(cls, json_obj):
+    def from_powerschool(cls, json_obj) -> 'ApexStaffMember':
         kwargs = cls._init_kwargs_from_ps(json_obj=json_obj)
         kwargs['login_password'] = 'default_password'
 
         return cls(**kwargs)
 
-    def get_with_orgs(self, token) -> List['ApexClassroom']:
+    def get_with_orgs(self, token) -> List['ApexStaffMember']:
         """
         Exactly the same as the `get` method with the difference that if a staff member belongs to multiple
         organizations, this method will return a new `ApexStaffMember` object for each organization.
@@ -246,7 +298,7 @@ class ApexStaffMember(ApexDataObject):
         pass
 
     @classmethod
-    def _parse_get_response(cls, r) -> 'ApexClassroom':
+    def _parse_get_response(cls, r) -> 'ApexStaffMember':
         print(r.text)
 
     def get_classrooms(self, token) -> List['ApexClassroom']:
@@ -274,8 +326,8 @@ class ApexClassroom(ApexDataObject):
     }
     post_heading = 'classroomEntries'
 
-    def __init__(self, import_org_id: int, import_classroom_id: int,
-                 classroom_name: str, product_codes: [str], import_user_id: int,
+    def __init__(self, import_org_id: str, import_classroom_id: str,
+                 classroom_name: str, product_codes: [str], import_user_id: str,
                  classroom_start_date: str, program_code: str):
         super().__init__(import_user_id, import_org_id)
         self.import_classroom_id = import_classroom_id
@@ -285,7 +337,7 @@ class ApexClassroom(ApexDataObject):
         self.program_code = program_code
 
     @classmethod
-    def from_powerschool(cls, json_obj):
+    def from_powerschool(cls, json_obj: dict) -> 'ApexClassroom':
         kwargs = cls._init_kwargs_from_ps(json_obj)
         kwargs['classroom_name'] = kwargs['course_name'] + ' - ' + kwargs['section_number']
         del kwargs['course_name']
@@ -296,12 +348,69 @@ class ApexClassroom(ApexDataObject):
 
         return cls(**kwargs)
 
-    def put_to_apex(self, token) -> Response:
+    def put_to_apex(self, token: str) -> Response:
         pass
 
     @classmethod
-    def _parse_get_response(cls, r) -> 'ApexClassroom':
-        pass
+    def _parse_get_response(cls, r: Response) -> 'ApexClassroom':
+        kwargs, json_obj = cls._init_kwargs_from_get(r)
+
+        kwargs['program_code'] = course2program_code[int(kwargs['import_org_id'])]
+        kwargs['classroom_name'] = json_obj['ClassroomName']
+        date = datetime.strptime(kwargs['classroom_start_date'], APEX_DATETIME_FORMAT)
+        kwargs['classroom_start_date'] = date.strftime(PS_DATETIME_FORMAT)
+        teacher = teacher_fuzzy_match(json_obj['PrimaryTeacher'])
+        kwargs['import_user_id'] = teacher.import_user_id
+
+        return cls(**kwargs)
+
+    def enroll(self, token: str,
+               objs: Union[List['ApexDataObject'], 'ApexDataObject']) -> Response:
+        if issubclass(type(objs), ApexDataObject):
+            dtype = type(objs)
+            objs = [objs]
+        else:
+            # Assuming that a non-empty list of objects is passed.
+            assert len(objs) > 0
+            dtype = type(objs[0])
+
+        header = get_header(token)
+        url = urljoin(self.url + '/', self.import_classroom_id)
+        # Get the final component in the object's url
+        obj_type_component = urlparse(dtype.url).path.rsplit("/", 1)[-1]
+        url = urljoin(url + '/', obj_type_component)
+
+        payload = {dtype.post_heading: []}
+        for apex_obj in objs:
+            payload_entry = {
+                'ImportUserId': apex_obj.import_user_id,
+                'ImportOrgId': apex_obj.import_org_id
+            }
+            payload[dtype.post_heading].append(payload_entry)
+
+        payload = json.dumps(payload)
+        return requests.post(url=url, headers=header, data=payload)
+
+
+def teacher_fuzzy_match(t1: str):
+    teachers = [ApexStaffMember.from_powerschool(t) for t in fetch_staff()]
+    assert len(teachers) > 0
+
+    min_distance = float('inf')
+    argmax = 0
+    t1 = t1.lower()
+
+    for i, t2 in enumerate(teachers):
+        t2_name = t2.first_name + ' ' + t2.last_name
+        if abs(len(t1) - len(t2_name)) >= 5 and min_distance != float('inf'):
+            # Difference in length of 5 is too large for this context
+            continue
+        distance = levenshtein_distance(t1, t2_name.lower())
+        if distance < min_distance:
+            min_distance = distance
+            argmax = i
+
+    return teachers[argmax]
 
 
 class ApexDataObjectException(Exception):
