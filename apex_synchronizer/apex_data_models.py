@@ -127,6 +127,15 @@ class ApexDataObject(ABC):
 
     @classmethod
     def _init_kwargs_from_get(cls, r: Response) -> Tuple[dict, dict]:
+        """
+        Helper method for the `get` method. Converts the keys from a GET
+        response JSON object into the proper style for initializing
+        ApexDataObject objects.
+
+        :param r: the response of a GET call
+        :return: a Tuple of the converted mappings and the original JSON
+            response
+        """
         json_obj = json.loads(r.text)
         kwargs = {}
         params = set(cls.ps2apex_field_map.values())
@@ -218,12 +227,20 @@ class ApexStudent(ApexDataObject):
 
         return cls(**kwargs)
 
-    def get_enrollments(self, token) -> List['ApexClassroom']:
+    def get_enrollments(self, token: str) -> List['ApexClassroom']:
+        """
+        Gets all classes in which this :class:`ApexStudent` is enrolled.
+
+        :param token: an Apex access token
+        :return: a list of ApexClassroom objects
+        """
+        # TODO
         header = get_header(token)
         r = requests.get(url=self.classroom_url, headers=header)
         print(r.text)
 
-    def transfer(self, token, old_classroom_id, new_classroom_id, new_org_id=None) -> Response:
+    def transfer(self, token: str, old_classroom_id: str,
+                 new_classroom_id: str, new_org_id: str = None) -> Response:
         header = get_header(token)
         url = urljoin(self.classroom_url + '/', old_classroom_id)
         params = {'newClassroomID': new_classroom_id}
@@ -233,8 +250,16 @@ class ApexStudent(ApexDataObject):
         r = requests.put(url=url, headers=header, params=params)
         return r
 
-    def enroll(self, token, classroom_id) -> Response:
-        pass
+    def enroll(self, token: str, classroom_id: str) -> Response:
+        """
+        Enrolls this :class:`ApexStudent` object into the class indexed by `classroom_id`.
+
+        :param token: an Apex access token
+        :param classroom_id: the ID of the relevant classroom
+        :return: the response of the PUT call
+        """
+        classroom = ApexClassroom.get(token, classroom_id)
+        return classroom.enroll(token, self)
 
     @property
     def classroom_url(self) -> str:
@@ -365,7 +390,7 @@ class ApexClassroom(ApexDataObject):
         return cls(**kwargs)
 
     def enroll(self, token: str,
-               objs: Union[List['ApexDataObject'], 'ApexDataObject']) -> Response:
+               objs: Union[List[ApexDataObject], ApexDataObject]) -> Response:
         if issubclass(type(objs), ApexDataObject):
             dtype = type(objs)
             objs = [objs]
@@ -392,7 +417,7 @@ class ApexClassroom(ApexDataObject):
         return requests.post(url=url, headers=header, data=payload)
 
 
-def teacher_fuzzy_match(t1: str):
+def teacher_fuzzy_match(t1: str) -> ApexStaffMember:
     teachers = [ApexStaffMember.from_powerschool(t) for t in fetch_staff()]
     assert len(teachers) > 0
 
