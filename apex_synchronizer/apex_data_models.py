@@ -418,6 +418,20 @@ class ApexClassroom(ApexDataObject):
 
 
 def teacher_fuzzy_match(t1: str) -> ApexStaffMember:
+    """
+    Takes the forename and surname of a teacher in the form of a single string and
+    fuzzy matches (case-insensitive) across all teachers from the PowerSchool database.
+    Returns the matched teacher as an :class:`ApexStaffMember` object.
+
+    Given that all teachers passed to this helper function should appear in the database,
+    any teacher name that differs by more than five characters in length from `t1` is
+    passed over unless it is the first one in the list. This concession was made to
+    boost performance.
+
+    :param t1: teacher name in the format of "Forename Surname"
+    :return: the closest match as measured by Levenshtein distance
+    :rtype: ApexStaffMember
+    """
     teachers = [ApexStaffMember.from_powerschool(t) for t in fetch_staff()]
     assert len(teachers) > 0
 

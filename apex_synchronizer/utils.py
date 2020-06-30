@@ -1,5 +1,4 @@
 import re
-from typing import Iterable, Sequence
 
 
 BASE_URL = 'https://api.apexvs.com/'
@@ -29,13 +28,13 @@ def camel_to_snake(var: str) -> str:
 
 def levenshtein_distance(s, t):
     """
-        iterative_levenshtein(s, t) -> ldist
-        ldist is the Levenshtein distance between the strings
-        s and t.
-        For all i and j, dist[i,j] will contain the Levenshtein
-        distance between the first i characters of s and the
-        first j characters of t
-        Credit: https://www.python-course.eu/levenshtein_distance.php
+    iterative_levenshtein(s, t) -> ldist
+    ldist is the Levenshtein distance between the strings
+    s and t.
+    For all i and j, dist[i,j] will contain the Levenshtein
+    distance between the first i characters of s and the
+    first j characters of t
+    Credit: https://www.python-course.eu/levenshtein_distance.php
     """
 
     rows = len(s) + 1
