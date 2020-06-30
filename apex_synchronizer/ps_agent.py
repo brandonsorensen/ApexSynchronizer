@@ -5,11 +5,22 @@ from .utils import get_header
 
 
 def fetch_classrooms():
+    return _fetch_powerquery('/ws/schema/query/com.apex.learning.school.classrooms')
+
+
+def fetch_staff():
+    return _fetch_powerquery('/ws/schema/query/com.apex.learning.school.teachers')
+
+
+def fetch_students():
+    return _fetch_powerquery('/ws/schema/query/com.apex.learning.school.students')
+
+
+def _fetch_powerquery(url, page_size=0):
     token = get_ps_token()
     header = get_header(token, custom_args={'Content-Type': 'application/json'})
-    payload = {'pagesize': 0}
-    url = urljoin(os.environ['PS_URL'],
-            '/ws/schema/query/com.apex.learning.school.classrooms')
+    payload = {'pagesize': page_size}
+    url = urljoin(os.environ['PS_URL'], url)
 
     r = requests.post(url, headers=header, params=payload)
     return r.json()['record']
