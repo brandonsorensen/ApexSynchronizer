@@ -4,19 +4,19 @@ from urllib.parse import urljoin
 from .utils import get_header
 
 
-def fetch_classrooms():
+def fetch_classrooms() -> dict:
     return _fetch_powerquery('/ws/schema/query/com.apex.learning.school.classrooms')
 
 
-def fetch_staff():
+def fetch_staff() -> dict:
     return _fetch_powerquery('/ws/schema/query/com.apex.learning.school.teachers')
 
 
-def fetch_students():
+def fetch_students() -> dict:
     return _fetch_powerquery('/ws/schema/query/com.apex.learning.school.students')
 
 
-def _fetch_powerquery(url, page_size=0):
+def _fetch_powerquery(url, page_size=0) -> dict:
     token = get_ps_token()
     header = get_header(token, custom_args={'Content-Type': 'application/json'})
     payload = {'pagesize': page_size}
@@ -26,7 +26,7 @@ def _fetch_powerquery(url, page_size=0):
     return r.json()['record']
 
 
-def get_ps_token():
+def get_ps_token() -> str:
     header = {
         'Content-Type': "application/x-www-form-urlencoded;charset=UTF-8'"
     }
