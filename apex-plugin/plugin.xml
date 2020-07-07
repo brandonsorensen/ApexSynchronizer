@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<plugin xmlns="http://plugin.powerschool.pearson.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://plugin.powerschool.pearson.com plugin.xsd" name="Apex Test Plugin" version="0.92" description="Apex Access Plugin">
+<plugin xmlns="http://plugin.powerschool.pearson.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://plugin.powerschool.pearson.com plugin.xsd" name="Apex Test Plugin" version="0.93" description="Apex Access Plugin">
   <oauth/>
   <publisher name="Brandon">
     <contact email="sorensen.12@gmail.com"/>
   </publisher>
   <access_request>
+    <field table="cc" field="section_number" access="ViewOnly"/>
+    <field table="cc" field="studentid" access="ViewOnly"/>
+    <field table="cc" field="termid" access="ViewOnly"/>
     <field table="courses" field="programid" access="ViewOnly"/>
     <field table="courses" field="dcid" access="ViewOnly"/>
     <field table="courses" field="status" access="ViewOnly"/>

@@ -99,4 +99,28 @@
 			]]>
         </sql>
     </query>
+    <query name="com.apex.learning.school.enrollment" coreTable="" flattened="false">
+        <description>Gets sections to update Apex Learning classrooms.</description>
+        <args>
+        </args>
+        <columns>
+			<column column="STUDENTS.STATE_STUDENTNUMBER">EDUID</column>
+			<column column="CC.SECTION_NUMBER">SECTION_NUMBER</column>
+			<column column="TERMS.ID">TERM_ID</column>
+ 		</columns>
+        <sql>
+			<![CDATA[
+				SELECT students.State_StudentNumber,
+					   cc.section_number,
+					   terms.id
+				FROM   cc
+					   INNER JOIN students
+							   ON cc.studentid = students.id
+					   INNER JOIN terms
+							   ON cc.termid = terms.id
+				WHERE  Year(Str_to_date(terms.firstday, '%m/%d/%y')) >= Year(Curdate()) - 2
+				ORDER  BY students.id
+			]]>
+        </sql>
+    </query>
 </queries>
