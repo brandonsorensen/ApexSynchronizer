@@ -1,16 +1,20 @@
 import requests
 import json
+import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
-from .ps_agent import course2program_code, fetch_staff
+from .ps_agent import course2program_code, fetch_staff, fetch_classrooms
 from typing import List, Union, Tuple
 from requests.models import Response
 from urllib.parse import urljoin, urlparse
-from .utils import BASE_URL, get_header, snake_to_camel, camel_to_snake, levenshtein_distance
+from .utils import (BASE_URL, get_header, snake_to_camel,
+                    camel_to_snake, levenshtein_distance,
+                    flatten_ps_json)
 
 
 APEX_DATETIME_FORMAT = '%a, %d %b %Y %H:%M:%S %Z'
 PS_DATETIME_FORMAT = '%Y/%m/%d'
+logger = logging.getLogger(__name__)
 
 
 class ApexDataObject(ABC):
@@ -21,7 +25,14 @@ class ApexDataObject(ABC):
 
     @classmethod
     def get(cls, token, import_id) -> 'ApexDataObject':
-        r = cls._get_response(token, import_id)
+        try:
+            r = cls._get_response(token, import_id)
+            r.raise_for_status()
+        except requests.exceptions.HTTPError:
+            raise ApexObjectNotFoundException(import_id)
+        except requests.exceptions.ConnectionError:
+            raise ApexConnectionException()
+
         return cls._parse_get_response(r)
 
     @classmethod
@@ -44,7 +55,18 @@ class ApexDataObject(ABC):
         r = requests.get(url=cls.url, headers=get_header(token))
         json_objs = json.loads(r.text)
 
-        return [cls.get(token, obj['ImportUserId']) for obj in json_objs]
+        ret_val = []
+
+        for obj in json_objs:
+            try:
+                apex_obj = cls.get(token, obj['ImportUserId'])
+                ret_val.append(apex_obj)
+            except ApexObjectNotFoundException:
+                error_msg = f'Could not retrieve object of type {cls.__name__} \
+                            bearing ImportID {obj["ImportUserID"]}. Skipping object'
+                logger.info(error_msg)
+
+        return ret_val
 
     def post_to_apex(self, token) -> Response:
         return self.post_batch(token, [self])
@@ -120,7 +142,7 @@ class ApexDataObject(ABC):
         :return: the same JSON object with transformed keys.
         """
         kwargs = {}
-        json_obj = cls._flatten_ps_json(json_obj)
+        json_obj = flatten_ps_json(json_obj)
         for ps_key, apex_key in cls.ps2apex_field_map.items():
             kwargs[apex_key] = json_obj[ps_key]
         return kwargs
@@ -145,14 +167,6 @@ class ApexDataObject(ABC):
                 kwargs[snake_key] = value
 
         return kwargs, json_obj
-
-    @staticmethod
-    def _flatten_ps_json(json_obj) -> dict:
-        """Takes the 3D dict returned by PowerSchool and flattens it into 1D."""
-        flattened = {}
-        for table in json_obj['tables'].values():
-            flattened.update(table)
-        return flattened
 
     def to_dict(self) -> dict:
         return self.__dict__
@@ -389,6 +403,33 @@ class ApexClassroom(ApexDataObject):
 
         return cls(**kwargs)
 
+    @classmethod
+    def get_all(cls, token) -> List['ApexClassroom']:
+        """
+        Get all classrooms. Must be overloaded because Apex does not support a global
+        GET request for classrooms in the same. Loops through all PowerSchool classrooms
+        and keeps the ones that exist.
+
+        :param token: Apex access token
+        :return:
+        """
+        ps_classrooms = map(flatten_ps_json, fetch_classrooms())
+
+        ret_val = []
+
+        for section in ps_classrooms:
+            try:
+                apex_obj = cls.get(token, section['section_id'])
+                ret_val.append(apex_obj)
+            except KeyError:
+                raise ApexMalformedJsonException(section)
+            except ApexObjectNotFoundException:
+                error_msg = (f'PowerSchool section indexed by {section["section_id"]}'
+                             'could not be found in Apex. Skipping classroom.')
+                logger.debug(error_msg)
+
+        return ret_val
+
     def enroll(self, token: str,
                objs: Union[List[ApexDataObject], ApexDataObject]) -> Response:
         if issubclass(type(objs), ApexDataObject):
@@ -452,13 +493,43 @@ def teacher_fuzzy_match(t1: str) -> ApexStaffMember:
     return teachers[argmax]
 
 
-class ApexDataObjectException(Exception):
+class ApexError(Exception):
+
+    def __str__(self):
+        return 'There was an error when interfacing with the Apex API.'
+
+
+class ApexConnectionException(ApexError):
+
+    def __str__(self):
+        return 'The Apex API endpoint could not be reached.'
+
+
+class ApexDataObjectException(ApexError):
 
     def __init__(self, obj):
         self.object = obj
 
     def __str__(self):
         return f'Object of type {type(self.object)} could not be retrieved.'
+
+
+class ApexObjectNotFoundException(ApexError):
+
+    def __init__(self, import_id):
+        self.import_id = import_id
+
+    def __str__(self):
+        return f'Object bearing ImportId {self.import_id} could not be retrieved.'
+
+
+class ApexMalformedJsonException(ApexError):
+
+    def __init__(self, obj):
+        self.obj = obj
+
+    def __str__(self):
+        return 'Received bad JSON response: ' + str(self.obj)
 
 
 class NoUserIdException(ApexDataObjectException):
