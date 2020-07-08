@@ -74,6 +74,8 @@
     <query name="com.apex.learning.school.teachers" coreTable="" flattened="false">
         <description>Gets sections to update Apex Learning classrooms.</description>
         <args>
+			<arg name="min_term" required="true" description="Minimum term ID"
+				 type="primitive" default="2900" column="terms.id"/>
         </args>
         <columns>
 			<column column="TEACHERS.ID">TEACHER_ID</column>
@@ -106,20 +108,25 @@
         <columns>
 			<column column="STUDENTS.STATE_STUDENTNUMBER">EDUID</column>
 			<column column="CC.SECTION_NUMBER">SECTION_NUMBER</column>
+			<column column="CC.SECTIONID">SECTION_ID</column>
 			<column column="TERMS.ID">TERM_ID</column>
  		</columns>
         <sql>
 			<![CDATA[
 				SELECT students.State_StudentNumber,
 					   cc.section_number,
+					   cc.sectionid,
 					   terms.id
 				FROM   cc
 					   INNER JOIN students
 							   ON cc.studentid = students.id
-					   INNER JOIN terms
-							   ON cc.termid = terms.id
-				WHERE  Year(Str_to_date(terms.firstday, '%m/%d/%y')) >= Year(Curdate()) - 2
-				ORDER  BY students.id
+					   INNER JOIN terms ON (
+							   terms.schoolid = cc.schoolid
+							   AND cc.termid = terms.id
+				       )
+				WHERE  cc.schoolid = 616
+					   AND terms.yearid > 28
+				ORDER  BY students.State_StudentNumber
 			]]>
         </sql>
     </query>
