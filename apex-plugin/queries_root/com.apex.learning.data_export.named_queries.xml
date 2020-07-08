@@ -121,11 +121,11 @@
 					   INNER JOIN students
 							   ON cc.studentid = students.id
 					   INNER JOIN terms ON (
-							   terms.schoolid = cc.schoolid
-							   AND cc.termid = terms.id
+							   cc.schoolid = 616
+							   AND ABS(cc.termid) = terms.id
+							   AND terms.yearid > 28
 				       )
 				WHERE  cc.schoolid = 616
-					   AND terms.yearid > 28
 				ORDER  BY students.State_StudentNumber
 			]]>
         </sql>
