@@ -121,8 +121,8 @@
 					   INNER JOIN students
 							   ON cc.studentid = students.id
 				WHERE  cc.schoolid = 616
-				GROUP  BY eduid, cc.section_number, cc.sectionid, termid
-				ORDER  BY eduid
+				GROUP  BY students.State_StudentNumber, cc.section_number, cc.sectionid, cc.termid
+				ORDER  BY students.State_StudentNumber 
 			]]>
         </sql>
     </query>
