@@ -123,7 +123,6 @@
 					   INNER JOIN terms ON (
 							   cc.schoolid = 616
 							   AND ABS(cc.termid) = terms.id
-							   AND terms.yearid > 28
 				       )
 				WHERE  cc.schoolid = 616
 				ORDER  BY students.State_StudentNumber
