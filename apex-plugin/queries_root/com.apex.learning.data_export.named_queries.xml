@@ -108,12 +108,11 @@
         <columns>
 			<column column="STUDENTS.STATE_STUDENTNUMBER">EDUID</column>
 			<column column="CC.SECTIONID">SECTION_ID</column>
-			<column column="CC.TERMID">TERM_ID</column>
  		</columns>
         <sql>
 			<![CDATA[
 				SELECT students.State_StudentNumber,
-					   cc.sectionid,
+					   cc.sectionid
 				FROM   cc
 					   INNER JOIN students
 							   ON cc.studentid = students.id
