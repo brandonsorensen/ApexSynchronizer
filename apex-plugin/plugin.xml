@@ -1,21 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<plugin xmlns="http://plugin.powerschool.pearson.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://plugin.powerschool.pearson.com plugin.xsd" name="Apex Test Plugin" version="0.965" description="Apex Access Plugin">
+<plugin xmlns="http://plugin.powerschool.pearson.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://plugin.powerschool.pearson.com plugin.xsd" name="Apex Test Plugin" version="0.970" description="Apex Access Plugin">
   <oauth/>
   <publisher name="Brandon">
     <contact email="sorensen.12@gmail.com"/>
   </publisher>
   <access_request>
     <field table="cc" field="section_number" access="ViewOnly"/>
+    <field table="cc" field="sectionid" access="ViewOnly"/>
     <field table="cc" field="studentid" access="ViewOnly"/>
     <field table="cc" field="termid" access="ViewOnly"/>
     <field table="cc" field="schoolid" access="ViewOnly"/>
-    <field table="courses" field="programid" access="ViewOnly"/>
-    <field table="courses" field="dcid" access="ViewOnly"/>
-    <field table="courses" field="status" access="ViewOnly"/>
     <field table="courses" field="course_number" access="ViewOnly"/>
-    <field table="courses" field="sectionstooffer" access="ViewOnly"/>
     <field table="courses" field="id" access="ViewOnly"/>
-    <field table="courses" field="code" access="ViewOnly"/>
     <field table="courses" field="schoolid" access="ViewOnly"/>
     <field table="courses" field="course_name" access="ViewOnly"/>
     <field table="schools" field="abbreviation" access="ViewOnly"/>
@@ -24,7 +20,6 @@
     <field table="sections" field="ID" access="ViewOnly"/>
     <field table="sections" field="Teacher" access="ViewOnly"/>
     <field table="sections" field="Course_Number" access="ViewOnly"/>
-    <field table="sections" field="Grade_Level" access="ViewOnly"/>
     <field table="sections" field="Section_Number" access="ViewOnly"/>
     <field table="sections" field="TermID" access="ViewOnly"/>
     <field table="sections" field="Dependent_Secs" access="ViewOnly"/>
