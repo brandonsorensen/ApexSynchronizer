@@ -109,23 +109,19 @@
 			<column column="STUDENTS.STATE_STUDENTNUMBER">EDUID</column>
 			<column column="CC.SECTION_NUMBER">SECTION_NUMBER</column>
 			<column column="CC.SECTIONID">SECTION_ID</column>
-			<column column="TERMS.ID">TERM_ID</column>
+			<column column="CC.TERMID">TERM_ID</column>
  		</columns>
         <sql>
 			<![CDATA[
 				SELECT students.State_StudentNumber as eduid,
 					   cc.section_number,
 					   cc.sectionid,
-					   terms.id
+					   cc.termid as termid
 				FROM   cc
 					   INNER JOIN students
 							   ON cc.studentid = students.id
-					   INNER JOIN terms ON (
-							   cc.schoolid = terms.schoolid
-							   AND ABS(cc.termid) = terms.id
-				       )
 				WHERE  cc.schoolid = 616
-				GROUP  BY eduid, cc.section_number, cc.sectionid, terms.id
+				GROUP  BY eduid, cc.section_number, cc.sectionid, termid
 				ORDER  BY eduid
 			]]>
         </sql>
