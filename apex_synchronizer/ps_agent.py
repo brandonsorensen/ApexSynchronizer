@@ -1,7 +1,29 @@
 import os
 import requests
+from collections import defaultdict
 from urllib.parse import urljoin
-from .utils import get_header
+from .utils import get_header, flatten_ps_json
+
+
+class PSEnrollment(object):
+
+    def __init__(self, ps_json):
+        json_obj = flatten_ps_json(ps_json)
+        self._parse_json(json_obj)
+
+    def get_classrooms(self, eduid):
+        return self.student2classrooms[eduid]
+
+    def get_roster(self, section_id):
+        return self.classroom2students[section_id]
+
+    def _parse_json(self, json_obj):
+        self.student2classrooms = defaultdict(set)
+        self.classroom2students = defaultdict(set)
+
+        for sec_id, eduid in json_obj:
+            self.student2classrooms[eduid].add(sec_id)
+            self.classroom2students[sec_id].add(eduid)
 
 
 def fetch_classrooms() -> dict:
