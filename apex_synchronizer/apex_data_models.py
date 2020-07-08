@@ -413,20 +413,24 @@ class ApexClassroom(ApexDataObject):
         :param token: Apex access token
         :return:
         """
-        ps_classrooms = map(flatten_ps_json, fetch_classrooms())
-
+        ps_classrooms = fetch_classrooms()
+        n_classrooms = len(ps_classrooms)
+        logging.info(f'Successfully retrieved {n_classrooms} sections from PowerSchool.')
         ret_val = []
 
-        for section in ps_classrooms:
+        for i, section in enumerate(map(flatten_ps_json, ps_classrooms)):
+            progress = f'section {i}/{n_classrooms}'
             try:
-                apex_obj = cls.get(token, section['section_id'])
+                section_id = section['section_id']
+                apex_obj = cls.get(token, section_id)
                 ret_val.append(apex_obj)
+                logger.info(f'{progress}:Created ApexClassroom for SectionID {section_id}')
             except KeyError:
                 raise ApexMalformedJsonException(section)
             except ApexObjectNotFoundException:
-                error_msg = (f'PowerSchool section indexed by {section["section_id"]}'
-                             'could not be found in Apex. Skipping classroom.')
-                logger.debug(error_msg)
+                msg = (f'{progress}:PowerSchool section indexed by {section["section_id"]}'
+                       ' could not be found in Apex. Skipping classroom.')
+                logger.info(msg)
 
         return ret_val
 
