@@ -113,7 +113,7 @@
  		</columns>
         <sql>
 			<![CDATA[
-				SELECT students.State_StudentNumber,
+				SELECT students.State_StudentNumber as eduid,
 					   cc.section_number,
 					   cc.sectionid,
 					   terms.id
@@ -121,11 +121,12 @@
 					   INNER JOIN students
 							   ON cc.studentid = students.id
 					   INNER JOIN terms ON (
-							   cc.schoolid = 616
+							   cc.schoolid = terms.schoolid
 							   AND ABS(cc.termid) = terms.id
 				       )
 				WHERE  cc.schoolid = 616
-				ORDER  BY students.State_StudentNumber
+				GROUP  BY eduid, cc.section_number, cc.sectionid, terms.id
+				ORDER  BY eduid
 			]]>
         </sql>
     </query>
