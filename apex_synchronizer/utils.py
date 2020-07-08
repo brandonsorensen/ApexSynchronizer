@@ -62,3 +62,11 @@ def levenshtein_distance(s, t):
                                  dist[row - 1][col - 1] + cost)  # substitution
 
     return dist[row][col]
+
+
+def flatten_ps_json(json_obj) -> dict:
+    """Takes the 3D dict returned by PowerSchool and flattens it into 1D."""
+    flattened = {}
+    for table in json_obj['tables'].values():
+        flattened.update(table)
+    return flattened

@@ -5,9 +5,15 @@ from urllib.parse import urljoin
 from .utils import get_header, flatten_ps_json
 
 
+BASE_QUERY_URL = '/ws/schema/query/com.apex.learning.school.'
+
+
 class PSEnrollment(object):
 
-    def __init__(self, ps_json):
+    def __init__(self, ps_json=None):
+        if ps_json is None:
+            ps_json = fetch_enrollment()
+
         json_obj = flatten_ps_json(ps_json)
         self._parse_json(json_obj)
 
@@ -27,15 +33,19 @@ class PSEnrollment(object):
 
 
 def fetch_classrooms() -> dict:
-    return _fetch_powerquery('/ws/schema/query/com.apex.learning.school.classrooms')
+    return _fetch_powerquery(BASE_QUERY_URL + 'classrooms')
 
 
 def fetch_staff() -> dict:
-    return _fetch_powerquery('/ws/schema/query/com.apex.learning.school.teachers')
+    return _fetch_powerquery(BASE_QUERY_URL + 'teachers')
 
 
 def fetch_students() -> dict:
-    return _fetch_powerquery('/ws/schema/query/com.apex.learning.school.students')
+    return _fetch_powerquery(BASE_QUERY_URL + 'students')
+
+
+def fetch_enrollment() -> dict:
+    return _fetch_powerquery(BASE_QUERY_URL + 'enrollment')
 
 
 def _fetch_powerquery(url, page_size=0) -> dict:
