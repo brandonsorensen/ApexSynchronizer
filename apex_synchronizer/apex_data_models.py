@@ -264,7 +264,6 @@ class ApexStudent(ApexDataObject):
 
         return ret_val
 
-
     def get_enrollment_ids(self, token: str) -> List[int]:
         """
         Gets the `ImportClassroomId` of all classrooms in which the student
@@ -289,6 +288,15 @@ class ApexStudent(ApexDataObject):
 
     def transfer(self, token: str, old_classroom_id: str,
                  new_classroom_id: str, new_org_id: str = None) -> Response:
+        """
+        Transfers student along with role and grade data from one classroom to another
+
+        :param token: Apex access token
+        :param old_classroom_id: id of current classroom
+        :param new_classroom_id: id of the classroom to which the student will be transferred
+        :param new_org_id: optional new org_id
+        :return: the response to the PUT operation
+        """
         header = get_header(token)
         url = urljoin(self.classroom_url + '/', old_classroom_id)
         params = {'newClassroomID': new_classroom_id}
