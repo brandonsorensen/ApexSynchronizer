@@ -4,7 +4,7 @@ import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
 from .ps_agent import course2program_code, fetch_staff, fetch_classrooms
-from typing import List, Union, Tuple
+from typing import List, Optional, Tuple, Type, Union
 from requests.models import Response
 from urllib.parse import urljoin, urlparse
 from .utils import (BASE_URL, get_header, snake_to_camel,
@@ -24,9 +24,9 @@ class ApexDataObject(ABC):
         self.import_org_id = import_org_id
 
     @classmethod
-    def get(cls, token, import_id) -> 'ApexDataObject':
+    def get(cls, token, import_id: Union[str, int]) -> 'ApexDataObject':
         try:
-            r = cls._get_response(token, import_id)
+            r = cls._get_response(token, str(import_id))
             r.raise_for_status()
         except requests.exceptions.HTTPError:
             raise ApexObjectNotFoundException(import_id)
@@ -241,17 +241,52 @@ class ApexStudent(ApexDataObject):
 
         return cls(**kwargs)
 
-    def get_enrollments(self, token: str) -> List['ApexClassroom']:
+    def get_enrollments(self, token: str) -> Optional[List['ApexClassroom']]:
         """
         Gets all classes in which this :class:`ApexStudent` is enrolled.
 
         :param token: an Apex access token
         :return: a list of ApexClassroom objects
         """
-        # TODO
+        classroom_ids = self.get_enrollment_ids(token)
+        ret_val = []
+        n_classrooms = len(classroom_ids)
+
+        for i, c_id in enumerate(classroom_ids):
+            progress = f'Classroom {i}/{n_classrooms}:id {c_id}:'
+            logger.info(f'{progress}:retrieving classroom info from Apex.')
+            try:
+                ret_val.append(ApexClassroom.get(token, str(c_id)))
+            except ApexObjectNotFoundException:
+                logger.info(f'Could not retrieve classroom {c_id}. Skipping..')
+            except ApexConnectionException:
+                logger.exception('Could not connect to Apex endpoint.')
+                return
+
+        return ret_val
+
+
+    def get_enrollment_ids(self, token: str) -> List[int]:
+        """
+        Gets the `ImportClassroomId` of all classrooms in which the student
+        is enrolled. Differs from the `get_enrollments` in that it only returns
+        the IDs instead of `ApexClassroom` objects. This makes it a great deal
+        faster because only a single call to Apex is made.
+
+
+        :param token: an Apex access token
+        :return: a list of IDs for each classroom in which the student is enrolled
+        :rtype: List[int]
+        """
         header = get_header(token)
         r = requests.get(url=self.classroom_url, headers=header)
-        print(r.text)
+        try:
+            r.raise_for_status()
+            return [int(student['ImportClassroomId']) for student in r.json()]
+        except requests.exceptions.HTTPError:
+            raise ApexObjectNotFoundException(self.import_user_id)
+        except KeyError:
+            raise ApexMalformedJsonException(r.json())
 
     def transfer(self, token: str, old_classroom_id: str,
                  new_classroom_id: str, new_org_id: str = None) -> Response:
@@ -274,6 +309,10 @@ class ApexStudent(ApexDataObject):
         """
         classroom = ApexClassroom.get(token, classroom_id)
         return classroom.enroll(token, self)
+
+    def withdraw(self, token: str, classroom_id: str) -> Response:
+        classroom = ApexClassroom.get(token, classroom_id)
+        return classroom.withdraw(token, )
 
     @property
     def classroom_url(self) -> str:
@@ -432,10 +471,19 @@ class ApexClassroom(ApexDataObject):
                        ' could not be found in Apex. Skipping classroom.')
                 logger.info(msg)
 
+        logging.info(f'Returning {len(ret_val)} ApexClassroom objects.')
         return ret_val
 
     def enroll(self, token: str,
                objs: Union[List[ApexDataObject], ApexDataObject]) -> Response:
+        """
+        Enrolls one or more students or staff members into this classroom.
+
+        :param token: Apex access token
+        :param objs: one or more student or staff members; if passed as a list,
+                     that list must be homogeneous, i.e. not contain multiple types
+        :return: the response to the POST operation
+        """
         if issubclass(type(objs), ApexDataObject):
             dtype = type(objs)
             objs = [objs]
@@ -443,12 +491,11 @@ class ApexClassroom(ApexDataObject):
             # Assuming that a non-empty list of objects is passed.
             assert len(objs) > 0
             dtype = type(objs[0])
+            # Ensures the list is homogeneous
+            assert all(isinstance(x, dtype) for x in objs)
 
         header = get_header(token)
-        url = urljoin(self.url + '/', self.import_classroom_id)
-        # Get the final component in the object's url
-        obj_type_component = urlparse(dtype.url).path.rsplit("/", 1)[-1]
-        url = urljoin(url + '/', obj_type_component)
+        url = self._get_data_object_class_url(dtype)
 
         payload = {dtype.post_heading: []}
         for apex_obj in objs:
@@ -460,6 +507,40 @@ class ApexClassroom(ApexDataObject):
 
         payload = json.dumps(payload)
         return requests.post(url=url, headers=header, data=payload)
+
+    def withdraw(self, token: str, obj: Union['ApexStudent',
+                                              'ApexStaffMember']) -> Response:
+        """
+        Withdraws a single student or staff member from this classroom.
+
+        :param token: Apex access token
+        :param obj: the given student or staff member
+        :return: the response to the DELETE call
+        """
+        header = get_header(token)
+        url = self._get_data_object_class_url(type(obj))
+        return requests.delete(url=url, headers=header)
+
+    def _get_data_object_class_url(self,dtype: Union[Type['ApexStudent'],
+                                                     Type['ApexStaffMember']]) -> str:
+        """
+        Determines the URL path for a GET or DELETE call that enrolls or
+        withdraws a student or staff from this class. The result will
+        take the form:
+
+        `/classrooms/{classroomId}/{students/staff}/{importUserId}`
+
+        Choosing from student or staff based on whether the given type
+        is `ApexStudent` or `ApexStaffMember`, respectively.
+
+        :param dtype: the relevant data type
+        :return: the URL path from enrolling or withdrawing a student from
+                 this class
+        """
+        url = urljoin(self.url + '/', self.import_classroom_id)
+        # Get the final component in the object's url
+        obj_type_component = urlparse(dtype.url).path.rsplit("/", 1)[-1]
+        return urljoin(url + '/', obj_type_component)
 
 
 def teacher_fuzzy_match(t1: str) -> ApexStaffMember:
