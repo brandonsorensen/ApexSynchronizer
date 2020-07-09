@@ -1,9 +1,7 @@
 import os
 import requests
-from collections import defaultdict
-from typing import Iterable, Set, Union
 from urllib.parse import urljoin
-from .utils import get_header, flatten_ps_json
+from .utils import get_header
 
 
 BASE_QUERY_URL = '/ws/schema/query/com.apex.learning.school.'
@@ -15,54 +13,6 @@ course2program_code = {
     501: 'Z3844077',
     601: 'Z2227630'
 }
-
-
-class PSEnrollment(object):
-
-    def __init__(self, ps_json=None):
-        if ps_json is None:
-            ps_json = fetch_enrollment()
-
-        json_obj = map(flatten_ps_json, ps_json)
-        self._parse_json(json_obj)
-
-    def get_classrooms(self, eduid: Union[int, str]) -> Set[int]:
-        """
-        Returns all classrooms in which a given student is enrolled. Students
-        are indexed by their EDUIDs, which may be given as an int or a
-        numeric string.
-
-        :param Union[int, str] eduid: the EDUID of a given student
-        :return: all classrooms in which the student is enrolled
-        :rtype: set[int]
-        """
-        return self.student2classrooms[int(eduid)]
-
-    def get_roster(self, section_id: Union[int, str]) -> Set[int]:
-        """
-        Returns the roster of a given classroom, indexed by its section ID.
-        Section IDs may be given as integers or numeric strings.
-
-        :param Union[int, str] section_id: the section ID of the classroom
-        :return: the EDUIDs of all students in the classroom
-        :rtype: set[int]
-        """
-        return self.classroom2students[int(section_id)]
-
-    def _parse_json(self, json_obj: Iterable[dict]):
-        """Parses a JSON object returned by the `fetch_enrollment` function."""
-        self.student2classrooms = defaultdict(set)
-        self.classroom2students = defaultdict(set)
-
-        for entry in json_obj:
-            eduid = int(entry['eduid'])
-            sec_id = int(entry['section_id'])
-
-            self.student2classrooms[eduid].add(sec_id)
-            self.classroom2students[sec_id].add(eduid)
-
-        self.student2classrooms = dict(self.student2classrooms)
-        self.classroom2students = dict(self.classroom2students)
 
 
 def fetch_classrooms() -> dict:
