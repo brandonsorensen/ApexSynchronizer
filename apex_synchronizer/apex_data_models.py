@@ -2,6 +2,7 @@ import requests
 import json
 import logging
 from . import utils
+from . import exceptions
 from abc import ABC, abstractmethod
 from datetime import datetime
 from .ps_agent import course2program_code, fetch_staff, fetch_classrooms
@@ -28,9 +29,9 @@ class ApexDataObject(ABC):
             r = cls._get_response(token, str(import_id))
             r.raise_for_status()
         except requests.exceptions.HTTPError:
-            raise ApexObjectNotFoundException(import_id)
+            raise exceptions.ApexObjectNotFoundException(import_id)
         except requests.exceptions.ConnectionError:
-            raise ApexConnectionException()
+            raise exceptions.ApexConnectionException()
 
         return cls._parse_get_response(r)
 
@@ -60,7 +61,7 @@ class ApexDataObject(ABC):
             try:
                 apex_obj = cls.get(token, obj['ImportUserId'])
                 ret_val.append(apex_obj)
-            except ApexObjectNotFoundException:
+            except exceptions.ApexObjectNotFoundException:
                 error_msg = f'Could not retrieve object of type {cls.__name__} \
                             bearing ImportID {obj["ImportUserID"]}. Skipping object'
                 logger.info(error_msg)
@@ -256,9 +257,9 @@ class ApexStudent(ApexDataObject):
             logger.info(f'{progress}:retrieving classroom info from Apex.')
             try:
                 ret_val.append(ApexClassroom.get(token, str(c_id)))
-            except ApexObjectNotFoundException:
+            except exceptions.ApexObjectNotFoundException:
                 logger.info(f'Could not retrieve classroom {c_id}. Skipping..')
-            except ApexConnectionException:
+            except exceptions.ApexConnectionException:
                 logger.exception('Could not connect to Apex endpoint.')
                 return
 
@@ -282,9 +283,9 @@ class ApexStudent(ApexDataObject):
             r.raise_for_status()
             return [int(student['ImportClassroomId']) for student in r.json()]
         except requests.exceptions.HTTPError:
-            raise ApexObjectNotFoundException(self.import_user_id)
+            raise exceptions.ApexObjectNotFoundException(self.import_user_id)
         except KeyError:
-            raise ApexMalformedJsonException(r.json())
+            raise exceptions.ApexMalformedJsonException(r.json())
 
     def transfer(self, token: str, old_classroom_id: str,
                  new_classroom_id: str, new_org_id: str = None) -> Response:
@@ -319,7 +320,7 @@ class ApexStudent(ApexDataObject):
 
     def withdraw(self, token: str, classroom_id: str) -> Response:
         classroom = ApexClassroom.get(token, classroom_id)
-        return classroom.withdraw(token, )
+        return classroom.withdraw(token, self.import_user_id)
 
     @property
     def classroom_url(self) -> str:
@@ -472,8 +473,8 @@ class ApexClassroom(ApexDataObject):
                 ret_val.append(apex_obj)
                 logger.info(f'{progress}:Created ApexClassroom for SectionID {section_id}')
             except KeyError:
-                raise ApexMalformedJsonException(section)
-            except ApexObjectNotFoundException:
+                raise exceptions.ApexMalformedJsonException(section)
+            except exceptions.ApexObjectNotFoundException:
                 msg = (f'{progress}:PowerSchool section indexed by {section["section_id"]}'
                        ' could not be found in Apex. Skipping classroom.')
                 logger.info(msg)
@@ -583,60 +584,6 @@ def teacher_fuzzy_match(t1: str) -> ApexStaffMember:
             argmax = i
 
     return teachers[argmax]
-
-
-class ApexError(Exception):
-
-    def __str__(self):
-        return 'There was an error when interfacing with the Apex API.'
-
-
-class ApexConnectionException(ApexError):
-
-    def __str__(self):
-        return 'The Apex API endpoint could not be reached.'
-
-
-class ApexDataObjectException(ApexError):
-
-    def __init__(self, obj):
-        self.object = obj
-
-    def __str__(self):
-        return f'Object of type {type(self.object)} could not be retrieved.'
-
-
-class ApexObjectNotFoundException(ApexError):
-
-    def __init__(self, import_id):
-        self.import_id = import_id
-
-    def __str__(self):
-        return f'Object bearing ImportId {self.import_id} could not be retrieved.'
-
-
-class ApexMalformedJsonException(ApexError):
-
-    def __init__(self, obj):
-        self.obj = obj
-
-    def __str__(self):
-        return 'Received bad JSON response: ' + str(self.obj)
-
-
-class NoUserIdException(ApexDataObjectException):
-
-    def __str__(self):
-        return 'Object does not have an ImportUserID.'
-
-
-class DuplicateUserException(ApexDataObjectException):
-
-    def __init__(self, obj):
-        self.object = obj
-
-    def __str__(self):
-        return f'Object with user id {self.object.import_user_id} already exists.'
 
 
 def get_products(token, program_code: str) -> Response:
