@@ -90,9 +90,22 @@ class ApexDataObject(ABC):
         r = requests.delete(url=url, headers=header)
         return r
 
-    @abstractmethod
-    def put_to_apex(self, token) -> Response:
-        pass
+    def put_to_apex(self, token, main_id='ImportUserId') -> Response:
+        """
+        Useful for updating a record in the Apex database.
+
+        :param token: Apex access token
+        :param main_id: the idenitifying class attribute: ImportUserId for
+                        `ApexStudent` and `ApexStaffMember` objects,
+                        ImportClassroomId for `ApexClassroom` objects
+        :return: the response from the PUT operation.
+        """
+        header = get_header(token)
+        url = urljoin(self.url + '/', self.import_user_id)
+        payload = self.to_json()
+        del payload[main_id]  # Given in the URL
+        r = requests.put(url=url, headers=header, data=payload)
+        return r
 
     @property
     @abstractmethod
@@ -223,14 +236,6 @@ class ApexStudent(ApexDataObject):
         kwargs['import_org_id'] = json_obj['Organizations'][0]['ImportOrgId']
 
         return cls(**kwargs)
-
-    def put_to_apex(self, token) -> Response:
-        header = get_header(token)
-        url = urljoin(self.url + '/', self.import_user_id)
-        payload = self.to_json()
-        del payload['ImportUserId']  # Given in the URL
-        r = requests.put(url=url, headers=header, data=payload)
-        return r
 
     @classmethod
     def from_powerschool(cls, json_obj: dict) -> 'ApexStudent':
@@ -380,11 +385,9 @@ class ApexStaffMember(ApexDataObject):
         # TODO
         pass
 
-    def put_to_apex(self, token) -> Response:
-        pass
-
     @classmethod
     def _parse_get_response(cls, r) -> 'ApexStaffMember':
+        # TODO
         print(r.text)
 
     def get_classrooms(self, token) -> List['ApexClassroom']:
@@ -434,8 +437,8 @@ class ApexClassroom(ApexDataObject):
 
         return cls(**kwargs)
 
-    def put_to_apex(self, token: str) -> Response:
-        pass
+    def put_to_apex(self, token, main_id='ImportClassroomId') -> Response:
+        return super().put_to_apex(token, main_id='ImportClassroomId')
 
     @classmethod
     def _parse_get_response(cls, r: Response) -> 'ApexClassroom':
@@ -529,8 +532,8 @@ class ApexClassroom(ApexDataObject):
         url = self._get_data_object_class_url(type(obj))
         return requests.delete(url=url, headers=header)
 
-    def _get_data_object_class_url(self,dtype: Union[Type['ApexStudent'],
-                                                     Type['ApexStaffMember']]) -> str:
+    def _get_data_object_class_url(self, dtype: Union[Type['ApexStudent'],
+                                                      Type['ApexStaffMember']]) -> str:
         """
         Determines the URL path for a GET or DELETE call that enrolls or
         withdraws a student or staff from this class. The result will
