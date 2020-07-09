@@ -1,15 +1,14 @@
 import requests
 import json
 import logging
+from . import utils
 from abc import ABC, abstractmethod
 from datetime import datetime
 from .ps_agent import course2program_code, fetch_staff, fetch_classrooms
 from typing import List, Optional, Tuple, Type, Union
 from requests.models import Response
 from urllib.parse import urljoin, urlparse
-from .utils import (BASE_URL, get_header, snake_to_camel,
-                    camel_to_snake, levenshtein_distance,
-                    flatten_ps_json)
+from .utils import BASE_URL, get_header
 
 
 APEX_DATETIME_FORMAT = '%a, %d %b %Y %H:%M:%S %Z'
@@ -142,7 +141,7 @@ class ApexDataObject(ABC):
         :return: the same JSON object with transformed keys.
         """
         kwargs = {}
-        json_obj = flatten_ps_json(json_obj)
+        json_obj = utils.flatten_ps_json(json_obj)
         for ps_key, apex_key in cls.ps2apex_field_map.items():
             kwargs[apex_key] = json_obj[ps_key]
         return kwargs
@@ -162,7 +161,7 @@ class ApexDataObject(ABC):
         kwargs = {}
         params = set(cls.ps2apex_field_map.values())
         for key, value in json_obj.items():
-            snake_key = camel_to_snake(key)
+            snake_key = utils.camel_to_snake(key)
             if snake_key in params:
                 kwargs[snake_key] = value
 
@@ -176,7 +175,7 @@ class ApexDataObject(ABC):
         for key, value in self.to_dict().items():
             if value is None:
                 value = 'null'
-            json_obj[snake_to_camel(key)] = value
+            json_obj[utils.snake_to_camel(key)] = value
         json_obj['Role'] = self.role
         return json_obj
 
@@ -457,7 +456,7 @@ class ApexClassroom(ApexDataObject):
         logging.info(f'Successfully retrieved {n_classrooms} sections from PowerSchool.')
         ret_val = []
 
-        for i, section in enumerate(map(flatten_ps_json, ps_classrooms)):
+        for i, section in enumerate(map(utils.flatten_ps_json, ps_classrooms)):
             progress = f'section {i}/{n_classrooms}'
             try:
                 section_id = section['section_id']
@@ -570,7 +569,7 @@ def teacher_fuzzy_match(t1: str) -> ApexStaffMember:
         if abs(len(t1) - len(t2_name)) >= 5 and min_distance != float('inf'):
             # Difference in length of 5 is too large for this context
             continue
-        distance = levenshtein_distance(t1, t2_name.lower())
+        distance = utils.levenshtein_distance(t1, t2_name.lower())
         if distance < min_distance:
             min_distance = distance
             argmax = i
