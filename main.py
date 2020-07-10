@@ -17,7 +17,9 @@ def setup_logging(config_file: str = None, log_dir: str = None) -> dict:
             if obj['level'] in ('NOTSET', logging.NOTSET):
                 # Use environment variable if level is not set
                 obj['level'] = os.environ.get('LOGLEVEL', logging.INFO)
-            if obj_type == 'handlers' and log_dir is not None and 'filename' in obj.keys():
+            if (obj_type == 'handlers'
+                    and log_dir is not None
+                    and 'filename' in obj.keys()):
                 obj['filename'] = os.path.join(log_dir, obj['filename'])
 
     return config
