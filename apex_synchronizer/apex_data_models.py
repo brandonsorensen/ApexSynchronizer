@@ -11,10 +11,8 @@ from requests.models import Response
 from urllib.parse import urljoin, urlparse
 from .utils import BASE_URL, get_header
 
-
 APEX_DATETIME_FORMAT = '%a, %d %b %Y %H:%M:%S %Z'
 PS_DATETIME_FORMAT = '%Y/%m/%d'
-logger = logging.getLogger(__name__)
 
 
 class ApexDataObject(ABC):
@@ -52,6 +50,7 @@ class ApexDataObject(ABC):
 
     @classmethod
     def get_all(cls, token) -> List['ApexDataObject']:
+        logger = logging.getLogger(__name__)
         r = requests.get(url=cls.url, headers=get_header(token))
         json_objs = json.loads(r.text)
 
@@ -256,6 +255,7 @@ class ApexStudent(ApexDataObject):
         classroom_ids = self.get_enrollment_ids(token)
         ret_val = []
         n_classrooms = len(classroom_ids)
+        logger = logging.getLogger(__name__)
 
         for i, c_id in enumerate(classroom_ids):
             progress = f'Classroom {i}/{n_classrooms}:id {c_id}:'
@@ -463,9 +463,12 @@ class ApexClassroom(ApexDataObject):
         :param token: Apex access token
         :return:
         """
+        logger = logging.getLogger(__name__)
+
         ps_classrooms = fetch_classrooms()
         n_classrooms = len(ps_classrooms)
-        logging.info(f'Successfully retrieved {n_classrooms} sections from PowerSchool.')
+        logger.info(f'Successfully retrieved {n_classrooms} sections from PowerSchool.')
+
         ret_val = []
 
         for i, section in enumerate(map(utils.flatten_ps_json, ps_classrooms)):
@@ -482,7 +485,7 @@ class ApexClassroom(ApexDataObject):
                        ' could not be found in Apex. Skipping classroom.')
                 logger.info(msg)
 
-        logging.info(f'Returning {len(ret_val)} ApexClassroom objects.')
+        logger.info(f'Returning {len(ret_val)} ApexClassroom objects.')
         return ret_val
 
     def enroll(self, token: str,
