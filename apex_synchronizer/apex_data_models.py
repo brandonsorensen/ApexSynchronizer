@@ -1,8 +1,7 @@
 import requests
 import json
 import logging
-from . import utils
-from . import exceptions
+from . import utils, exceptions
 from abc import ABC, abstractmethod
 from datetime import datetime
 from .ps_agent import course2program_code, fetch_staff, fetch_classrooms
