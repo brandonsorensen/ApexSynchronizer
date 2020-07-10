@@ -6,18 +6,17 @@ from datetime import datetime, timedelta
 from .utils import BASE_URL
 
 
-logger = logging.getLogger(__name__)
-
-
 class ApexSession(object):
 
     def __init__(self):
         self._access_token = ApexAccessToken.get_new_token()
-        logger.info('Session opened.')
+        self.logger = logging.getLogger(__name__)
+        self.logger.info('Session opened.')
 
     @property
     def access_token(self) -> 'ApexAccessToken':
         if self._access_token.expiration < datetime.now():
+            self.logger.debug('Old token expired. Generating new one.')
             self._access_token = ApexAccessToken.get_new_token()
         return self._access_token
 
@@ -42,6 +41,7 @@ class ApexAccessToken(object):
         except KeyError:
             raise EnvironmentError('ClientID or secret key are not in the environment.')
 
+        logger = logging.getLogger(__name__)
         url = BASE_URL + 'token'
         request_json = {
                 'grant_type': 'client_credentials',
