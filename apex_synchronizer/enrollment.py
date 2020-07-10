@@ -8,14 +8,14 @@ from .utils import flatten_ps_json
 import logging
 
 
-logger = logging.getLogger(__name__)
-
-
 class BaseEnrollment(metaclass=ABCMeta):
     """
     Defines a common interface to which the enrollment information from
     both Apex and PowerSchool can adhere.
     """
+
+    def __init__(self):
+        self.logger = logging.getLogger('.'.join([__name__, self.__class__.__name__]))
 
     def get_classrooms(self, eduid: Union[int, str, ApexStudent]) -> Set[int]:
         """
@@ -70,7 +70,9 @@ class BaseEnrollment(metaclass=ABCMeta):
 class PSEnrollment(BaseEnrollment):
 
     def __init__(self, ps_json=None):
+        super().__init__()
         if ps_json is None:
+            self.logger.debug('Fetching enrollment')
             ps_json = fetch_enrollment()
 
         json_obj = map(flatten_ps_json, ps_json)
@@ -81,9 +83,11 @@ class PSEnrollment(BaseEnrollment):
         self._student2classrooms = defaultdict(set)
         self._classroom2students = defaultdict(set)
 
-        for entry in json_obj:
+        self.logger.info('Iterating over enrollment.')
+        for i, entry in enumerate(json_obj):
             eduid = int(entry['eduid'])
             sec_id = int(entry['section_id'])
+            self.logger.debug(f'student {i}:eduid={eduid},section_id={sec_id}')
 
             self.student2classrooms[eduid].add(sec_id)
             self.classroom2students[sec_id].add(eduid)
@@ -103,12 +107,13 @@ class PSEnrollment(BaseEnrollment):
 class ApexEnrollment(BaseEnrollment):
 
     def __init__(self, access_token=None):
+        super().__init__()
         if access_token is None:
             session = ApexSession()
             access_token = session.access_token
 
         self._apex_students = ApexStudent.get_all(access_token)
-        logger.info('Retrieved Apex student information')
+        self.logger.info('Retrieved Apex student information')
 
         self._student2classrooms = {}
         self._classroom2students = {}
@@ -120,13 +125,13 @@ class ApexEnrollment(BaseEnrollment):
             classrooms = student.get_enrollments(access_token)
             by_id = set([c.section_id for c in classrooms])
             self._student2classrooms[int(student.import_user_id)] = by_id
-            logger.info(f'{progress}:1/2:got classrooms for student {student.import_user_id}')
+            self.logger.info(f'{progress}:1/2:got classrooms for student {student.import_user_id}')
 
             for classroom in by_id:
                 self._classroom2students[classroom] = student
-            logger.info(f'{progress}:2/2:created reverse mapping for student {student.import_user_id}')
+            self.logger.info(f'{progress}:2/2:created reverse mapping for student {student.import_user_id}')
 
-        logger.debug('ApexEnrollment object created successfully.')
+        self.logger.debug('ApexEnrollment object created successfully.')
 
     @property
     def classroom2students(self) -> dict:
