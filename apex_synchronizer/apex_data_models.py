@@ -6,7 +6,7 @@ from . import exceptions
 from abc import ABC, abstractmethod
 from datetime import datetime
 from .ps_agent import course2program_code, fetch_staff, fetch_classrooms
-from typing import List, Optional, Tuple, Type, Union
+from typing import Iterable, List, Optional, Tuple, Type, Union
 from requests.models import Response
 from urllib.parse import urljoin, urlparse
 from .utils import BASE_URL, get_header
@@ -17,12 +17,27 @@ PS_DATETIME_FORMAT = '%Y/%m/%d'
 
 class ApexDataObject(ABC):
 
+    """
+    The base class from which `ApexStaffMember`, 'ApexStudent` and `ApexClassroom`
+    will inherit. Defines a number of class methods common to all objects that
+    aid in making RESTful calls to the Apex API. Additionally, contains a number
+    of abstract methods that must be implemented by the subclasses.
+    """
+
     def __init__(self, import_user_id, import_org_id):
+        """Initializes instance variables."""
         self.import_user_id = import_user_id
         self.import_org_id = import_org_id
 
     @classmethod
     def get(cls, token, import_id: Union[str, int]) -> 'ApexDataObject':
+        """
+        Gets the ApexDataObject corresponding to a given ImportId.
+
+        :param token: ApexAccessToken
+        :param import_id: the ImportId of the object
+        :return: an ApexDataObject corresponding to the given ImportId
+        """
         try:
             r = cls._get_response(token, str(import_id))
             r.raise_for_status()
@@ -35,11 +50,27 @@ class ApexDataObject(ABC):
 
     @classmethod
     @abstractmethod
-    def _parse_get_response(cls, r):
+    def _parse_get_response(cls, r: Response) -> 'ApexDataObject':
+        """
+        A helper method for the `get` method. Parses the JSON object returned by
+        the `_get_response`, validates it, and returns an instance of
+        the corresponding class.
+
+        :param Response r: the reponse returned by the `_get_response` method.
+        :return: an instance of type `cls` corresponding to the JSON object in `r`.
+        """
         pass
 
     @classmethod
-    def _get_response(cls, token, import_id) -> Response:
+    def _get_response(cls, token: str, import_id) -> Response:
+        """
+        Calls a GET operation for a given ImportId and returns the response. The
+        first (and constant across all subclasses) component of the `get` method.
+
+        :param token: the Apex access token
+        :param import_id:
+        :return: the response from the GET operation
+        """
         custom_args = {
             'importUserId': import_id
         }
@@ -50,6 +81,12 @@ class ApexDataObject(ABC):
 
     @classmethod
     def get_all(cls, token) -> List['ApexDataObject']:
+        """
+        Gets all objects of type `cls` in the Apex database.
+
+        :param token: Apex access token
+        :return: a list containing all objects of this type in the Apex database
+        """
         logger = logging.getLogger(__name__)
         r = requests.get(url=cls.url, headers=get_header(token))
         json_objs = json.loads(r.text)
@@ -68,18 +105,43 @@ class ApexDataObject(ABC):
         return ret_val
 
     def post_to_apex(self, token) -> Response:
+        """
+        Posts the information contained in this object to the Apex API. Simply
+        a convenience method that passes this object to the `post_batch` class
+        method.
+
+        :param token: Apex access token
+        :return: the response returned by the POST operation
+        """
         return self.post_batch(token, [self])
 
     @classmethod
-    def post_batch(cls, token, classrooms):
+    def post_batch(cls, token: str, objects: Iterable['ApexDataObject']):
+        """
+        Posts a batch of `ApexDataObjects` to the Apex API. The `object` parameter
+        must be heterogeneous, i.e. must contain objects of all the same type.
+        Attempting to post an object not of the correct subclass (i.e., attempting
+        to call `ApexStudent.post_batch` with even one `ApexStaffMember` will
+        result in an error.
+
+        :param token: Apex access token
+        :param objects: a heterogeneous collection of `ApexDataObjects`
+        :return: the result of the POST operation
+        """
         header = get_header(token)
-        payload = json.dumps({cls.post_heading: [c.to_json() for c in classrooms]})
-        url = cls.url if len(classrooms) <= 50 else urljoin(cls.url, 'batch')
+        payload = json.dumps({cls.post_heading: [c.to_json() for c in objects]})
+        url = cls.url if len(objects) <= 50 else urljoin(cls.url, 'batch')
         r = requests.post(url=url, data=payload, headers=header)
         # TODO: Error handling
         return r
 
     def delete_from_apex(self, token) -> Response:
+        """
+        Deletes this object from the Apex database
+
+        :param token: Apex access token
+        :return: the response from the DELETE operation
+        """
         custom_args = {
             'importUserId': self.import_user_id,
             'orgId': self.import_org_id
@@ -181,9 +243,14 @@ class ApexDataObject(ABC):
         return kwargs, json_obj
 
     def to_dict(self) -> dict:
+        """Converts attributes to a dictionary."""
         return self.__dict__
 
     def to_json(self) -> dict:
+        """
+        Converts instance attributes to dictionary and modifies their contents
+        to prepare them for submission to the Apex API.
+        """
         json_obj = {}
         for key, value in self.to_dict().items():
             if value is None:
@@ -200,6 +267,21 @@ class ApexDataObject(ABC):
 
 
 class ApexStudent(ApexDataObject):
+
+    """
+    Represents a student in the Apex database.
+
+    :param Union[str, int] import_user_id: identifier for the database, common
+                                           to Apex and PowerSchool
+    :param Union[str, int] import_org_id: the school to which the student belongs
+    :param str first_name: the student's first/given name
+    :param str middle_name: the student's middle name
+    :param str last_name: the student's last/surname
+    :param str email: the student's school email address (optional)
+    :param int grade_level: the student's grade level
+    :param str login_id: the student's login ID
+    """
+
     role = 'S'
     url = urljoin(BASE_URL, 'students')
     post_heading = 'studentUsers'
@@ -215,9 +297,9 @@ class ApexStudent(ApexDataObject):
         'email': 'email'
     }
 
-    def __init__(self, import_user_id: int, import_org_id: int, first_name: str,
-                 middle_name: str, last_name: str, email: str, grade_level: int,
-                 login_id: str):
+    def __init__(self, import_user_id: Union[int, str], import_org_id: Union[int, str],
+                 first_name: str, middle_name: str, last_name: str, email: str,
+                 grade_level: int, login_id: str):
         super().__init__(import_user_id, import_org_id)
         self.first_name = first_name
         self.middle_name = middle_name
@@ -272,7 +354,7 @@ class ApexStudent(ApexDataObject):
 
     def get_enrollment_ids(self, token: str) -> List[int]:
         """
-        Gets the `ImportClassroomId` of all classrooms in which the student
+        Gets the `ImportClassroomId` of all objects in which the student
         is enrolled. Differs from the `get_enrollments` in that it only returns
         the IDs instead of `ApexClassroom` objects. This makes it a great deal
         faster because only a single call to Apex is made.
@@ -330,11 +412,27 @@ class ApexStudent(ApexDataObject):
     @property
     def classroom_url(self) -> str:
         url = urljoin(self.url + '/', self.import_user_id)
-        url = urljoin(url + '/', 'classrooms')
+        url = urljoin(url + '/', 'objects')
         return url
 
 
 class ApexStaffMember(ApexDataObject):
+
+    """
+    Represents a staff member (likely a teacher) in the Apex database.
+
+    :param Union[int, str] import_user_id:
+                            identifier for the database, common to
+                            Apex and PowerSchool
+    :param Union[int, str] import_org_id: the school to which teacher
+                                          staff member belongs
+    :param str first_name: the staff member's first/given name
+    :param str middle_name: the staff member's middle name
+    :param str last_name: the staff member's last/surname
+    :param str email: the staff member's school email address (optional)
+    :param str login_id: the staff member's login ID
+    """
+
     url = urljoin(BASE_URL, 'staff')
     role = 'T'
     role_set = {'M', 'T', 'TC', 'SC'}
@@ -356,16 +454,16 @@ class ApexStaffMember(ApexDataObject):
         'last_name': 'last_name'
     }
 
-    def __init__(self, import_user_id: str, import_org_id: str, first_name: str,
-                 middle_name: str, last_name: str, email: str, login_id: str,
-                 login_password: str):
+    def __init__(self, import_user_id: Union[int, str], import_org_id: Union[int, str],
+                 first_name: str, middle_name: str, last_name: str, email: str,
+                 login_id: str, login_password: str):
         super().__init__(import_user_id, import_org_id)
         self.first_name = first_name
         self.middle_name = middle_name
         self.last_name = last_name
         self.email = email
         self.login_id = login_id
-        self.login_pw = login_password
+        self.login_pw = login_password # TODO: Don't pass password
 
     @classmethod
     def from_powerschool(cls, json_obj) -> 'ApexStaffMember':
@@ -402,7 +500,24 @@ class ApexStaffMember(ApexDataObject):
 
 
 class ApexClassroom(ApexDataObject):
-    url = urljoin(BASE_URL, 'classrooms')
+
+    """
+    Represents a staff member (likely a teacher) in the Apex database.
+
+    :param Union[int, str] import_classroom_id:
+                            identifier for the database, common to
+                            Apex and PowerSchool
+    :param Union[int, str] import_org_id: the school to which teacher
+                                          staff member belongs
+    :param Union[int, str] import_user_id: teacher's ImportId
+    :param str classroom_name: name of the classroom
+    :param List[str] product_codes: the Apex product codes representing
+        which curricula are taught in the classroom
+    :param str classroom_start_date: the day the classroom starts
+    :param str program_code: the program to which the classroom belongs
+    """
+
+    url = urljoin(BASE_URL, 'objects')
     role = 'T'
     ps2apex_field_map = {
         'first_day': 'classroom_start_date',
@@ -456,8 +571,8 @@ class ApexClassroom(ApexDataObject):
     @classmethod
     def get_all(cls, token) -> List['ApexClassroom']:
         """
-        Get all classrooms. Must be overloaded because Apex does not support a global
-        GET request for classrooms in the same. Loops through all PowerSchool classrooms
+        Get all objects. Must be overloaded because Apex does not support a global
+        GET request for objects in the same. Loops through all PowerSchool objects
         and keeps the ones that exist.
 
         :param token: Apex access token
@@ -542,7 +657,7 @@ class ApexClassroom(ApexDataObject):
         withdraws a student or staff from this class. The result will
         take the form:
 
-        `/classrooms/{classroomId}/{students/staff}/{importUserId}`
+        `/objects/{classroomId}/{students/staff}/{importUserId}`
 
         Choosing from student or staff based on whether the given type
         is `ApexStudent` or `ApexStaffMember`, respectively.
@@ -593,6 +708,13 @@ def teacher_fuzzy_match(t1: str) -> ApexStaffMember:
 
 
 def get_products(token, program_code: str) -> Response:
+    """
+    Gets all the products (i.e., curricula) for a given program
+
+    :param token: Apex access token
+    :param program_code: the code for the given program
+    :return:
+    """
     url = urljoin(BASE_URL, 'products/')
     url = urljoin(url, program_code)
     header = get_header(token)
