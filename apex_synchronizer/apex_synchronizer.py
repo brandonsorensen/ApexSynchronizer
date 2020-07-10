@@ -11,7 +11,7 @@ class ApexSynchronizer(object):
         self.ps_enroll = PSEnrollment()
         self.logger = logging.getLogger(__name__)
         self.logger.info('Retrieved enrollment info from PowerSchool.')
-        self.apex_enroll = ApexEnrollment()
+        self.apex_enroll = ApexEnrollment(access_token=self.session.access_token)
         self.logger.info('Retrieved enrollment info from Apex.')
 
     def sync_rosters(self):
