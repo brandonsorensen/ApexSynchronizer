@@ -3,7 +3,7 @@
   "disable_existing_loggers": true,
   "formatters": {
     "standard": {
-      "format": "%(asctime)s %(name)-12s %(levelname)-8s %(message)s",
+      "format": "%(asctime)s:%(name)-12s %(levelname)-s: %(message)s",
       "datefmt": "%Y-%m-%d %H:%M:%s"
     }
   },
@@ -18,24 +18,27 @@
       "level": "INFO",
       "formatter": "standard",
       "class": "logging.FileHandler",
-      "args": "(apex_api.log, a)"
+      "filename": "apex_api.log",
+      "mode": "a"
     },
     "ps_handler": {
       "level": "INFO",
       "formatter": "standard",
       "class": "logging.FileHandler",
-      "args": "(powerschool.log, a)"
+      "filename": "powerschool.log",
+      "mode": "a"
     },
     "error_handler": {
       "level": "ERROR",
       "formatter": "standard",
       "class": "logging.FileHandler",
-      "args": "(error.log, a)"
+      "filename": "error.log",
+      "mode": "a"
     }
   },
   "loggers": {
     "": {
-    "handlers": ["default"],
+    "handlers": ["console_handler"],
     "level": "WARNING",
     "propagate": false
   },
