@@ -3,6 +3,7 @@ import os
 import requests
 from requests.auth import HTTPBasicAuth
 from datetime import datetime, timedelta
+from .exceptions import ApexConnectionException
 from .utils import BASE_URL
 
 
@@ -52,13 +53,13 @@ class ApexAccessToken(object):
         headers = {"Accept": "application/json"}
         auth = HTTPBasicAuth(client_id, secret_key)
         r = requests.post(url, json=request_json, headers=headers, auth=auth)
-        if r.status_code == 200:
+        try:
+            r.raise_for_status()
+            logger.debug('Successfully retrieved new token.')
             return cls(r)
-
-        logger.debug('New token generated')
-        logger.error('Token could not be generated')
-        # TODO: Add proper exception handling
-        raise Exception('Could not get token')
+        except requests.exceptions.HTTPError:
+            logger.exception('Apex server could not be reached.')
+            raise ApexConnectionException()
 
     def __str__(self):
         return self.token
