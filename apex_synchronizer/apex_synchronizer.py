@@ -30,7 +30,7 @@ class ApexSynchronizer(object):
 
         # apex_classrooms = ApexClassroom.get_all(self.session.access_token)
         classrooms = [ApexClassroom.get(self.session.access_token, 80336)]
-        self.logger.info('Retrieved Apex classrooms')
+        self.logger.info('Retrieved Apex objects')
 
         students = ApexStudent.get_all(self.session.access_token)
         self.logger.info('Retrieved Apex students')
