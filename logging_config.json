@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "disable_existing_loggers": true,
+  "formatters": {
+    "standard": {
+      "format": "%(asctime)s %(name)-12s %(levelname)-8s %(message)s",
+      "datefmt": "%Y-%m-%d %H:%M:%s"
+    }
+  },
+  "handlers": {
+    "console_handler": {
+      "level": "NOTSET",
+      "formatter": "standard",
+      "class": "logging.StreamHandler",
+      "stream": "ext://sys.stdout"
+    },
+    "apex_handler": {
+      "level": "INFO",
+      "formatter": "standard",
+      "class": "logging.FileHandler",
+      "args": "(apex_api.log, a)"
+    },
+    "ps_handler": {
+      "level": "INFO",
+      "formatter": "standard",
+      "class": "logging.FileHandler",
+      "args": "(powerschool.log, a)"
+    },
+    "error_handler": {
+      "level": "ERROR",
+      "formatter": "standard",
+      "class": "logging.FileHandler",
+      "args": "(error.log, a)"
+    }
+  },
+  "loggers": {
+    "": {
+    "handlers": ["default"],
+    "level": "WARNING",
+    "propagate": false
+  },
+  "apex_synchronizer.apex_synchronizer": {
+    "handlers": ["console_handler", "apex_handler"],
+    "level": "INFO",
+    "propagate": false
+  },
+  "apex_synchronizer.apex_session": {
+    "handlers": ["console_handler", "apex_handler"],
+    "level": "INFO",
+    "propagate": false
+  },
+  "apex_synchronizer.enrollment.ApexEnrollment": {
+    "handlers": ["console_handler", "apex_handler"],
+    "level": "INFO",
+    "propagate": false
+  },
+  "apex_synchronizer.apex_data_models": {
+    "handlers": ["console_handler", "apex_handler"],
+    "level": "INFO",
+    "propagate": false
+  },
+  "apex_synchronizer.ps_agent": {
+    "handlers": ["console_handler", "ps_handler"],
+    "level": "INFO",
+    "propagate": false
+  },
+  "apex_synchronizer.enrollment.PSEnrollment": {
+    "handlers": ["console_handler", "ps_handler"],
+    "level": "INFO",
+    "propagate": false
+  },
+  "__main__": {
+    "handlers": ["console_handler"],
+    "level": "NOTSET",
+    "propagate": false
+  }
+}
+}
