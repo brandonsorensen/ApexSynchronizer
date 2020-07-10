@@ -26,7 +26,7 @@ def setup_logging(config_file: str = None, log_dir: str = None) -> dict:
 
 
 def main():
-    logging_config = setup_logging(log_dir=os.environ.get('LOGDIR', None))
+    logging_config = setup_logging(log_dir=os.environ.get('LOGDIR'))
     dictConfig(logging_config)
     sync_agent = ApexSynchronizer()
     sync_agent.sync_rosters()
