@@ -1,11 +1,10 @@
+import logging
 import os
 import requests
 from urllib.parse import urljoin
 from .utils import get_header
 
-
 BASE_QUERY_URL = '/ws/schema/query/com.apex.learning.school.'
-
 
 course2program_code = {
     616: 'Z8102253',
@@ -32,12 +31,15 @@ def fetch_enrollment() -> dict:
 
 
 def _fetch_powerquery(url_ext: str, page_size=0) -> dict:
+    logger = logging.getLogger(__name__)
+    logger.info('Fetching PowerQuery with extension ' + str(url_ext))
     token = get_ps_token()
     header = get_header(token, custom_args={'Content-Type': 'application/json'})
     payload = {'pagesize': page_size}
     url = urljoin(os.environ['PS_URL'], BASE_QUERY_URL + url_ext)
 
     r = requests.post(url, headers=header, params=payload)
+    logger.info('PowerQuery returns with status ' + str(r.status_code))
     return r.json()['record']
 
 
