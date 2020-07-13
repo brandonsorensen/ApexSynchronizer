@@ -79,11 +79,12 @@ class ApexDataObject(ABC):
         return r
 
     @classmethod
-    def get_all(cls, token) -> List['ApexDataObject']:
+    def get_all(cls, token, archived=False) -> List['ApexDataObject']:
         """
         Gets all objects of type `cls` in the Apex database.
 
         :param token: Apex access token
+        :param archived: whether or not to return archived objects
         :return: a list containing all objects of this type in the Apex database
         """
         logger = logging.getLogger(__name__)
@@ -94,12 +95,16 @@ class ApexDataObject(ABC):
 
         for obj in json_objs:
             try:
+                if not archived and obj['RoleStatus'] == 'Archived':
+                    continue  # Don't return archived
                 apex_obj = cls.get(token, obj['ImportUserId'])
                 ret_val.append(apex_obj)
             except exceptions.ApexObjectNotFoundException:
                 error_msg = f'Could not retrieve object of type {cls.__name__} \
                             bearing ImportID {obj["ImportUserID"]}. Skipping object'
                 logger.info(error_msg)
+            except KeyError:
+                pass
 
         return ret_val
 
@@ -568,13 +573,14 @@ class ApexClassroom(ApexDataObject):
         return cls(**kwargs)
 
     @classmethod
-    def get_all(cls, token) -> List['ApexClassroom']:
+    def get_all(cls, token, archived=False) -> List['ApexClassroom']:
         """
         Get all objects. Must be overloaded because Apex does not support a global
         GET request for objects in the same. Loops through all PowerSchool objects
         and keeps the ones that exist.
 
         :param token: Apex access token
+        :param bool archived: Whether or not to returned archived results
         :return:
         """
         logger = logging.getLogger(__name__)
@@ -587,6 +593,12 @@ class ApexClassroom(ApexDataObject):
 
         for i, section in enumerate(map(utils.flatten_ps_json, ps_classrooms)):
             progress = f'section {i}/{n_classrooms}'
+            try:
+                if not archived and section['RoleStatus'] == 'Archived':
+                    continue
+            except KeyError:
+                logger.debug('JSON object does not contain "RoleStatus"')
+
             try:
                 section_id = section['section_id']
                 apex_obj = cls.get(token, section_id)

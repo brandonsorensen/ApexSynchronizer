@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractmethod
 from .apex_data_models import ApexStudent, ApexClassroom
 from .apex_session import ApexSession
 from collections import defaultdict, KeysView
+from .exceptions import ApexObjectNotFoundException
 from .ps_agent import fetch_enrollment
 from typing import Iterable, Set, Union
 from .utils import flatten_ps_json
@@ -112,17 +113,21 @@ class ApexEnrollment(BaseEnrollment):
             session = ApexSession()
             access_token = session.access_token
 
-        self._apex_students = ApexStudent.get_all(access_token)
+        apex_students = ApexStudent.get_all(access_token)
         self.logger.info('Retrieved Apex student information')
 
         self._student2classrooms = {}
         self._classroom2students = {}
 
-        n_students = len(self._apex_students)
+        n_students = len(apex_students)
         logging.info(f'Getting enrollment info for {n_students} students.')
-        for i, student in enumerate(self._apex_students):
+        for i, student in enumerate(apex_students):
             progress = f'student {i}/{n_students}'
-            classrooms = student.get_enrollments(access_token)
+            try:
+                classrooms = student.get_enrollments(access_token)
+            except ApexObjectNotFoundException:
+                logging.info(f'{progress}:could not find student with EDUID {student.import_user_id} in PS.')
+                continue
             by_id = set([c.section_id for c in classrooms])
             self._student2classrooms[int(student.import_user_id)] = by_id
             self.logger.info(f'{progress}:1/2:got classrooms for student {student.import_user_id}')
