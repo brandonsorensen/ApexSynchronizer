@@ -1,5 +1,5 @@
 <queries>
-    <query name="com.apex.learning.school.students" coreTable="" flattened="false">
+    <query name="com.apex.learning.school.students" coreTable="STUDENTS" flattened="false">
         <description>Gets students to update Apex Learning environment.</description>
         <args>
         </args>
@@ -12,6 +12,7 @@
 			<column column="STUDENTS.STATE_STUDENTNUMBER">EDUID</column>
 			<column column="STUDENTS.GRADE_LEVEL">GRADE_LEVEL</column>
 			<column column="STUDENTS.SCHOOLID">SCHOOL_ID</column>
+			<column column="U_DEF_EXT_STUDENTS.STUDENTEMAIL">EMAIL</column>
  		</columns>
         <sql>
 			<![CDATA[
@@ -22,9 +23,13 @@
 						students.Web_ID,
 						students.State_StudentNumber,
 						students.Grade_Level,
-						students.schoolid
+						students.schoolid,
+						u_def_ext_students.studentemail
 				FROM    students
+						INNER JOIN u_def_ext_students
+						ON students.dcid = u_def_ext_students.studentsdcid
 				WHERE   students.schoolid in (501, 601, 616)
+						AND students.Enroll_Status = 0
 				ORDER BY students.id
 			]]>
         </sql>
@@ -117,6 +122,7 @@
 					   INNER JOIN students
 							   ON cc.studentid = students.id
 				WHERE  cc.schoolid = 616
+					   AND students.enroll_status = 0
 				GROUP  BY students.State_StudentNumber, cc.sectionid
 				ORDER  BY students.State_StudentNumber 
 			]]>
