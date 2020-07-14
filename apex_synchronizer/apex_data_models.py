@@ -324,7 +324,18 @@ class ApexStudent(ApexDataObject):
 
     @classmethod
     def from_powerschool(cls, json_obj: dict) -> 'ApexStudent':
-        kwargs = cls._init_kwargs_from_ps(json_obj=json_obj)
+        try:
+            kwargs = cls._init_kwargs_from_ps(json_obj=json_obj)
+        except KeyError as e:
+            if e.args[0].lower() == 'email':
+                try:
+                    eduid = json_obj['tables']['students']['eduid']
+                except KeyError:
+                    raise exceptions.ApexMalformedJsonException(json_obj)
+
+                raise exceptions.ApexNoEmailException(eduid)
+            raise e
+
         if kwargs['import_user_id'] is None:
             kwargs['import_user_id'] = '10'
         kwargs['email'] = 'dummy@malad.us'
@@ -344,7 +355,7 @@ class ApexStudent(ApexDataObject):
         logger = logging.getLogger(__name__)
 
         for i, c_id in enumerate(classroom_ids):
-            progress = f'Classroom {i}/{n_classrooms}:id {c_id}:'
+            progress = f'Classroom {i + 1}/{n_classrooms}:id {c_id}:'
             logger.info(f'{progress}:retrieving classroom info from Apex.')
             try:
                 ret_val.append(ApexClassroom.get(token, str(c_id)))
@@ -369,7 +380,7 @@ class ApexStudent(ApexDataObject):
         :rtype: List[int]
         """
         header = get_header(token)
-        r = requests.get(url=self.classroom_url, headers=header)
+        r = requests.get(url=self.classroom_url, headers=header, params={'isActiveOnly': True})
         try:
             r.raise_for_status()
             return [int(student['ImportClassroomId']) for student in r.json()]
@@ -416,7 +427,7 @@ class ApexStudent(ApexDataObject):
     @property
     def classroom_url(self) -> str:
         url = urljoin(self.url + '/', self.import_user_id)
-        url = urljoin(url + '/', 'objects')
+        url = urljoin(url + '/', 'classrooms')
         return url
 
 
@@ -521,7 +532,7 @@ class ApexClassroom(ApexDataObject):
     :param str program_code: the program to which the classroom belongs
     """
 
-    url = urljoin(BASE_URL, 'objects')
+    url = urljoin(BASE_URL, 'classrooms')
     role = 'T'
     ps2apex_field_map = {
         'first_day': 'classroom_start_date',
