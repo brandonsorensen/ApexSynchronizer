@@ -5,7 +5,7 @@ from . import utils, exceptions
 from abc import ABC, abstractmethod
 from datetime import datetime
 from .ps_agent import course2program_code, fetch_staff, fetch_classrooms
-from typing import Iterable, List, Optional, Tuple, Type, Union
+from typing import Collection, List, Optional, Tuple, Type, Union
 from requests.models import Response
 from urllib.parse import urljoin, urlparse
 from .utils import BASE_URL, get_header
@@ -93,11 +93,14 @@ class ApexDataObject(ABC):
 
         ret_val = []
 
-        for obj in json_objs:
+        for i, obj in enumerate(json_objs):
+            progress = f'{i + 1}/{len(json_objs)}'
             try:
                 if not archived and obj['RoleStatus'] == 'Archived':
                     continue  # Don't return archived
-                apex_obj = cls.get(token, obj['ImportUserId'])
+                iuid = obj['ImportUserId']
+                logger.info(f'{progress}:Creating {cls.__name__} with ImportUserId {iuid}')
+                apex_obj = cls.get(token, iuid)
                 ret_val.append(apex_obj)
             except exceptions.ApexObjectNotFoundException:
                 error_msg = f'Could not retrieve object of type {cls.__name__} \
@@ -120,7 +123,7 @@ class ApexDataObject(ABC):
         return self.post_batch(token, [self])
 
     @classmethod
-    def post_batch(cls, token: str, objects: Iterable['ApexDataObject']):
+    def post_batch(cls, token: str, objects: Collection['ApexDataObject']):
         """
         Posts a batch of `ApexDataObjects` to the Apex API. The `object` parameter
         must be heterogeneous, i.e. must contain objects of all the same type.
@@ -338,7 +341,6 @@ class ApexStudent(ApexDataObject):
 
         if kwargs['import_user_id'] is None:
             kwargs['import_user_id'] = '10'
-        kwargs['email'] = 'dummy@malad.us'
 
         return cls(**kwargs)
 
