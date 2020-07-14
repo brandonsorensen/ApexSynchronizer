@@ -122,18 +122,18 @@ class ApexEnrollment(BaseEnrollment):
         n_students = len(apex_students)
         logging.info(f'Getting enrollment info for {n_students} students.')
         for i, student in enumerate(apex_students):
-            progress = f'student {i}/{n_students}'
+            progress = f'student {i + 1}/{n_students}'
             try:
                 classrooms = student.get_enrollments(access_token)
+                by_id = set([int(c.import_classroom_id) for c in classrooms])
             except ApexObjectNotFoundException:
                 logging.info(f'{progress}:could not find student with EDUID {student.import_user_id} in PS.')
-                continue
-            by_id = set([c.section_id for c in classrooms])
+                by_id = set()
             self._student2classrooms[int(student.import_user_id)] = by_id
             self.logger.info(f'{progress}:1/2:got classrooms for student {student.import_user_id}')
 
             for classroom in by_id:
-                self._classroom2students[classroom] = student
+                self._classroom2students[classroom] = int(student.import_user_id)
             self.logger.info(f'{progress}:2/2:created reverse mapping for student {student.import_user_id}')
 
         self.logger.debug('ApexEnrollment object created successfully.')
