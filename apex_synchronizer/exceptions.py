@@ -37,6 +37,15 @@ class ApexMalformedJsonException(ApexError):
         return 'Received bad JSON response: ' + str(self.obj)
 
 
+class ApexNoEmailException(ApexError):
+
+    def __init__(self, import_user_id):
+        self.user_id = import_user_id
+
+    def __str__(self):
+        return f'Student with EDUID {self.user_id} has no email.'
+
+
 class NoUserIdException(ApexDataObjectException):
 
     def __str__(self):
