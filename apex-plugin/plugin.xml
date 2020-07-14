@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plugin xmlns="http://plugin.powerschool.pearson.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="http://plugin.powerschool.pearson.com plugin.xsd"
-        name="Apex Learning" version="0.917" description="Apex Access Plugin">
+        name="Apex Learning" version="0.922" description="Apex Access Plugin">
   <oauth/>
   <publisher name="Brandon">
     <contact email="sorensen.12@gmail.com"/>
