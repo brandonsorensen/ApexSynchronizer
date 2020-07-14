@@ -134,7 +134,7 @@ class ApexDataObject(ABC):
         """
         header = get_header(token)
         payload = json.dumps({cls.post_heading: [c.to_json() for c in objects]})
-        url = cls.url if len(objects) <= 50 else urljoin(cls.url, 'batch')
+        url = cls.url if len(objects) <= 50 else urljoin(cls.url + '/', 'batch')
         r = requests.post(url=url, data=payload, headers=header)
         # TODO: Error handling
         return r
