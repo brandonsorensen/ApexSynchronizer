@@ -37,45 +37,45 @@
     }
   },
   "loggers": {
-    "": {
-    "handlers": ["console_handler"],
-    "level": "WARNING",
-    "propagate": false
-  },
-  "apex_synchronizer.apex_synchronizer": {
-    "handlers": ["console_handler", "apex_handler"],
-    "level": "INFO",
-    "propagate": false
-  },
-  "apex_synchronizer.apex_session": {
-    "handlers": ["console_handler", "apex_handler"],
-    "level": "INFO",
-    "propagate": false
-  },
-  "apex_synchronizer.enrollment.ApexEnrollment": {
-    "handlers": ["console_handler", "apex_handler"],
-    "level": "INFO",
-    "propagate": false
-  },
-  "apex_synchronizer.apex_data_models": {
-    "handlers": ["console_handler", "apex_handler"],
-    "level": "INFO",
-    "propagate": false
-  },
-  "apex_synchronizer.ps_agent": {
-    "handlers": ["console_handler", "ps_handler"],
-    "level": "INFO",
-    "propagate": false
-  },
-  "apex_synchronizer.enrollment.PSEnrollment": {
-    "handlers": ["console_handler", "ps_handler"],
-    "level": "INFO",
-    "propagate": false
-  },
-  "__main__": {
-    "handlers": ["console_handler"],
-    "level": "NOTSET",
-    "propagate": false
+      "": {
+      "handlers": ["console_handler"],
+      "level": "WARNING",
+      "propagate": false
+    },
+    "apex_synchronizer.apex_synchronizer": {
+      "handlers": ["console_handler", "apex_handler"],
+      "level": "INFO",
+      "propagate": false
+    },
+    "apex_synchronizer.apex_session": {
+      "handlers": ["console_handler", "apex_handler"],
+      "level": "INFO",
+      "propagate": false
+    },
+    "apex_synchronizer.enrollment.ApexEnrollment": {
+      "handlers": ["console_handler", "apex_handler"],
+      "level": "INFO",
+      "propagate": false
+    },
+    "apex_synchronizer.apex_data_models": {
+      "handlers": ["console_handler", "apex_handler"],
+      "level": "INFO",
+      "propagate": false
+    },
+    "apex_synchronizer.ps_agent": {
+      "handlers": ["console_handler", "ps_handler"],
+      "level": "INFO",
+      "propagate": false
+    },
+    "apex_synchronizer.enrollment.PSEnrollment": {
+      "handlers": ["console_handler", "ps_handler"],
+      "level": "INFO",
+      "propagate": false
+    },
+    "__main__": {
+      "handlers": ["console_handler"],
+      "level": "NOTSET",
+      "propagate": false
+    }
   }
-}
 }
