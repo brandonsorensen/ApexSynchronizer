@@ -7,10 +7,10 @@ from .utils import get_header
 BASE_QUERY_URL = '/ws/schema/query/com.apex.learning.school.'
 
 course2program_code = {
-    616: 'Z8102253',
-    615: 'Z9830940',
-    501: 'Z3844077',
-    601: 'Z2227630'
+    616: 'Z1707458',
+    615: 'Z7250853',
+    501: 'Z9065429',
+    601: 'Z1001973'
 }
 
 
