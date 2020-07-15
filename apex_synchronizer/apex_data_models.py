@@ -1,10 +1,12 @@
-import requests
-import json
 import logging
+import json
+import requests
+import re
 from . import utils, exceptions
 from abc import ABC, abstractmethod
 from datetime import datetime
 from .ps_agent import course2program_code, fetch_staff, fetch_classrooms
+from string import punctuation
 from typing import Collection, List, Optional, Tuple, Type, Union
 from requests.models import Response
 from urllib.parse import urljoin, urlparse
@@ -12,7 +14,7 @@ from .utils import BASE_URL, get_header
 
 APEX_DATETIME_FORMAT = '%a, %d %b %Y %H:%M:%S %Z'
 PS_DATETIME_FORMAT = '%Y/%m/%d'
-
+PUNC_REGEX = re.compile(fr'[{punctuation + " "}]')
 
 class ApexDataObject(ABC):
 
@@ -707,8 +709,8 @@ class ApexClassroom(ApexDataObject):
 
 def make_userid(first_name: str, last_name: str):
     """Makes a UserId from first and last names."""
-    userid = last_name.replace(' ', '').lower()[:4]
-    userid += first_name.replace(' ', '').lower()[:4]
+    userid = re.sub(PUNC_REGEX, '', last_name.lower())[:4]
+    userid += re.sub(PUNC_REGEX, '', first_name.lower())[:4]
     return userid
 
 
