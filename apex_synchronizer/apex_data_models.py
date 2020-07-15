@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from .ps_agent import course2program_code, fetch_staff, fetch_classrooms
 from string import punctuation
-from typing import Collection, List, Optional, Set, Tuple, Type, Union
+from typing import Collection, List, Optional, Tuple, Type, Union
 from requests.models import Response
 from urllib.parse import urljoin, urlparse
 from .utils import BASE_URL, get_header
@@ -32,6 +32,8 @@ class ApexDataObject(ABC):
     def __init__(self, import_user_id, import_org_id):
         """Initializes instance variables."""
         self.import_user_id = import_user_id
+        if not import_user_id:
+            raise exceptions.NoUserIdException
         self.import_org_id = import_org_id
 
     @classmethod
