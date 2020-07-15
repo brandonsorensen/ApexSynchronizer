@@ -174,13 +174,11 @@ class ApexDataObject(ABC):
         url = urljoin(self.url + '/', self.import_user_id)
         payload = self.to_json()
         del payload[main_id]  # Given in the URL
+        # We don't want to update a password
+        if 'LoginPw' in payload.keys():
+            del payload['LoginPw']
         r = requests.put(url=url, headers=header, data=payload)
         return r
-
-    @staticmethod
-    def _parse_post_response(r: Response):
-        pass
-
 
     @property
     @abstractmethod
@@ -323,7 +321,7 @@ class ApexStudent(ApexDataObject):
         self.last_name = last_name
         self.email = email
         self.grade_level = grade_level
-        self.login_id = email
+        self.login_id = make_userid(first_name, last_name)
         self.login_pw = import_user_id
         # TODO: Add graduation year?
 
@@ -491,7 +489,7 @@ class ApexStaffMember(ApexDataObject):
         self.last_name = last_name
         self.email = email
         self.login_id = login_id
-        self.login_pw = login_password # TODO: Don't pass password
+        self.login_pw = login_password  # TODO: Don't pass password
 
     @classmethod
     def from_powerschool(cls, json_obj) -> 'ApexStaffMember':
@@ -705,6 +703,13 @@ class ApexClassroom(ApexDataObject):
         # Get the final component in the object's url
         obj_type_component = urlparse(dtype.url).path.rsplit("/", 1)[-1]
         return urljoin(url + '/', obj_type_component)
+
+
+def make_userid(first_name: str, last_name: str):
+    """Makes a UserId from first and last names."""
+    userid = last_name.replace(' ', '').lower()[:4]
+    userid += first_name.replace(' ', '').lower()[:4]
+    return userid
 
 
 def teacher_fuzzy_match(t1: str) -> ApexStaffMember:
