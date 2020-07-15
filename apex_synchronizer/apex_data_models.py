@@ -99,8 +99,11 @@ class ApexDataObject(ABC):
                 if not archived and obj['RoleStatus'] == 'Archived':
                     continue  # Don't return archived
                 iuid = obj['ImportUserId']
+                if not iuid:
+                    logger.info('Object has no ImportUserId. Skipping...')
+                    continue
                 logger.info(f'{progress}:Creating {cls.__name__} with ImportUserId {iuid}')
-                apex_obj = cls.get(token, iuid)
+                apex_obj = cls.get(token, import_id=iuid)
                 ret_val.append(apex_obj)
             except exceptions.ApexObjectNotFoundException:
                 error_msg = f'Could not retrieve object of type {cls.__name__} \
@@ -139,7 +142,6 @@ class ApexDataObject(ABC):
         payload = json.dumps({cls.post_heading: [c.to_json() for c in objects]})
         url = cls.url if len(objects) <= 50 else urljoin(cls.url + '/', 'batch')
         r = requests.post(url=url, data=payload, headers=header)
-        # TODO: Error handling
         return r
 
     def delete_from_apex(self, token) -> Response:
@@ -174,6 +176,11 @@ class ApexDataObject(ABC):
         del payload[main_id]  # Given in the URL
         r = requests.put(url=url, headers=header, data=payload)
         return r
+
+    @staticmethod
+    def _parse_post_response(r: Response):
+        pass
+
 
     @property
     @abstractmethod
@@ -225,7 +232,11 @@ class ApexDataObject(ABC):
         kwargs = {}
         json_obj = utils.flatten_ps_json(json_obj)
         for ps_key, apex_key in cls.ps2apex_field_map.items():
-            kwargs[apex_key] = json_obj[ps_key]
+            if type(apex_key) is str:
+                kwargs[apex_key] = json_obj[ps_key]
+            else:
+                for k in apex_key:
+                    kwargs[k] = json_obj[ps_key]
         return kwargs
 
     @classmethod
@@ -299,21 +310,21 @@ class ApexStudent(ApexDataObject):
         'first_name': 'first_name',
         'middle_name': 'middle_name',
         'last_name': 'last_name',
-        'web_id': 'login_id',
         'grade_level': 'grade_level',
         'email': 'email'
     }
 
     def __init__(self, import_user_id: Union[int, str], import_org_id: Union[int, str],
                  first_name: str, middle_name: str, last_name: str, email: str,
-                 grade_level: int, login_id: str):
+                 grade_level: int):
         super().__init__(import_user_id, import_org_id)
         self.first_name = first_name
         self.middle_name = middle_name
         self.last_name = last_name
         self.email = email
         self.grade_level = grade_level
-        self.login_id = login_id
+        self.login_id = email
+        self.login_pw = import_user_id
         # TODO: Add graduation year?
 
     @classmethod
