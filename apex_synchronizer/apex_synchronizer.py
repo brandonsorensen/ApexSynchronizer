@@ -1,6 +1,6 @@
 import logging
 import requests
-from .apex_session import ApexSession
+from .apex_session import ApexSession, ApexAccessToken
 from .apex_data_models import ApexStudent
 from collections import KeysView
 from .enrollment import ApexEnrollment, PSEnrollment
@@ -52,52 +52,10 @@ class ApexSynchronizer(object):
             self.logger.info('Apex roster agrees with PowerSchool')
 
     def enroll_students(self, student_ids: Collection[int]):
-        self.logger.info(f'Found {len(student_ids)} students in PowerSchool not enrolled in Apex.')
+        apex_students = init_students_for_ids(student_ids)
         token = self.session.access_token
-        ps_json = fetch_students()
-        apex_students = []
-        seen_eduids = set()
-        for obj in ps_json:
-            eduid = obj['tables']['students']['eduid']
-            if not eduid:
-                last_name = obj['tables']['students']['last_name']
-                first_name = obj['tables']['students']['first_name']
-                self.logger.info(f'Student "{first_name} {last_name}" does not have an EDUID. Skipping...')
-                continue
-
-            eduid = int(eduid)
-            if eduid in student_ids:
-                if eduid in seen_eduids:
-                    self.logger.debug(f'Duplicate EDUID \"{eduid}\". Skipping...')
-                    continue
-                try:
-                    self.logger.info(f'Creating student for EDUID {eduid}')
-                    apex_student = ApexStudent.from_powerschool(obj)
-                    seen_eduids.add(eduid)
-                    apex_students.append(apex_student)
-                except ApexNoEmailException:
-                    self.logger.info(f'Student with EDUID "{eduid}" has no email. Skipping...')
-                except ApexMalformedEmailException as e:
-                    self.logger.info(e)
-
         if len(apex_students) > 0:
-            self.logger.info(f'Posting {len(apex_students)} students.')
-            r = ApexStudent.post_batch(token, apex_students)
-            try:
-                r.raise_for_status()
-                self.logger.debug('Received status code ' + str(r.status_code))
-            except requests.exceptions.HTTPError:
-                self.logger.exception('Failed to POST students. Received status ' + str(r.status_code))
-
-                as_json = r.json()
-                if type(as_json) is dict:
-                    self.logger.info('Found duplicates.')
-                    put_duplicates(as_json, apex_students, token)
-                elif type(as_json) is list:
-                    self.logger.info('Removing invalid entries.')
-                    repost_students(as_json, apex_students, token)
-                else:
-                    self.logger.exception('Response text:\n' + r.text)
+            post_students(token, apex_students)
 
     def _has_enrollment(self):
         return hasattr(self, 'ps_enroll') and hasattr(self, 'apex_enroll')
@@ -123,6 +81,59 @@ class ApexSynchronizer(object):
         except AttributeError:
             self.ps_enroll = PSEnrollment()
             return self.ps_enroll.roster
+
+
+def init_students_for_ids(student_ids: Collection[int]) -> List[ApexStudent]:
+    logger = logging.getLogger(__name__)
+    logger.info(f'Found {len(student_ids)} students in PowerSchool not enrolled in Apex.')
+    ps_json = fetch_students()
+    apex_students = []
+    seen_eduids = set()
+    for obj in ps_json:
+        eduid = obj['tables']['students']['eduid']
+        if not eduid:
+            last_name = obj['tables']['students']['last_name']
+            first_name = obj['tables']['students']['first_name']
+            logger.info(f'Student "{first_name} {last_name}" does not have an EDUID. Skipping...')
+            continue
+
+        eduid = int(eduid)
+        if eduid in student_ids:
+            if eduid in seen_eduids:
+                logger.debug(f'Duplicate EDUID \"{eduid}\". Skipping...')
+                continue
+            try:
+                logger.info(f'Creating student for EDUID {eduid}')
+                apex_student = ApexStudent.from_powerschool(obj)
+                seen_eduids.add(eduid)
+                apex_students.append(apex_student)
+            except ApexNoEmailException:
+                logger.info(f'Student with EDUID "{eduid}" has no email. Skipping...')
+            except ApexMalformedEmailException as e:
+                logger.info(e)
+
+    return apex_students
+
+
+def post_students(token: Union[str, ApexAccessToken], apex_students: List[ApexStudent]):
+    logger = logging.getLogger(__name__)
+    logger.info(f'Posting {len(apex_students)} students.')
+    r = ApexStudent.post_batch(token, apex_students)
+    try:
+        r.raise_for_status()
+        logger.debug('Received status code ' + str(r.status_code))
+    except requests.exceptions.HTTPError:
+        logger.exception('Failed to POST students. Received status ' + str(r.status_code))
+
+        as_json = r.json()
+        if type(as_json) is dict:
+            logger.info('Found duplicates.')
+            put_duplicates(as_json, apex_students, token)
+        elif type(as_json) is list:
+            logger.info('Removing invalid entries.')
+            repost_students(as_json, apex_students, token)
+        else:
+            logger.exception('Response text:\n' + r.text)
 
 
 def put_duplicates(json_obj: dict, apex_students: List[ApexStudent],token: str):
