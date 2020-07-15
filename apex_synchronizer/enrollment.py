@@ -120,6 +120,7 @@ class ApexEnrollment(BaseEnrollment):
             session = ApexSession()
             access_token = session.access_token
 
+        self.logger.info('Retrieving Apex student information from Apex API.')
         self.apex_students = ApexStudent.get_all(access_token)
         self.logger.info('Retrieved Apex student information')
         self.logger.debug('Creating ApexStudent index')
