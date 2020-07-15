@@ -300,6 +300,8 @@ class ApexDataObject(ABC):
                 error_msg = f'Could not retrieve object of type {cls.__name__} \
                             bearing ImportID {obj["ImportUserID"]}. Skipping object'
                 logger.info(error_msg)
+            except exceptions.ApexMalformedEmailException as e:
+                logger.info(e)
             except KeyError:
                 pass
 

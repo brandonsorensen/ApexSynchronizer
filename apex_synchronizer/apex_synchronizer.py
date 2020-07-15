@@ -5,7 +5,7 @@ from .apex_data_models import ApexStudent
 from collections import KeysView
 from .enrollment import ApexEnrollment, PSEnrollment
 from .ps_agent import fetch_students
-from .exceptions import ApexNoEmailException
+from .exceptions import ApexNoEmailException, ApexMalformedEmailException
 from typing import Collection, List, Set, Union
 
 
@@ -75,6 +75,8 @@ class ApexSynchronizer(object):
                     apex_students.append(apex_student)
                 except ApexNoEmailException:
                     self.logger.info(f'Student with EDUID "{eduid}" has no email. Skipping...')
+                except ApexMalformedEmailException as e:
+                    self.logger.info(e)
 
         if len(apex_students) > 0:
             self.logger.info(f'Posting {len(apex_students)} students.')
