@@ -84,6 +84,13 @@ class ApexSynchronizer(object):
 
 
 def init_students_for_ids(student_ids: Collection[int]) -> List[ApexStudent]:
+    """
+    Iterates over the PowerSchool rosters and creates ApexStudent objects out of
+    the intersection between the IDs in `student_ids` and the PowerSchool students.
+
+    :param student_ids: student EDUIDs
+    :return: the students in both PowerSchool and the given last as `ApexStudent` objects
+    """
     logger = logging.getLogger(__name__)
     logger.info(f'Found {len(student_ids)} students in PowerSchool not enrolled in Apex.')
     ps_json = fetch_students()
@@ -116,6 +123,7 @@ def init_students_for_ids(student_ids: Collection[int]) -> List[ApexStudent]:
 
 
 def post_students(token: Union[str, ApexAccessToken], apex_students: List[ApexStudent]):
+    """Posts a list of ApexStudents to the Apex API."""
     logger = logging.getLogger(__name__)
     logger.info(f'Posting {len(apex_students)} students.')
     r = ApexStudent.post_batch(token, apex_students)
@@ -136,7 +144,8 @@ def post_students(token: Union[str, ApexAccessToken], apex_students: List[ApexSt
             logger.exception('Response text:\n' + r.text)
 
 
-def put_duplicates(json_obj: dict, apex_students: List[ApexStudent],token: str):
+def put_duplicates(json_obj: dict, apex_students: List[ApexStudent], token: str):
+    """A helper function for `post_students`. PUTs students that already exist in Apex."""
     logger = logging.getLogger(__name__)
     if not json_obj['HasError']:
         return
@@ -153,6 +162,7 @@ def put_duplicates(json_obj: dict, apex_students: List[ApexStudent],token: str):
 
 
 def repost_students(json_obj: dict, apex_students: List[ApexStudent], token: str):
+    """Helper function for `post_students`. Removes invalid entries and attempts to POST again."""
     logger = logging.getLogger(__name__)
     to_retry = []
     for entry in json_obj:
