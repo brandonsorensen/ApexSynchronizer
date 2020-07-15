@@ -1,11 +1,12 @@
 import logging
 import requests
 from .apex_session import ApexSession
-from .apex_data_models import ApexClassroom, ApexStudent
+from .apex_data_models import ApexStudent
+from collections import KeysView
 from .enrollment import ApexEnrollment, PSEnrollment
 from .ps_agent import fetch_students
 from .exceptions import ApexNoEmailException
-from typing import Collection, List
+from typing import Collection, List, Set, Union
 
 
 class ApexSynchronizer(object):
@@ -26,11 +27,10 @@ class ApexSynchronizer(object):
 
     def sync_rosters(self):
         self.logger.info('Beginning roster synchronization.')
-        self.init_enrollment()
 
         self.logger.info('Comparing enrollment information.')
-        to_enroll = self.ps_enroll.roster - self.apex_enroll.roster
-        to_withdraw = self.apex_enroll.roster - self.ps_enroll.roster
+        to_enroll = self.ps_roster - self.apex_roster
+        to_withdraw = self.apex_roster - self.ps_roster
         if len(to_enroll) == len(to_withdraw) == 0:
             self.logger.info('Rosters already in sync')
             return
@@ -42,6 +42,7 @@ class ApexSynchronizer(object):
 
         if len(to_withdraw) > 0:
             self.logger.info(f'Found {len(to_withdraw)} students in Apex not enrolled in PowerSchool.')
+            student: ApexStudent
             for i, student in enumerate(to_withdraw):
                 progress = f':{i + 1}/{len(to_withdraw)}:'
                 self.logger.info(f'{progress}Removing student {student} from Apex.')
@@ -86,6 +87,7 @@ class ApexSynchronizer(object):
 
                 as_json = r.json()
                 if type(as_json) is dict:
+                    self.logger.info('Found duplicates.')
                     put_duplicates(as_json, apex_students, token)
                 elif type(as_json) is list:
                     self.logger.info('Removing invalid entries.')
@@ -95,6 +97,28 @@ class ApexSynchronizer(object):
 
     def _has_enrollment(self):
         return hasattr(self, 'ps_enroll') and hasattr(self, 'apex_enroll')
+
+    @property
+    def apex_roster(self) -> Union[Set[int], KeysView]:
+        """Avoids creating an ApexEnrollment object if it doesn't have to."""
+        try:
+            return self.apex_enroll.roster
+        except AttributeError:
+            try:
+                return self._apex_roster
+            except AttributeError:
+                token = self.session.access_token
+                self._apex_roster = set(ApexStudent.get_all(token=token, ids_only=True))
+                return self._apex_roster
+
+    @property
+    def ps_roster(self) -> KeysView:
+        """Exists only to mirror the `apex_roster` method."""
+        try:
+            return self.ps_enroll.roster
+        except AttributeError:
+            self.ps_enroll = PSEnrollment()
+            return self.ps_enroll.roster
 
 
 def put_duplicates(json_obj: dict, apex_students: List[ApexStudent],token: str):
