@@ -3,7 +3,7 @@ from .apex_data_models import ApexStudent, ApexClassroom
 from .apex_session import ApexSession
 from collections import defaultdict, KeysView
 from .exceptions import ApexObjectNotFoundException
-from .ps_agent import fetch_enrollment
+from .ps_agent import fetch_enrollment, fetch_students
 from typing import Iterable, Set, Union
 from .utils import flatten_ps_json
 import logging
@@ -113,15 +113,17 @@ class ApexEnrollment(BaseEnrollment):
             session = ApexSession()
             access_token = session.access_token
 
-        apex_students = ApexStudent.get_all(access_token)
+        self.apex_students = ApexStudent.get_all(access_token)
         self.logger.info('Retrieved Apex student information')
+        self.logger.debug('Creating ApexStudent index')
+        self._apex_index = {int(student.import_user_id): student for student in self.apex_students}
 
         self._student2classrooms = {}
         self._classroom2students = {}
 
-        n_students = len(apex_students)
+        n_students = len(self.apex_students)
         logging.info(f'Getting enrollment info for {n_students} students.')
-        for i, student in enumerate(apex_students):
+        for i, student in enumerate(self.apex_students):
             progress = f'student {i + 1}/{n_students}'
             try:
                 classrooms = student.get_enrollments(access_token)
@@ -145,5 +147,8 @@ class ApexEnrollment(BaseEnrollment):
     @property
     def student2classrooms(self) -> dict:
         return self._student2classrooms
+
+    def get_student(self, eduid: Union[str, int]):
+        return self._apex_index[int(eduid)]
 
 
