@@ -15,6 +15,9 @@ from .utils import BASE_URL, get_header
 APEX_DATETIME_FORMAT = '%a, %d %b %Y %H:%M:%S %Z'
 PS_DATETIME_FORMAT = '%Y/%m/%d'
 PUNC_REGEX = re.compile(fr'[{punctuation + " "}]')
+APEX_EMAIL_REGEX = re.compile("^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9]"
+                              "(?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}"
+                              "[a-zA-Z0-9])?)+$|^$/]")
 
 
 class ApexDataObject(ABC):
@@ -94,10 +97,10 @@ class ApexDataObject(ABC):
         logger = logging.getLogger(__name__)
 
         current_page = 1
-        args = {}
         ret_val = []
 
-        r = requests.get(url=cls.url, headers=get_header(token))
+        header = get_header(token)
+        r = requests.get(url=cls.url, headers=header)
         total_pages = int(r.headers['total-pages'])
         while current_page <= total_pages:
             logger.info(f'Reading page {current_page}/{total_pages} of get_all response.')
@@ -105,8 +108,7 @@ class ApexDataObject(ABC):
                                      all_objs=ret_val, archived=archived,
                                      ids_only=ids_only)
             current_page += 1
-            args['current-page'] = str(current_page)
-            header = get_header(token, custom_args=args)
+            header['page'] = str(current_page)
 
             if current_page <= total_pages:
                 r = requests.get(url=cls.url, headers=header)
@@ -258,7 +260,7 @@ class ApexDataObject(ABC):
         return kwargs, json_obj
 
     @classmethod
-    def _parse_response_page(cls, token: str, json_objs: List[dict], page_number: int,
+    def _parse_response_page(cls, token: str, json_objs: List[dict], page_number: float,
                              all_objs: List[Union['ApexDataObject', int]],
                              archived: bool = False, ids_only: bool = False):
         """
@@ -278,7 +280,7 @@ class ApexDataObject(ABC):
         """
         logger = logging.getLogger(__name__)
         for i, obj in enumerate(json_objs):
-            progress = f'page {page_number}:{i + 1}/{len(json_objs)}:total {len(all_objs) + 1}'
+            progress = f'page {int(page_number)}:{i + 1}/{len(json_objs)}:total {len(all_objs) + 1}'
             try:
                 if not archived and obj['RoleStatus'] == 'Archived':
                     continue  # Don't return archived
@@ -362,6 +364,8 @@ class ApexStudent(ApexDataObject):
         self.first_name = first_name
         self.middle_name = middle_name
         self.last_name = last_name
+        if not re.match(APEX_EMAIL_REGEX, email):
+            raise exceptions.ApexMalformedEmailException(import_user_id, email)
         self.email = email
         self.grade_level = grade_level
         self.login_id = make_userid(first_name, last_name)

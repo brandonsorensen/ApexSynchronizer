@@ -1,3 +1,6 @@
+from typing import Union
+
+
 class ApexError(Exception):
 
     def __str__(self):
@@ -44,6 +47,18 @@ class ApexNoEmailException(ApexError):
 
     def __str__(self):
         return f'Student with EDUID {self.user_id} has no email.'
+
+
+class ApexMalformedEmailException(ApexError):
+
+    def __init__(self, import_user_id: Union[str, int], email: str):
+        self.user_id = import_user_id
+        self.email = email
+
+    def __str__(self):
+        return (f'Attempt to create student with EDUID {self.user_id} failed '
+                'due to an email address that does not conform to Apex validation rules: '
+                + self.email)
 
 
 class NoUserIdException(ApexDataObjectException):
