@@ -76,10 +76,10 @@ class PSEnrollment(BaseEnrollment):
             self.logger.debug('Fetching enrollment')
             ps_json = fetch_enrollment()
 
-        json_obj = map(flatten_ps_json, ps_json)
-        self._parse_json(json_obj)
+        self._parse_enrollment_json(map(flatten_ps_json, ps_json))
+        self._parse_student_json(map(flatten_ps_json, fetch_students()))
 
-    def _parse_json(self, json_obj: Iterable[dict]):
+    def _parse_enrollment_json(self, json_obj: Iterable[dict]):
         """Parses a JSON object returned by the `fetch_enrollment` function."""
         self._student2classrooms = defaultdict(set)
         self._classroom2students = defaultdict(set)
@@ -95,6 +95,13 @@ class PSEnrollment(BaseEnrollment):
 
         self._student2classrooms = dict(self.student2classrooms)
         self._classroom2students = dict(self.classroom2students)
+
+    def _parse_student_json(self, json_obj: Iterable[dict]):
+        """Parses a JSON object returned by the `fetch_students` function."""
+        for entry in json_obj:
+            eduid = entry['eduid']
+            if eduid and eduid not in self._student2classrooms.keys():
+                self._student2classrooms[int(eduid)] = set()
 
     @property
     def classroom2students(self) -> dict:
