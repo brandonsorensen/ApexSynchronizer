@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from .ps_agent import course2program_code, fetch_staff, fetch_classrooms
 from string import punctuation
-from typing import Collection, List, Optional, Tuple, Type, Union
+from typing import Collection, List, Optional, Set, Tuple, Type, Union
 from requests.models import Response
 from urllib.parse import urljoin, urlparse
 from .utils import BASE_URL, get_header
@@ -15,6 +15,7 @@ from .utils import BASE_URL, get_header
 APEX_DATETIME_FORMAT = '%a, %d %b %Y %H:%M:%S %Z'
 PS_DATETIME_FORMAT = '%Y/%m/%d'
 PUNC_REGEX = re.compile(fr'[{punctuation + " "}]')
+
 
 class ApexDataObject(ABC):
 
@@ -81,7 +82,8 @@ class ApexDataObject(ABC):
         return r
 
     @classmethod
-    def get_all(cls, token, archived=False) -> List['ApexDataObject']:
+    def get_all(cls, token, ids_only=False, archived=False)\
+            -> List[Union['ApexDataObject', int]]:
         """
         Gets all objects of type `cls` in the Apex database.
 
@@ -90,29 +92,24 @@ class ApexDataObject(ABC):
         :return: a list containing all objects of this type in the Apex database
         """
         logger = logging.getLogger(__name__)
-        r = requests.get(url=cls.url, headers=get_header(token))
-        json_objs = json.loads(r.text)
 
+        current_page = 1
+        args = {}
         ret_val = []
 
-        for i, obj in enumerate(json_objs):
-            progress = f'{i + 1}/{len(json_objs)}'
-            try:
-                if not archived and obj['RoleStatus'] == 'Archived':
-                    continue  # Don't return archived
-                iuid = obj['ImportUserId']
-                if not iuid:
-                    logger.info('Object has no ImportUserId. Skipping...')
-                    continue
-                logger.info(f'{progress}:Creating {cls.__name__} with ImportUserId {iuid}')
-                apex_obj = cls.get(token, import_id=iuid)
-                ret_val.append(apex_obj)
-            except exceptions.ApexObjectNotFoundException:
-                error_msg = f'Could not retrieve object of type {cls.__name__} \
-                            bearing ImportID {obj["ImportUserID"]}. Skipping object'
-                logger.info(error_msg)
-            except KeyError:
-                pass
+        r = requests.get(url=cls.url, headers=get_header(token))
+        total_pages = int(r.headers['total-pages'])
+        while current_page <= total_pages:
+            logger.info(f'Reading page {current_page}/{total_pages} of get_all response.')
+            cls._parse_response_page(token=token, json_objs=r.json(), page_number=current_page,
+                                     all_objs=ret_val, archived=archived,
+                                     ids_only=ids_only)
+            current_page += 1
+            args['current-page'] = str(current_page)
+            header = get_header(token, custom_args=args)
+
+            if current_page <= total_pages:
+                r = requests.get(url=cls.url, headers=header)
 
         return ret_val
 
@@ -259,6 +256,50 @@ class ApexDataObject(ABC):
                 kwargs[snake_key] = value
 
         return kwargs, json_obj
+
+    @classmethod
+    def _parse_response_page(cls, token: str, json_objs: List[dict], page_number: int,
+                             all_objs: List[Union['ApexDataObject', int]],
+                             archived: bool = False, ids_only: bool = False):
+        """
+        Parses a single page of a GET response and populates the `all_objs`
+        list with either `ApexDataObject` objects or their ImportUserIds
+        depending on the value of `ids_only`. Returned only ImportUserIds
+        is far more efficient as returning the the objects requires making
+        GET calls for each objects whereas the IDs are given in a single
+        (paginated) call .
+
+        :param token: Apex access token
+        :param json_objs: the objects in the response page
+        :param all_objs: the global list of all objects collected thus far
+        :param archived: whether to return archived objects
+        :param ids_only: whether to return on the IDs
+        :return: a list of all objects or their IDs.
+        """
+        logger = logging.getLogger(__name__)
+        for i, obj in enumerate(json_objs):
+            progress = f'page {page_number}:{i + 1}/{len(json_objs)}:total {len(all_objs) + 1}'
+            try:
+                if not archived and obj['RoleStatus'] == 'Archived':
+                    continue  # Don't return archived
+                iuid = obj['ImportUserId']
+                if not iuid:
+                    logger.info('Object has no ImportUserId. Skipping...')
+                    continue
+
+                if ids_only:
+                    logger.info(f'{progress}:Adding ImportUserId {iuid}.')
+                    all_objs.append(int(iuid))
+                else:
+                    logger.info(f'{progress}:Creating {cls.__name__} with ImportUserId {iuid}')
+                    apex_obj = cls.get(token, import_id=iuid)
+                    all_objs.append(apex_obj)
+            except exceptions.ApexObjectNotFoundException:
+                error_msg = f'Could not retrieve object of type {cls.__name__} \
+                            bearing ImportID {obj["ImportUserID"]}. Skipping object'
+                logger.info(error_msg)
+            except KeyError:
+                pass
 
     def to_dict(self) -> dict:
         """Converts attributes to a dictionary."""
