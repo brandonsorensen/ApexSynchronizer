@@ -60,7 +60,9 @@ class ApexSynchronizer(object):
         for obj in ps_json:
             eduid = obj['tables']['students']['eduid']
             if not eduid:
-                self.logger.info('Student does not have an EDUID. Skipping...')
+                last_name = obj['tables']['students']['last_name']
+                first_name = obj['tables']['students']['first_name']
+                self.logger.info(f'Student "{first_name} {last_name}" does not have an EDUID. Skipping...')
                 continue
 
             eduid = int(eduid)
@@ -132,7 +134,11 @@ def put_duplicates(json_obj: dict, apex_students: List[ApexStudent],token: str):
     for student_idx in duplicates:
         student = apex_students[student_idx]
         logger.info(f'Putting student with EDUID {student.import_user_id}.')
-        student.put_to_apex(token)
+        r = student.put_to_apex(token)
+        try:
+            r.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            logger.info('PUT failed with response ' + str(e))
 
 
 def repost_students(json_obj: dict, apex_students: List[ApexStudent], token: str):
