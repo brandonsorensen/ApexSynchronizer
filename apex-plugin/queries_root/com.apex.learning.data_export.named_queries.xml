@@ -121,10 +121,13 @@
 				FROM   cc
 					   INNER JOIN students
 							   ON cc.studentid = students.id
+					   INNER JOIN courses
+					   		   ON cc.course_number = courses.course_number
 				WHERE  cc.schoolid = 616
 					   AND students.enroll_status = 0
+					   AND courses.course_name LIKE '%(APEX)'
 				GROUP  BY students.State_StudentNumber, cc.sectionid
-				ORDER  BY students.State_StudentNumber 
+				ORDER  BY students.State_StudentNumber
 			]]>
         </sql>
     </query>
