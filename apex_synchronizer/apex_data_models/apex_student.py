@@ -1,14 +1,16 @@
 import logging
 import re
 import requests
+from typing import List, Optional, Union
+from urllib.parse import urljoin
+
+from requests import Response
+
 from .utils import BASE_URL, APEX_EMAIL_REGEX, make_userid
 from .apex_data_object import ApexDataObject
 from .apex_classroom import ApexClassroom
 from .. import exceptions
 from ..utils import get_header
-from requests import Response
-from typing import List, Optional, Union
-from urllib.parse import urljoin
 
 
 class ApexStudent(ApexDataObject):

@@ -1,12 +1,14 @@
-import json
-import logging
-import requests
-from .. import exceptions, utils
-from ..utils import get_header
 from abc import ABC, abstractmethod
-from requests import Response
 from typing import Collection, List, Tuple, Union
 from urllib.parse import urljoin
+import json
+import logging
+
+from requests import Response
+import requests
+
+from .. import exceptions, utils
+from ..utils import get_header
 
 
 class ApexDataObject(ABC):

@@ -1,12 +1,13 @@
 from abc import ABCMeta, abstractmethod
+from collections import defaultdict, KeysView
+from typing import Iterable, Set, Union
+import logging
+
 from .apex_data_models import ApexStudent, ApexClassroom
 from .apex_session import ApexSession
-from collections import defaultdict, KeysView
 from .exceptions import ApexObjectNotFoundException
 from .ps_agent import fetch_enrollment, fetch_students
-from typing import Iterable, Set, Union
 from .utils import flatten_ps_json
-import logging
 
 
 class BaseEnrollment(metaclass=ABCMeta):

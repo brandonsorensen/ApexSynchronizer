@@ -1,7 +1,8 @@
-from .apex_data_object import ApexDataObject
-from .utils import BASE_URL
 from typing import List, Union
 from urllib.parse import urljoin
+
+from .apex_data_object import ApexDataObject
+from .utils import BASE_URL
 
 
 class ApexStaffMember(ApexDataObject):

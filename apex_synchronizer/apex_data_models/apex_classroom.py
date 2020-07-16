@@ -1,16 +1,18 @@
+from datetime import datetime
+from requests import Response
+from typing import List, Type, Union
+from urllib.parse import urljoin, urlparse
 import json
 import logging
+
 import requests
+
 from .apex_data_object import ApexDataObject
 from .apex_staff_member import ApexStaffMember
 from .utils import BASE_URL, APEX_DATETIME_FORMAT, PS_DATETIME_FORMAT
 from .. import exceptions, utils
 from ..ps_agent import course2program_code, fetch_staff, fetch_classrooms
 from ..utils import get_header, levenshtein_distance
-from datetime import datetime
-from requests import Response
-from typing import List, Type, Union
-from urllib.parse import urljoin, urlparse
 
 
 class ApexClassroom(ApexDataObject):

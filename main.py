@@ -1,8 +1,9 @@
+from logging.config import dictConfig
 import logging
 import os
 import json
+
 from apex_synchronizer import ApexSynchronizer
-from logging.config import dictConfig
 
 
 def setup_logging(config_file: str = None, log_dir: str = None) -> dict:

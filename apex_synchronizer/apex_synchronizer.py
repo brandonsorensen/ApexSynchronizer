@@ -1,12 +1,14 @@
 import logging
-import requests
-from .apex_session import ApexSession, ApexAccessToken
-from .apex_data_models import ApexStudent
 from collections import KeysView
-from .enrollment import ApexEnrollment, PSEnrollment
-from .ps_agent import fetch_students
-from .exceptions import ApexNoEmailException, ApexMalformedEmailException
 from typing import Collection, List, Set, Union
+
+import requests
+
+from .apex_data_models import ApexStudent
+from .apex_session import ApexSession, ApexAccessToken
+from .enrollment import ApexEnrollment, PSEnrollment
+from .exceptions import ApexNoEmailException, ApexMalformedEmailException
+from .ps_agent import fetch_students
 
 
 class ApexSynchronizer(object):

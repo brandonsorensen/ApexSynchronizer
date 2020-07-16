@@ -1,7 +1,9 @@
 import logging
 import os
-import requests
 from urllib.parse import urljoin
+
+import requests
+
 from .utils import get_header
 
 BASE_QUERY_URL = '/ws/schema/query/com.apex.learning.school.'

@@ -1,5 +1,5 @@
-import re
 from string import punctuation
+import re
 
 BASE_URL = 'https://api.apexvs.com/'
 APEX_DATETIME_FORMAT = '%a, %d %b %Y %H:%M:%S %Z'
