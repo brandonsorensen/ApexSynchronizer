@@ -43,7 +43,7 @@
 			<column column="SECTIONS.SCHOOLID">SCHOOL_ID</column>
 			<column column="COURSES.COURSE_NAME">COURSE_NAME</column>
 			<column column="SECTIONS.SECTION_NUMBER">SECTION_NUMBER</column>
-			<column column="TEACHERS.ID">TEACHER_ID</column>
+			<column column="TEACHERS.EMAIL_ADDR">TEACHER_ID</column>
 			<column column="TEACHERS.FIRST_NAME">TEACHER_FIRST_NAME</column>
 			<column column="TEACHERS.MIDDLE_NAME">TEACHER_MIDDLE_NAME</column>
 			<column column="TEACHERS.LAST_NAME">TEACHER_LAST_NAME</column>
@@ -56,11 +56,11 @@
 					   s.schoolid,
 					   c.course_name, 
 					   s.section_number, 
-					   t.id as t_id,
+					   t.email_addr,
 					   t.first_name, 
 					   t.middle_name,
 					   t.last_name, 
-					   terms.firstday ,
+					   terms.firstday,
 					   s.dependent_secs
 				FROM   sections s 
 					   LEFT JOIN courses c 
@@ -88,7 +88,6 @@
 			<column column="TEACHERS.MIDDLE_NAME">MIDDLE_NAME</column>
 			<column column="TEACHERS.LAST_NAME">LAST_NAME</column>
 			<column column="TEACHERS.EMAIL_ADDR">EMAIL</column>
-			<column column="TEACHERS.TEACHERNUMBER">TEACHER_NUMBER</column>
 			<column column="TEACHERS.SCHOOLID">SCHOOL_ID</column>
  		</columns>
         <sql>
@@ -98,7 +97,6 @@
 					   middle_name,
 					   last_name,
 					   email_addr,
-					   teachernumber,
 					   schoolid
 				FROM   teachers
 				WHERE  teachers.schoolid in (501, 601, 616)
