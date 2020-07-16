@@ -1,9 +1,11 @@
 import re
 
+from .apex_session import TokenType
+
 CAMEL_REG = re.compile(r'(?<!^)(?=[A-Z])')
 
 
-def get_header(token, custom_args: dict = None) -> dict:
+def get_header(token: TokenType, custom_args: dict = None) -> dict:
     header = {
         'Authorization': f'Bearer {token}',
         'Accept': 'application/json'
@@ -62,7 +64,7 @@ def levenshtein_distance(s, t):
     return dist[row][col]
 
 
-def flatten_ps_json(json_obj) -> dict:
+def flatten_ps_json(json_obj: dict) -> dict:
     """Takes the 3D dict returned by PowerSchool and flattens it into 1D."""
     flattened = {}
     for table in json_obj['tables'].values():

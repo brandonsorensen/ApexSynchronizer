@@ -8,6 +8,7 @@ from requests import Response
 import requests
 
 from .. import exceptions, utils
+from ..apex_session import TokenType
 from ..utils import get_header
 
 
@@ -21,15 +22,17 @@ class ApexDataObject(ABC):
     be implemented by the subclasses.
     """
 
-    def __init__(self, import_user_id, import_org_id):
+    def __init__(self, import_user_id: Union[str, int],
+                 import_org_id: Union[str, int]):
         """Initializes instance variables."""
-        self.import_user_id = import_user_id
+        self.import_user_id = str(import_user_id)
         if not import_user_id:
             raise exceptions.NoUserIdException
-        self.import_org_id = import_org_id
+        self.import_org_id = str(import_org_id)
 
     @classmethod
-    def get(cls, token, import_id: Union[str, int]) -> 'ApexDataObject':
+    def get(cls, token: TokenType,
+            import_id: Union[str, int]) -> 'ApexDataObject':
         """
         Gets the ApexDataObject corresponding to a given ImportId.
 
@@ -63,7 +66,7 @@ class ApexDataObject(ABC):
         pass
 
     @classmethod
-    def _get_response(cls, token: str, import_id) -> Response:
+    def _get_response(cls, token: TokenType, import_id) -> Response:
         """
         Calls a GET operation for a given ImportId and returns the
         response. The first (and constant across all subclasses)
@@ -82,12 +85,13 @@ class ApexDataObject(ABC):
         return r
 
     @classmethod
-    def get_all(cls, token, ids_only=False, archived=False) \
-            -> List[Union['ApexDataObject', int]]:
+    def get_all(cls, token: TokenType, ids_only: bool = False,
+                archived=False) -> List[Union['ApexDataObject', int]]:
         """
         Gets all objects of type `cls` in the Apex database.
 
         :param token: Apex access token
+        :param bool ids_only: Whether to only return IDs
         :param archived: whether or not to return archived objects
         :return: a list containing all objects of this type in the Apex
             database
@@ -114,7 +118,7 @@ class ApexDataObject(ABC):
 
         return ret_val
 
-    def post_to_apex(self, token) -> Response:
+    def post_to_apex(self, token: TokenType) -> Response:
         """
         Posts the information contained in this object to the Apex API.
         Simply a convenience method that passes this object to the
@@ -126,7 +130,7 @@ class ApexDataObject(ABC):
         return self.post_batch(token, [self])
 
     @classmethod
-    def post_batch(cls, token: str, objects: Collection['ApexDataObject']):
+    def post_batch(cls, token: TokenType, objects: Collection['ApexDataObject']):
         """
         Posts a batch of `ApexDataObjects` to the Apex API. The `object`
         parameter
@@ -145,7 +149,7 @@ class ApexDataObject(ABC):
         r = requests.post(url=url, data=payload, headers=header)
         return r
 
-    def delete_from_apex(self, token) -> Response:
+    def delete_from_apex(self, token: TokenType) -> Response:
         """
         Deletes this object from the Apex database
 
@@ -161,7 +165,7 @@ class ApexDataObject(ABC):
         r = requests.delete(url=url, headers=header)
         return r
 
-    def put_to_apex(self, token, main_id='ImportUserId') -> Response:
+    def put_to_apex(self, token: TokenType, main_id='ImportUserId') -> Response:
         """
         Useful for updating a record in the Apex database.
 
@@ -262,7 +266,8 @@ class ApexDataObject(ABC):
         return kwargs, json_obj
 
     @classmethod
-    def _parse_response_page(cls, token: str, json_objs: List[dict], page_number: float,
+    def _parse_response_page(cls, token: TokenType, json_objs: List[dict],
+                             page_number: int,
                              all_objs: List[Union['ApexDataObject', int]],
                              archived: bool = False, ids_only: bool = False):
         """

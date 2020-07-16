@@ -1,12 +1,15 @@
 from datetime import datetime, timedelta
 import logging
+from typing import Union
 import os
 
 from requests.auth import HTTPBasicAuth
 import requests
 
-from .apex_data_models import BASE_URL
 from .exceptions import ApexConnectionException
+import apex_synchronizer
+
+TokenType = Union[str, 'ApexAccessToken']
 
 
 class ApexSession(object):
@@ -46,7 +49,7 @@ class ApexAccessToken(object):
                                    'the environment.')
 
         logger = logging.getLogger(__name__)
-        url = BASE_URL + 'token'
+        url = apex_synchronizer.adm.BASE_URL + 'token'
         request_json = {
                 'grant_type': 'client_credentials',
                 'client_id': client_id,

@@ -10,6 +10,7 @@ from .utils import BASE_URL, APEX_EMAIL_REGEX, make_userid
 from .apex_data_object import ApexDataObject
 from .apex_classroom import ApexClassroom
 from .. import exceptions
+from ..apex_session import TokenType
 from ..utils import get_header
 
 
@@ -86,7 +87,7 @@ class ApexStudent(ApexDataObject):
 
         return cls(**kwargs)
 
-    def get_enrollments(self, token: str) -> Optional[List['ApexClassroom']]:
+    def get_enrollments(self, token: TokenType) -> Optional[List['ApexClassroom']]:
         """
         Gets all classes in which this :class:`ApexStudent` is enrolled.
 
@@ -111,7 +112,7 @@ class ApexStudent(ApexDataObject):
 
         return ret_val
 
-    def get_enrollment_ids(self, token: str) -> List[int]:
+    def get_enrollment_ids(self, token: TokenType) -> List[int]:
         """
         Gets the `ImportClassroomId` of all objects in which the student
         is enrolled. Differs from the `get_enrollments` in that it only
@@ -135,7 +136,7 @@ class ApexStudent(ApexDataObject):
         except KeyError:
             raise exceptions.ApexMalformedJsonException(r.json())
 
-    def transfer(self, token: str, old_classroom_id: str,
+    def transfer(self, token: TokenType, old_classroom_id: str,
                  new_classroom_id: str, new_org_id: str = None) -> Response:
         """
         Transfers student along with role and grade data from one
@@ -157,7 +158,7 @@ class ApexStudent(ApexDataObject):
         r = requests.put(url=url, headers=header, params=params)
         return r
 
-    def enroll(self, token: str, classroom_id: str) -> Response:
+    def enroll(self, token: TokenType, classroom_id: str) -> Response:
         """
         Enrolls this :class:`ApexStudent` object into the class indexed
         by `classroom_id`.

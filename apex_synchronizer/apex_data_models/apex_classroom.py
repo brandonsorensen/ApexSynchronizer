@@ -11,8 +11,12 @@ from .apex_data_object import ApexDataObject
 from .apex_staff_member import ApexStaffMember
 from .utils import BASE_URL, APEX_DATETIME_FORMAT, PS_DATETIME_FORMAT
 from .. import exceptions, utils
+from ..apex_session import TokenType
 from ..ps_agent import course2program_code, fetch_staff, fetch_classrooms
 from ..utils import get_header, levenshtein_distance
+
+# Apex data types that represent people, i.e., not a classroom
+ApexPersonType = Union['ApexStudent', 'ApexStaffMember']
 
 
 class ApexClassroom(ApexDataObject):
@@ -46,8 +50,10 @@ class ApexClassroom(ApexDataObject):
     }
     post_heading = 'classroomEntries'
 
-    def __init__(self, import_org_id: str, import_classroom_id: str,
-                 classroom_name: str, product_codes: [str], import_user_id: str,
+    def __init__(self, import_org_id: Union[str, int],
+                 import_classroom_id: Union[str, int],
+                 classroom_name: str, product_codes: [str],
+                 import_user_id: Union[str, int],
                  classroom_start_date: str, program_code: str):
         super().__init__(import_user_id, import_org_id)
         self.import_classroom_id = import_classroom_id
@@ -70,7 +76,8 @@ class ApexClassroom(ApexDataObject):
 
         return cls(**kwargs)
 
-    def put_to_apex(self, token, main_id='ImportClassroomId') -> Response:
+    def put_to_apex(self, token: TokenType,
+                    main_id: str = 'ImportClassroomId') -> Response:
         return super().put_to_apex(token, main_id='ImportClassroomId')
 
     @classmethod
@@ -88,13 +95,15 @@ class ApexClassroom(ApexDataObject):
         return cls(**kwargs)
 
     @classmethod
-    def get_all(cls, token, archived=False) -> List['ApexClassroom']:
+    def get_all(cls, token: TokenType, ids_only: bool = False,
+                archived: bool = False) -> List['ApexClassroom']:
         """
         Get all objects. Must be overloaded because Apex does not
         support a global GET request for objects in the same. Loops
         through all PowerSchool objects and keeps the ones that exist.
 
         :param token: Apex access token
+        :param bool ids_only: Whether or not to return only IDs
         :param bool archived: Whether or not to returned archived
             results
         :return:
@@ -133,7 +142,7 @@ class ApexClassroom(ApexDataObject):
         logger.info(f'Returning {len(ret_val)} ApexClassroom objects.')
         return ret_val
 
-    def enroll(self, token: str,
+    def enroll(self, token: TokenType,
                objs: Union[List[ApexDataObject], ApexDataObject]) -> Response:
         """
         Enrolls one or more students or staff members into this
@@ -169,8 +178,7 @@ class ApexClassroom(ApexDataObject):
         payload = json.dumps(payload)
         return requests.post(url=url, headers=header, data=payload)
 
-    def withdraw(self, token: str, obj: Union['ApexStudent',
-                                              'ApexStaffMember']) -> Response:
+    def withdraw(self, token: TokenType, obj: ApexPersonType) -> Response:
         """
         Withdraws a single student or staff member from this classroom.
 
@@ -182,9 +190,7 @@ class ApexClassroom(ApexDataObject):
         url = self._get_data_object_class_url(type(obj))
         return requests.delete(url=url, headers=header)
 
-    def _get_data_object_class_url(self,
-                                   dtype: Union[Type['ApexStudent'],
-                                                Type['ApexStaffMember']]) -> str:
+    def _get_data_object_class_url(self, dtype: ApexPersonType) -> str:
         """
         Determines the URL path for a GET or DELETE call that enrolls or
         withdraws a student or staff from this class. The result will

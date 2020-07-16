@@ -8,6 +8,7 @@ from .apex_session import ApexSession
 from .exceptions import ApexObjectNotFoundException
 from .ps_agent import fetch_enrollment, fetch_students
 from .utils import flatten_ps_json
+from .apex_session import TokenType
 
 
 class BaseEnrollment(ABC):
@@ -122,14 +123,15 @@ class PSEnrollment(BaseEnrollment):
 
 class ApexEnrollment(BaseEnrollment):
 
-    def __init__(self, access_token=None):
+    def __init__(self, access_token: TokenType = None):
         super().__init__()
         if access_token is None:
             session = ApexSession()
             access_token = session.access_token
 
         self.logger.info('Retrieving Apex student information from Apex API.')
-        self.apex_students = ApexStudent.get_all(access_token)
+        self.apex_students = ApexStudent.get_all(access_token, ids_only=True)
+        self.apex_classrooms = ApexClassroom.get_all()
         self.logger.info('Retrieved Apex student information')
         self.logger.debug('Creating ApexStudent index')
         self._apex_index = {int(student.import_user_id): student
@@ -140,6 +142,7 @@ class ApexEnrollment(BaseEnrollment):
 
         n_students = len(self.apex_students)
         logging.info(f'Getting enrollment info for {n_students} students.')
+        student: ApexStudent
         for i, student in enumerate(self.apex_students):
             progress = f'student {i + 1}/{n_students}'
             try:
@@ -170,5 +173,3 @@ class ApexEnrollment(BaseEnrollment):
 
     def get_student(self, eduid: Union[str, int]):
         return self._apex_index[int(eduid)]
-
-

@@ -16,7 +16,6 @@ class ApexSynchronizer(object):
     def __init__(self):
         self.session = ApexSession()
         self.logger = logging.getLogger(__name__)
-        # self.init_enrollment()
 
     def init_enrollment(self):
         if self._has_enrollment():
@@ -55,6 +54,11 @@ class ApexSynchronizer(object):
                                   + str(r.status_code))
         else:
             self.logger.info('Apex roster agrees with PowerSchool')
+
+    def sync_classroom_enrollment(self):
+        self.init_enrollment()
+        self.logger.info('Syncing classroom enrollments.')
+        print(self.apex_enroll.classrooms & self.ps_enroll.classrooms)
 
     def enroll_students(self, student_ids: Collection[int]):
         apex_students = init_students_for_ids(student_ids)
