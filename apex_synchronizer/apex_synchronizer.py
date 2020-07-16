@@ -7,7 +7,7 @@ import requests
 from .apex_data_models import ApexStudent
 from .apex_session import ApexSession, ApexAccessToken
 from .enrollment import ApexEnrollment, PSEnrollment
-from .exceptions import ApexNoEmailException, ApexMalformedEmailException
+from .exceptions import ApexStudentNoEmailException, ApexMalformedEmailException
 from .ps_agent import fetch_students
 
 
@@ -131,7 +131,7 @@ def init_students_for_ids(student_ids: Collection[int]) -> List[ApexStudent]:
                 apex_student = ApexStudent.from_powerschool(obj)
                 seen_eduids.add(eduid)
                 apex_students.append(apex_student)
-            except ApexNoEmailException:
+            except ApexStudentNoEmailException:
                 logger.info(f'Student with EDUID "{eduid}" has no email.'
                             'Skipping...')
             except ApexMalformedEmailException as e:

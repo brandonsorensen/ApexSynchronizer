@@ -78,7 +78,7 @@ class ApexStudent(ApexDataObject):
                 except KeyError:
                     raise exceptions.ApexMalformedJsonException(json_obj)
 
-                raise exceptions.ApexNoEmailException(eduid)
+                raise exceptions.ApexStudentNoEmailException(eduid)
             raise e
 
         if kwargs['import_user_id'] is None:

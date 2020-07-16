@@ -18,8 +18,8 @@ class BaseEnrollment(ABC):
     """
 
     def __init__(self):
-        self.logger = logging.getLogger('.'.join([__name__,
-                                                  self.__class__.__name__]))
+        logger_name = '.'.join([__name__, self.__class__.__name__])
+        self.logger = logging.getLogger(logger_name)
 
     def get_classrooms(self, eduid: Union[int, str, ApexStudent]) -> Set[int]:
         """
@@ -131,7 +131,6 @@ class ApexEnrollment(BaseEnrollment):
 
         self.logger.info('Retrieving Apex student information from Apex API.')
         self.apex_students = ApexStudent.get_all(access_token, ids_only=True)
-        self.apex_classrooms = ApexClassroom.get_all()
         self.logger.info('Retrieved Apex student information')
         self.logger.debug('Creating ApexStudent index')
         self._apex_index = {int(student.import_user_id): student
