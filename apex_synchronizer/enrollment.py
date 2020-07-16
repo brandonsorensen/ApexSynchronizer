@@ -1,4 +1,4 @@
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from collections import defaultdict, KeysView
 from typing import Iterable, Set, Union
 import logging
@@ -10,7 +10,7 @@ from .ps_agent import fetch_enrollment, fetch_students
 from .utils import flatten_ps_json
 
 
-class BaseEnrollment(metaclass=ABCMeta):
+class BaseEnrollment(ABC):
     """
     Defines a common interface to which the enrollment information from
     both Apex and PowerSchool can adhere.
