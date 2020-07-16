@@ -100,21 +100,23 @@ class ApexDataObject(ABC):
 
         current_page = 1
         ret_val = []
+        with requests.Session() as s:
+            s.headers.update(get_header(token))
 
-        header = get_header(token)
-        r = requests.get(url=cls.url, headers=header)
-        total_pages = int(r.headers['total-pages'])
-        while current_page <= total_pages:
-            logger.info(f'Reading page {current_page}/{total_pages} of '
-                        'get_all response.')
-            cls._parse_response_page(token=token, json_objs=r.json(),
-                                     page_number=current_page, all_objs=ret_val,
-                                     archived=archived, ids_only=ids_only)
-            current_page += 1
-            header['page'] = str(current_page)
+            r = s.get(url=cls.url)
+            total_pages = int(r.headers['total-pages'])
+            while current_page <= total_pages:
+                logger.info(f'Reading page {current_page}/{total_pages} '
+                            'of get_all response.')
+                cls._parse_response_page(token=token, json_objs=r.json(),
+                                         page_number=current_page,
+                                         all_objs=ret_val, archived=archived,
+                                         ids_only=ids_only)
+                current_page += 1
+                s.headers['page'] = str(current_page)
 
-            if current_page <= total_pages:
-                r = requests.get(url=cls.url, headers=header)
+                if current_page <= total_pages:
+                    r = s.get(url=cls.url)
 
         return ret_val
 
