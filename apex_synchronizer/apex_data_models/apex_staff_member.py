@@ -1,8 +1,10 @@
 from typing import List, Union
 from urllib.parse import urljoin
+import re
 
 from .apex_data_object import ApexDataObject
-from .utils import BASE_URL
+from .utils import BASE_URL, APEX_EMAIL_REGEX
+from .. import exceptions
 
 
 class ApexStaffMember(ApexDataObject):
@@ -34,31 +36,38 @@ class ApexStaffMember(ApexDataObject):
     """
 
     ps2apex_field_map = {
-        'teacher_id': 'import_user_id',
         'school_id': 'import_org_id',
-        'teacher_number': 'login_id',
         'email': 'email',
         'first_name': 'first_name',
         'middle_name': 'middle_name',
         'last_name': 'last_name'
     }
 
-    def __init__(self, import_user_id: Union[int, str],
-                 import_org_id: Union[int, str], first_name: str,
-                 middle_name: str, last_name: str, email: str, login_id: str,
-                 login_password: str):
-        super().__init__(import_user_id, import_org_id)
+    def __init__(self, import_org_id: Union[int, str], first_name: str,
+                 middle_name: str, last_name: str, email: str):
+        if not email:
+            raise exceptions.ApexStaffNoEmailException(
+                first_name + ' ' + last_name
+            )
+        if not re.match(APEX_EMAIL_REGEX, email):
+            raise exceptions.ApexMalformedEmailException(email, email)
+
+        email_lower = email.lower()
+        super().__init__(email_lower, import_org_id)
         self.first_name = first_name
         self.middle_name = middle_name
         self.last_name = last_name
         self.email = email
-        self.login_id = login_id
-        self.login_pw = login_password
+        self.login_id = email_lower.split('@')[0]
 
     @classmethod
     def from_powerschool(cls, json_obj) -> 'ApexStaffMember':
         kwargs = cls._init_kwargs_from_ps(json_obj=json_obj)
-        kwargs['login_password'] = 'default_password'
+        try:
+            # In case of old version of PowerSchool query
+            del kwargs['login_id']
+        except KeyError:
+            pass
 
         return cls(**kwargs)
 
