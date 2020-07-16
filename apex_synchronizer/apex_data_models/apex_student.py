@@ -6,9 +6,9 @@ from urllib.parse import urljoin
 
 from requests import Response
 
-from .utils import BASE_URL, APEX_EMAIL_REGEX, make_userid
 from .apex_data_object import ApexDataObject
 from .apex_classroom import ApexClassroom
+from .utils import BASE_URL, APEX_EMAIL_REGEX, make_userid
 from .. import exceptions
 from ..apex_session import TokenType
 from ..utils import get_header
@@ -28,7 +28,6 @@ class ApexStudent(ApexDataObject):
     :param str last_name: the student's last/surname
     :param str email: the student's school email address (optional)
     :param int grade_level: the student's grade level
-    :param str login_id: the student's login ID
     """
 
     role = 'S'
@@ -87,7 +86,8 @@ class ApexStudent(ApexDataObject):
 
         return cls(**kwargs)
 
-    def get_enrollments(self, token: TokenType) -> Optional[List['ApexClassroom']]:
+    def get_enrollments(self, token: TokenType) \
+            -> Optional[List['ApexClassroom']]:
         """
         Gets all classes in which this :class:`ApexStudent` is enrolled.
 
