@@ -59,7 +59,9 @@ class ApexClassroom(ApexDataObject):
     @classmethod
     def from_powerschool(cls, json_obj: dict) -> 'ApexClassroom':
         kwargs = cls._init_kwargs_from_ps(json_obj)
-        kwargs['classroom_name'] = kwargs['course_name'] + ' - ' + kwargs['section_number']
+        kwargs['classroom_name'] = (kwargs['course_name']
+                                    + ' - '
+                                    + kwargs['section_number'])
         del kwargs['course_name']
         del kwargs['section_number']
 
@@ -77,7 +79,8 @@ class ApexClassroom(ApexDataObject):
 
         kwargs['program_code'] = course2program_code[int(kwargs['import_org_id'])]
         kwargs['classroom_name'] = json_obj['ClassroomName']
-        date = datetime.strptime(kwargs['classroom_start_date'], APEX_DATETIME_FORMAT)
+        date = datetime.strptime(kwargs['classroom_start_date'],
+                                 APEX_DATETIME_FORMAT)
         kwargs['classroom_start_date'] = date.strftime(PS_DATETIME_FORMAT)
         teacher = teacher_fuzzy_match(json_obj['PrimaryTeacher'])
         kwargs['import_user_id'] = teacher.import_user_id
@@ -87,19 +90,21 @@ class ApexClassroom(ApexDataObject):
     @classmethod
     def get_all(cls, token, archived=False) -> List['ApexClassroom']:
         """
-        Get all objects. Must be overloaded because Apex does not support a global
-        GET request for objects in the same. Loops through all PowerSchool objects
-        and keeps the ones that exist.
+        Get all objects. Must be overloaded because Apex does not
+        support a global GET request for objects in the same. Loops
+        through all PowerSchool objects and keeps the ones that exist.
 
         :param token: Apex access token
-        :param bool archived: Whether or not to returned archived results
+        :param bool archived: Whether or not to returned archived
+            results
         :return:
         """
         logger = logging.getLogger(__name__)
 
         ps_classrooms = fetch_classrooms()
         n_classrooms = len(ps_classrooms)
-        logger.info(f'Successfully retrieved {n_classrooms} sections from PowerSchool.')
+        logger.info(f'Successfully retrieved {n_classrooms} sections'
+                    'from PowerSchool.')
 
         ret_val = []
 
@@ -115,12 +120,14 @@ class ApexClassroom(ApexDataObject):
                 section_id = section['section_id']
                 apex_obj = cls.get(token, section_id)
                 ret_val.append(apex_obj)
-                logger.info(f'{progress}:Created ApexClassroom for SectionID {section_id}')
+                logger.info(f'{progress}:Created ApexClassroom for'
+                            f'SectionID {section_id}')
             except KeyError:
                 raise exceptions.ApexMalformedJsonException(section)
             except exceptions.ApexObjectNotFoundException:
-                msg = (f'{progress}:PowerSchool section indexed by {section["section_id"]}'
-                       ' could not be found in Apex. Skipping classroom.')
+                msg = (f'{progress}:PowerSchool section indexed by '
+                       f'{section["section_id"]}' ' could not be found in Apex. '
+                       'Skipping ' 'classroom.')
                 logger.info(msg)
 
         logger.info(f'Returning {len(ret_val)} ApexClassroom objects.')
@@ -129,11 +136,13 @@ class ApexClassroom(ApexDataObject):
     def enroll(self, token: str,
                objs: Union[List[ApexDataObject], ApexDataObject]) -> Response:
         """
-        Enrolls one or more students or staff members into this classroom.
+        Enrolls one or more students or staff members into this
+        classroom.
 
         :param token: Apex access token
-        :param objs: one or more student or staff members; if passed as a list,
-                     that list must be homogeneous, i.e. not contain multiple types
+        :param objs: one or more student or staff members; if passed as
+            a list, that list must be homogeneous, i.e. not contain
+            multiple types
         :return: the response to the POST operation
         """
         if issubclass(type(objs), ApexDataObject):
@@ -173,8 +182,9 @@ class ApexClassroom(ApexDataObject):
         url = self._get_data_object_class_url(type(obj))
         return requests.delete(url=url, headers=header)
 
-    def _get_data_object_class_url(self, dtype: Union[Type['ApexStudent'],
-                                                      Type['ApexStaffMember']]) -> str:
+    def _get_data_object_class_url(self,
+                                   dtype: Union[Type['ApexStudent'],
+                                                Type['ApexStaffMember']]) -> str:
         """
         Determines the URL path for a GET or DELETE call that enrolls or
         withdraws a student or staff from this class. The result will
@@ -186,8 +196,8 @@ class ApexClassroom(ApexDataObject):
         is `ApexStudent` or `ApexStaffMember`, respectively.
 
         :param dtype: the relevant data type
-        :return: the URL path from enrolling or withdrawing a student from
-                 this class
+        :return: the URL path from enrolling or withdrawing a student
+                 from this class
         """
         url = urljoin(self.url + '/', self.import_classroom_id)
         # Get the final component in the object's url
@@ -197,14 +207,16 @@ class ApexClassroom(ApexDataObject):
 
 def teacher_fuzzy_match(t1: str) -> ApexStaffMember:
     """
-    Takes the forename and surname of a teacher in the form of a single string and
-    fuzzy matches (case-insensitive) across all teachers from the PowerSchool database.
-    Returns the matched teacher as an :class:`ApexStaffMember` object.
+    Takes the forename and surname of a teacher in the form of a single
+    string and fuzzy matches (case-insensitive) across all teachers
+    from the PowerSchool database. Returns the matched teacher as an
+    :class:`ApexStaffMember` object.
 
-    Given that all teachers passed to this helper function should appear in the database,
-    any teacher name that differs by more than five characters in length from `t1` is
-    passed over unless it is the first one in the list. This concession was made to
-    boost performance.
+    Given that all teachers passed to this helper function should
+    appear in the database, any teacher name that differs by more than
+    five characters in length from `t1` is passed over unless it is the
+    first one in the list. This concession was made to boost
+    performance.
 
     :param t1: teacher name in the format of "Forename Surname"
     :return: the closest match as measured by Levenshtein distance

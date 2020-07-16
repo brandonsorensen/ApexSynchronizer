@@ -56,9 +56,9 @@ class ApexMalformedEmailException(ApexError):
         self.email = email
 
     def __str__(self):
-        return (f'Attempt to create student with EDUID {self.user_id} failed '
-                'due to an email address that does not conform to Apex validation rules: '
-                + self.email)
+        return (f'Attempt to create student with EDUID {self.user_id} '
+                'failed ' 'due to an email address that does not '
+                'conform to Apex validation rules: ' + self.email)
 
 
 class NoUserIdException(ApexDataObjectException):

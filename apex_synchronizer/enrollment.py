@@ -17,13 +17,14 @@ class BaseEnrollment(ABC):
     """
 
     def __init__(self):
-        self.logger = logging.getLogger('.'.join([__name__, self.__class__.__name__]))
+        self.logger = logging.getLogger('.'.join([__name__,
+                                                  self.__class__.__name__]))
 
     def get_classrooms(self, eduid: Union[int, str, ApexStudent]) -> Set[int]:
         """
-        Returns all classrooms in which a given student is enrolled. Students
-        are indexed by their EDUIDs, which may be given as an int or a
-        numeric string.
+        Returns all classrooms in which a given student is enrolled.
+        Students are indexed by their EDUIDs, which may be given as an
+        int or a numeric string.
 
         :param Union[int, str] eduid: the EDUID of a given student
         :return: all classrooms in which the student is enrolled
@@ -35,10 +36,11 @@ class BaseEnrollment(ABC):
 
     def get_roster(self, section_id: Union[int, str, ApexClassroom]) -> Set[int]:
         """
-        Returns the roster of a given classroom, indexed by its section ID.
-        Section IDs may be given as integers or numeric strings.
+        Returns the roster of a given classroom, indexed by its section
+        ID. Section IDs may be given as integers or numeric strings.
 
-        :param Union[int, str] section_id: the section ID of the classroom
+        :param Union[int, str] section_id: the section ID of the
+            classroom
         :return: the EDUIDs of all students in the classroom
         :rtype: set[int]
         """
@@ -81,7 +83,10 @@ class PSEnrollment(BaseEnrollment):
         self._parse_student_json(map(flatten_ps_json, fetch_students()))
 
     def _parse_enrollment_json(self, json_obj: Iterable[dict]):
-        """Parses a JSON object returned by the `fetch_enrollment` function."""
+        """
+        Parses a JSON object returned by the `fetch_enrollment`
+        function.
+        """
         self._student2classrooms = defaultdict(set)
         self._classroom2students = defaultdict(set)
 
@@ -98,7 +103,9 @@ class PSEnrollment(BaseEnrollment):
         self._classroom2students = dict(self.classroom2students)
 
     def _parse_student_json(self, json_obj: Iterable[dict]):
-        """Parses a JSON object returned by the `fetch_students` function."""
+        """
+        Parses a JSON object returned by the `fetch_students` function.
+        """
         for entry in json_obj:
             eduid = entry['eduid']
             if eduid and eduid not in self._student2classrooms.keys():
@@ -125,7 +132,8 @@ class ApexEnrollment(BaseEnrollment):
         self.apex_students = ApexStudent.get_all(access_token)
         self.logger.info('Retrieved Apex student information')
         self.logger.debug('Creating ApexStudent index')
-        self._apex_index = {int(student.import_user_id): student for student in self.apex_students}
+        self._apex_index = {int(student.import_user_id): student
+                            for student in self.apex_students}
 
         self._student2classrooms = {}
         self._classroom2students = {}
@@ -138,14 +146,17 @@ class ApexEnrollment(BaseEnrollment):
                 classrooms = student.get_enrollments(access_token)
                 by_id = set([int(c.import_classroom_id) for c in classrooms])
             except ApexObjectNotFoundException:
-                logging.info(f'{progress}:could not find student with EDUID {student.import_user_id} in PS.')
+                logging.info(f'{progress}:could not find student with EDUID '
+                             f'{student.import_user_id} in PS.')
                 by_id = set()
             self._student2classrooms[int(student.import_user_id)] = by_id
-            self.logger.info(f'{progress}:1/2:got classrooms for student {student.import_user_id}')
+            self.logger.info(f'{progress}:1/2:got classrooms for student '
+                             + str(student.import_user_id))
 
             for classroom in by_id:
                 self._classroom2students[classroom] = int(student.import_user_id)
-            self.logger.info(f'{progress}:2/2:created reverse mapping for student {student.import_user_id}')
+            self.logger.info(f'{progress}:2/2:created reverse mapping for student '
+                             + str(student.import_user_id))
 
         self.logger.debug('ApexEnrollment object created successfully.')
 

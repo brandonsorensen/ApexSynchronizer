@@ -43,16 +43,17 @@ class ApexStaffMember(ApexDataObject):
         'last_name': 'last_name'
     }
 
-    def __init__(self, import_user_id: Union[int, str], import_org_id: Union[int, str],
-                 first_name: str, middle_name: str, last_name: str, email: str,
-                 login_id: str, login_password: str):
+    def __init__(self, import_user_id: Union[int, str],
+                 import_org_id: Union[int, str], first_name: str,
+                 middle_name: str, last_name: str, email: str, login_id: str,
+                 login_password: str):
         super().__init__(import_user_id, import_org_id)
         self.first_name = first_name
         self.middle_name = middle_name
         self.last_name = last_name
         self.email = email
         self.login_id = login_id
-        self.login_pw = login_password  # TODO: Don't pass password
+        self.login_pw = login_password
 
     @classmethod
     def from_powerschool(cls, json_obj) -> 'ApexStaffMember':
@@ -63,8 +64,10 @@ class ApexStaffMember(ApexDataObject):
 
     def get_with_orgs(self, token) -> List['ApexStaffMember']:
         """
-        Exactly the same as the `get` method with the difference that if a staff member belongs to multiple
-        organizations, this method will return a new `ApexStaffMember` object for each organization.
+        Exactly the same as the `get` method with the difference that
+        if a staff member belongs to multiple organizations, this
+        method will return a new `ApexStaffMember` object for each
+        organization.
 
         :param token: Apex access token
         :return:

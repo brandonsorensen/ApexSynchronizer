@@ -18,9 +18,10 @@ class ApexStudent(ApexDataObject):
     """
     Represents a student in the Apex database.
 
-    :param Union[str, int] import_user_id: identifier for the database, common
-                                           to Apex and PowerSchool
-    :param Union[str, int] import_org_id: the school to which the student belongs
+    :param Union[str, int] import_user_id: identifier for the database,
+        common to Apex and PowerSchool
+    :param Union[str, int] import_org_id: the school to which the
+        student belongs
     :param str first_name: the student's first/given name
     :param str middle_name: the student's middle name
     :param str last_name: the student's last/surname
@@ -43,9 +44,9 @@ class ApexStudent(ApexDataObject):
         'email': 'email'
     }
 
-    def __init__(self, import_user_id: Union[int, str], import_org_id: Union[int, str],
-                 first_name: str, middle_name: str, last_name: str, email: str,
-                 grade_level: int):
+    def __init__(self, import_user_id: Union[int, str],
+                 import_org_id: Union[int, str], first_name: str,
+                 middle_name: str, last_name: str, email: str, grade_level: int):
         super().__init__(import_user_id, import_org_id)
         self.first_name = first_name
         self.middle_name = middle_name
@@ -56,7 +57,6 @@ class ApexStudent(ApexDataObject):
         self.grade_level = grade_level
         self.login_id = make_userid(first_name, last_name)
         self.login_pw = import_user_id
-        # TODO: Add graduation year?
 
     @classmethod
     def _parse_get_response(cls, r: Response):
@@ -114,17 +114,19 @@ class ApexStudent(ApexDataObject):
     def get_enrollment_ids(self, token: str) -> List[int]:
         """
         Gets the `ImportClassroomId` of all objects in which the student
-        is enrolled. Differs from the `get_enrollments` in that it only returns
-        the IDs instead of `ApexClassroom` objects. This makes it a great deal
-        faster because only a single call to Apex is made.
-
+        is enrolled. Differs from the `get_enrollments` in that it only
+        returns the IDs instead of `ApexClassroom` objects. This makes
+        it a great deal faster because only a single call to Apex is
+        made.
 
         :param token: an Apex access token
-        :return: a list of IDs for each classroom in which the student is enrolled
+        :return: a list of IDs for each classroom in which the student
+            is enrolled
         :rtype: List[int]
         """
         header = get_header(token)
-        r = requests.get(url=self.classroom_url, headers=header, params={'isActiveOnly': True})
+        r = requests.get(url=self.classroom_url, headers=header,
+                         params={'isActiveOnly': True})
         try:
             r.raise_for_status()
             return [int(student['ImportClassroomId']) for student in r.json()]
@@ -136,11 +138,13 @@ class ApexStudent(ApexDataObject):
     def transfer(self, token: str, old_classroom_id: str,
                  new_classroom_id: str, new_org_id: str = None) -> Response:
         """
-        Transfers student along with role and grade data from one classroom to another
+        Transfers student along with role and grade data from one
+        classroom to another
 
         :param token: Apex access token
         :param old_classroom_id: id of current classroom
-        :param new_classroom_id: id of the classroom to which the student will be transferred
+        :param new_classroom_id: id of the classroom to which the
+            student will be transferred
         :param new_org_id: optional new org_id
         :return: the response to the PUT operation
         """
@@ -155,7 +159,8 @@ class ApexStudent(ApexDataObject):
 
     def enroll(self, token: str, classroom_id: str) -> Response:
         """
-        Enrolls this :class:`ApexStudent` object into the class indexed by `classroom_id`.
+        Enrolls this :class:`ApexStudent` object into the class indexed
+        by `classroom_id`.
 
         :param token: an Apex access token
         :param classroom_id: the ID of the relevant classroom

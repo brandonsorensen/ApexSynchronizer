@@ -43,13 +43,16 @@ class ApexSynchronizer(object):
             self.logger.info('PowerSchool roster agrees with Apex roster.')
 
         if len(to_withdraw) > 0:
-            self.logger.info(f'Found {len(to_withdraw)} students in Apex not enrolled in PowerSchool.')
+            self.logger.info(f'Found {len(to_withdraw)} students in Apex'
+                             ' not enrolled in PowerSchool.')
             student: ApexStudent
             for i, student in enumerate(to_withdraw):
                 progress = f':{i + 1}/{len(to_withdraw)}:'
-                self.logger.info(f'{progress}Removing student {student} from Apex.')
+                self.logger.info(f'{progress}Removing student {student} '
+                                 'from Apex.')
                 r = student.delete_from_apex(token=self.session.access_token)
-                self.logger.debug(f'Received status from delete request: {r.status_code}')
+                self.logger.debug(f'Received status from delete request: '
+                                  + str(r.status_code))
         else:
             self.logger.info('Apex roster agrees with PowerSchool')
 
@@ -64,7 +67,10 @@ class ApexSynchronizer(object):
 
     @property
     def apex_roster(self) -> Union[Set[int], KeysView]:
-        """Avoids creating an ApexEnrollment object if it doesn't have to."""
+        """
+        Avoids creating an ApexEnrollment object if it doesn't
+        have to.
+        """
         try:
             return self.apex_enroll.roster
         except AttributeError:
@@ -72,7 +78,8 @@ class ApexSynchronizer(object):
                 return self._apex_roster
             except AttributeError:
                 token = self.session.access_token
-                self._apex_roster = set(ApexStudent.get_all(token=token, ids_only=True))
+                self._apex_roster = set(ApexStudent.get_all(token=token,
+                                                            ids_only=True))
                 return self._apex_roster
 
     @property
@@ -87,14 +94,17 @@ class ApexSynchronizer(object):
 
 def init_students_for_ids(student_ids: Collection[int]) -> List[ApexStudent]:
     """
-    Iterates over the PowerSchool rosters and creates ApexStudent objects out of
-    the intersection between the IDs in `student_ids` and the PowerSchool students.
+    Iterates over the PowerSchool rosters and creates ApexStudent
+    objects out of the intersection between the IDs in `student_ids` and
+    the PowerSchool students.
 
     :param student_ids: student EDUIDs
-    :return: the students in both PowerSchool and the given last as `ApexStudent` objects
+    :return: the students in both PowerSchool and the given last as
+        `ApexStudent` objects
     """
     logger = logging.getLogger(__name__)
-    logger.info(f'Found {len(student_ids)} students in PowerSchool not enrolled in Apex.')
+    logger.info(f'Found {len(student_ids)} students in PowerSchool not'
+                'enrolled in Apex.')
     ps_json = fetch_students()
     apex_students = []
     seen_eduids = set()
@@ -103,7 +113,8 @@ def init_students_for_ids(student_ids: Collection[int]) -> List[ApexStudent]:
         if not eduid:
             last_name = obj['tables']['students']['last_name']
             first_name = obj['tables']['students']['first_name']
-            logger.info(f'Student "{first_name} {last_name}" does not have an EDUID. Skipping...')
+            logger.info(f'Student "{first_name} {last_name}" does not have an'
+                        'EDUID. Skipping...')
             continue
 
         eduid = int(eduid)
@@ -117,14 +128,16 @@ def init_students_for_ids(student_ids: Collection[int]) -> List[ApexStudent]:
                 seen_eduids.add(eduid)
                 apex_students.append(apex_student)
             except ApexNoEmailException:
-                logger.info(f'Student with EDUID "{eduid}" has no email. Skipping...')
+                logger.info(f'Student with EDUID "{eduid}" has no email.'
+                            'Skipping...')
             except ApexMalformedEmailException as e:
                 logger.info(e)
 
     return apex_students
 
 
-def post_students(token: Union[str, ApexAccessToken], apex_students: List[ApexStudent]):
+def post_students(token: Union[str, ApexAccessToken],
+                  apex_students: List[ApexStudent]):
     """Posts a list of ApexStudents to the Apex API."""
     logger = logging.getLogger(__name__)
     logger.info(f'Posting {len(apex_students)} students.')
@@ -133,7 +146,8 @@ def post_students(token: Union[str, ApexAccessToken], apex_students: List[ApexSt
         r.raise_for_status()
         logger.debug('Received status code ' + str(r.status_code))
     except requests.exceptions.HTTPError:
-        logger.exception('Failed to POST students. Received status ' + str(r.status_code))
+        logger.exception('Failed to POST students. Received status '
+                         + str(r.status_code))
 
         as_json = r.json()
         if type(as_json) is dict:
@@ -147,7 +161,10 @@ def post_students(token: Union[str, ApexAccessToken], apex_students: List[ApexSt
 
 
 def put_duplicates(json_obj: dict, apex_students: List[ApexStudent], token: str):
-    """A helper function for `post_students`. PUTs students that already exist in Apex."""
+    """
+    A helper function for `post_students`. PUTs students that already
+    exist in Apex.
+    """
     logger = logging.getLogger(__name__)
     if not json_obj['HasError']:
         return
@@ -163,24 +180,30 @@ def put_duplicates(json_obj: dict, apex_students: List[ApexStudent], token: str)
             logger.info('PUT failed with response ' + str(e))
 
 
-def repost_students(json_obj: dict, apex_students: List[ApexStudent], token: str):
-    """Helper function for `post_students`. Removes invalid entries and attempts to POST again."""
+def repost_students(json_obj: dict, apex_students: List[ApexStudent],
+                    token: str):
+    """
+    Helper function for `post_students`. Removes invalid entries and
+    attempts to POST again.
+    """
     logger = logging.getLogger(__name__)
     to_retry = []
     for entry in json_obj:
         if entry['ValidationError']:
-            logger.info(f'Student with EDUID {entry["ImportUserId"]} did not pass validation.')
+            logger.info(f'Student with EDUID {entry["ImportUserId"]} '
+                        'did not pass validation.')
         else:
             to_retry.append(apex_students[entry['Index']])
 
     if to_retry:
-        logger.info(f'Attempting to POST remaining {len(to_retry)} students.')
+        logger.info(f'Attempting to POST remaining {len(to_retry)} '
+                    'students.')
         r = ApexStudent.post_batch(token, to_retry)
         try:
             r.raise_for_status()
             logger.info('Successfully POSTed remaining students.')
         except requests.exceptions.HTTPError:
-            logger.exception(f'Failed to post {len(to_retry)} students. Received response:\n'
-                             + r.text)
+            logger.exception(f'Failed to post {len(to_retry)} students.'
+                             f'Received response:\n' + r.text)
     else:
         logger.info('No entries passed validation.')

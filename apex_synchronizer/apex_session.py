@@ -32,9 +32,9 @@ class ApexAccessToken(object):
         as_json = token_reponse.json()
         self.token = as_json['access_token']
 
-        expires_in = int(as_json['expire_in'])
+        expires_in = int(as_json['expire_in']) - self.PADDING
         # subtracting `PADDING` seconds to give some leeway
-        self.expiration = datetime.now() + timedelta(seconds=expires_in - ApexAccessToken.PADDING)
+        self.expiration = datetime.now() + timedelta(seconds=expires_in)
         
     @classmethod
     def get_new_token(cls):
@@ -42,7 +42,8 @@ class ApexAccessToken(object):
             client_id = os.environ['CONSUMER_KEY']
             secret_key = os.environ['SECRET_KEY']
         except KeyError:
-            raise EnvironmentError('ClientID or secret key are not in the environment.')
+            raise EnvironmentError('ClientID or secret key are not in'
+                                   'the environment.')
 
         logger = logging.getLogger(__name__)
         url = BASE_URL + 'token'

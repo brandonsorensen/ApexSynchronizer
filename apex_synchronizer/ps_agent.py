@@ -54,7 +54,8 @@ def get_ps_token() -> str:
         client_secret = os.environ['PS_CLIENT_SECRET']
         url = urljoin(os.environ['PS_URL'], '/oauth/access_token')
     except ValueError:
-        raise EnvironmentError('PowerSchool credentials are not in the environment.')
+        raise EnvironmentError('PowerSchool credentials are not in the'
+                               'environment.')
 
     payload = {
         'grant_type': 'client_credentials',
