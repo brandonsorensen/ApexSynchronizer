@@ -1,7 +1,5 @@
 import re
 
-
-BASE_URL = 'https://api.apexvs.com/'
 CAMEL_REG = re.compile(r'(?<!^)(?=[A-Z])')
 
 

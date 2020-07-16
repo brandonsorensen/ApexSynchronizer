@@ -1,10 +1,10 @@
 import logging
 import os
 import requests
-from requests.auth import HTTPBasicAuth
-from datetime import datetime, timedelta
 from .exceptions import ApexConnectionException
-from .utils import BASE_URL
+from .apex_data_models import BASE_URL
+from datetime import datetime, timedelta
+from requests.auth import HTTPBasicAuth
 
 
 class ApexSession(object):
