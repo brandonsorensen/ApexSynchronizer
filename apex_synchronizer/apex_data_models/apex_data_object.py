@@ -281,7 +281,8 @@ class ApexDataObject(ABC):
         """
         logger = logging.getLogger(__name__)
         for i, obj in enumerate(json_objs):
-            progress = f'page {int(page_number)}:{i + 1}/{len(json_objs)}:total {len(all_objs) + 1}'
+            progress = f'page {int(page_number) + 1}:{i + 1}/{len(json_objs)}' \
+                       f':total {len(all_objs) + 1}'
             try:
                 if not archived:
                     try:
