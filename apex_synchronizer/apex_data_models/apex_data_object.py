@@ -298,12 +298,14 @@ class ApexDataObject(ABC):
                     logger.info(f'{progress}:Adding ImportUserId {iuid}.')
                     all_objs.append(int(iuid))
                 else:
-                    logger.info(f'{progress}:Creating {cls.__name__} with ImportUserId {iuid}')
+                    logger.info(f'{progress}:Creating {cls.__name__} '
+                                f'with ImportUserId {iuid}')
                     apex_obj = cls.get(token, import_id=iuid)
                     all_objs.append(apex_obj)
             except exceptions.ApexObjectNotFoundException:
+                main_id = utils.snake_to_camel(cls.main_id)
                 error_msg = f'Could not retrieve object of type {cls.__name__} \
-                            bearing ImportID {obj["ImportUserID"]}. Skipping object'
+                            bearing ImportID {obj[main_id]}. Skipping object'
                 logger.info(error_msg)
             except exceptions.ApexMalformedEmailException as e:
                 logger.info(e)
