@@ -7,6 +7,7 @@ import logging
 from requests import Response
 import requests
 
+from .page_walker import PageWalker
 from .. import exceptions, utils
 from ..apex_session import TokenType
 from ..utils import get_header
@@ -99,26 +100,14 @@ class ApexDataObject(ABC):
             database
         """
         logger = logging.getLogger(__name__)
-
-        current_page = 1
         ret_val = []
-        with requests.Session() as s:
-            s.headers.update(get_header(token))
+        walker = PageWalker(logger=logger)
 
-            r = s.get(url=cls.url)
-            total_pages = int(r.headers['total-pages'])
-            while current_page <= total_pages:
-                logger.info(f'Reading page {current_page}/{total_pages} '
-                            'of get_all response.')
-                cls._parse_response_page(token=token, json_objs=r.json(),
-                                         page_number=current_page,
-                                         all_objs=ret_val, archived=archived,
-                                         ids_only=ids_only)
-                current_page += 1
-                s.headers['page'] = str(current_page)
-
-                if current_page <= total_pages:
-                    r = s.get(url=cls.url)
+        for current_page, r in enumerate(walker.walk(cls.url, token=token)):
+            cls._parse_response_page(token=token, json_objs=r.json(),
+                                     page_number=current_page,
+                                     all_objs=ret_val, archived=archived,
+                                     ids_only=ids_only)
 
         return ret_val
 
