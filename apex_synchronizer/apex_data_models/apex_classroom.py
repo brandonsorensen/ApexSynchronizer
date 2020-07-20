@@ -1,6 +1,6 @@
 from datetime import datetime
 from requests import Response
-from typing import List, Type, Union
+from typing import Collection, Dict, List, Union
 from urllib.parse import urljoin, urlparse
 import json
 import logging
@@ -9,6 +9,7 @@ import requests
 
 from .apex_data_object import ApexDataObject
 from .apex_staff_member import ApexStaffMember
+from .page_walker import PageWalker
 from .utils import BASE_URL, APEX_DATETIME_FORMAT, PS_DATETIME_FORMAT
 from .. import exceptions, utils
 from ..apex_session import TokenType
@@ -49,11 +50,12 @@ class ApexClassroom(ApexDataObject):
         'apex_program_code': 'product_codes'
     }
     post_heading = 'classroomEntries'
+    main_id = 'ImportClassroomId'
 
     def __init__(self, import_org_id: Union[str, int],
                  import_classroom_id: Union[str, int],
                  classroom_name: str, product_codes: [str],
-                 import_user_id: Union[str, int],
+                 import_user_id: str,
                  classroom_start_date: str, program_code: str):
         super().__init__(import_user_id, import_org_id)
         self.import_classroom_id = import_classroom_id
@@ -75,10 +77,6 @@ class ApexClassroom(ApexDataObject):
         kwargs['product_codes'] = [kwargs['product_codes']]
 
         return cls(**kwargs)
-
-    def put_to_apex(self, token: TokenType,
-                    main_id: str = 'ImportClassroomId') -> Response:
-        return super().put_to_apex(token, main_id='ImportClassroomId')
 
     @classmethod
     def _parse_get_response(cls, r: Response) -> 'ApexClassroom':
@@ -190,6 +188,9 @@ class ApexClassroom(ApexDataObject):
         url = self._get_data_object_class_url(type(obj))
         return requests.delete(url=url, headers=header)
 
+    def get_students(self, token: TokenType):
+        pass
+
     def _get_data_object_class_url(self, dtype: ApexPersonType) -> str:
         """
         Determines the URL path for a GET or DELETE call that enrolls or
@@ -246,3 +247,52 @@ def teacher_fuzzy_match(t1: str) -> ApexStaffMember:
             argmax = i
 
     return teachers[argmax]
+
+
+def get_classrooms_for_eduids(eduids: Collection[Union[str, int]],
+                              token: TokenType, ids_only: bool = False) \
+        -> Dict[int, List[Union[int, ApexClassroom]]]:
+    logger = logging.getLogger(__name__)
+    base_url = urljoin(BASE_URL, '/students/')
+
+    def url_for_eduid(eduid_: Union[str, int]) -> str:
+        url_ = urljoin(base_url, str(eduid_))
+        return urljoin(url_ + '/', 'classrooms')
+
+    classrooms = {}
+    logger.info(f'Getting classrooms for {len(eduids)} students.')
+    for i, eduid in enumerate(eduids):
+        logger.debug(f'{i + 1}/{len(eduids)} students')
+        url = url_for_eduid(eduid)
+        try:
+            classrooms[int(eduid)] = _get_classroom_for_eduid(url, token)
+        except exceptions.ApexObjectNotFoundException:
+            continue
+
+    return classrooms
+
+
+def _get_classroom_for_eduid(url: str, token: TokenType,
+                             ids_only: bool = False) \
+        -> List[Union[int, ApexClassroom]]:
+    logger = logging.getLogger(__name__)
+    ret_val = []
+    custom_args = {'isActiveOnly': 'true'}
+    walker = PageWalker(logger=logger)
+
+    for i, page_response in enumerate(walker.walk(url, token=token,
+                                                  custom_args=custom_args)):
+        try:
+            page_response.raise_for_status()
+        except requests.exceptions.HTTPError:
+            if page_response.json()['message'] == 'Results not found.':
+                eduid = url.split('/')[-2]
+                raise exceptions.ApexObjectNotFoundException(eduid)
+
+        json_obj = page_response.json()
+        ApexClassroom._parse_response_page(token=token, json_objs=json_obj,
+                                           page_number=i, all_objs=ret_val,
+                                           archived=False, ids_only=ids_only)
+
+    return ret_val
+
