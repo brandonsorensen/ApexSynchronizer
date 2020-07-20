@@ -1,4 +1,4 @@
-from typing import Generator
+from typing import Generator, Optional
 import logging
 
 import requests
@@ -18,7 +18,7 @@ class PageWalker(object):
     def walk(self, url: str, token: TokenType,
              session: requests.Session = None,
              custom_args: dict = None) \
-            -> Generator[requests.Response, None, None]:
+            -> Generator[requests.Response, None, Optional[requests.Response]]:
         if custom_args is None:
             custom_args = {}
 
@@ -30,7 +30,13 @@ class PageWalker(object):
         session.headers.update(get_header(token, custom_args=custom_args))
 
         r = session.get(url=url)
-        total_pages = int(r.headers['total-pages'])
+        try:
+            r.raise_for_status()
+            total_pages = int(r.headers['total-pages'])
+        except (KeyError, requests.exceptions.HTTPError):
+            # Don't want to error handle here, so an error status
+            # is returned
+            return r
         while current_page <= total_pages:
             self.logger.info(f'Reading page {current_page}/{total_pages} '
                              'of get_all response.')
