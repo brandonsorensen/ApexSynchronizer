@@ -22,6 +22,8 @@ class ApexDataObject(ABC):
     be implemented by the subclasses.
     """
 
+    main_id = 'ImportUserId'
+
     def __init__(self, import_user_id: Union[str, int],
                  import_org_id: Union[str, int]):
         """Initializes instance variables."""
@@ -167,7 +169,7 @@ class ApexDataObject(ABC):
         r = requests.delete(url=url, headers=header)
         return r
 
-    def put_to_apex(self, token: TokenType, main_id='ImportUserId') -> Response:
+    def put_to_apex(self, token: TokenType) -> Response:
         """
         Useful for updating a record in the Apex database.
 
@@ -180,7 +182,7 @@ class ApexDataObject(ABC):
         header = get_header(token)
         url = urljoin(self.url + '/', self.import_user_id)
         payload = self.to_json()
-        del payload[main_id]  # Given in the URL
+        del payload[self.main_id]  # Given in the URL
         # We don't want to update a password
         if 'LoginPw' in payload.keys():
             del payload['LoginPw']
@@ -292,9 +294,13 @@ class ApexDataObject(ABC):
         for i, obj in enumerate(json_objs):
             progress = f'page {int(page_number)}:{i + 1}/{len(json_objs)}:total {len(all_objs) + 1}'
             try:
-                if not archived and obj['RoleStatus'] == 'Archived':
-                    continue  # Don't return archived
-                iuid = obj['ImportUserId']
+                if not archived:
+                    try:
+                        if obj['RoleStatus'] == 'Archived':
+                            continue  # Don't return archived
+                    except KeyError:
+                        pass
+                iuid = obj[cls.main_id]
                 if not iuid:
                     logger.info('Object has no ImportUserId. Skipping...')
                     continue
@@ -312,8 +318,8 @@ class ApexDataObject(ABC):
                 logger.info(error_msg)
             except exceptions.ApexMalformedEmailException as e:
                 logger.info(e)
-            except KeyError:
-                pass
+            except exceptions.ApexError:
+                logger.exception('Received Apex error:')
 
     def to_dict(self) -> dict:
         """Converts attributes to a dictionary."""
@@ -337,3 +343,13 @@ class ApexDataObject(ABC):
 
     def __repr__(self):
         return f'{self.__class__.__name__}({str(self)})'
+
+    def __hash__(self):
+        return hash((self.import_user_id,
+                     self.import_org_id,
+                     self.__class__.__name__))
+
+    def __eq__(self, other: 'ApexDataObject'):
+        return (self.import_user_id == other.import_user_id
+                and self.import_org_id == other.import_org_id
+                and self.__class__ is other.__class__)
