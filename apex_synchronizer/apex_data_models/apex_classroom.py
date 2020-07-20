@@ -229,8 +229,20 @@ def teacher_fuzzy_match(t1: str) -> ApexStaffMember:
     :return: the closest match as measured by Levenshtein distance
     :rtype: ApexStaffMember
     """
-    teachers = [ApexStaffMember.from_powerschool(t) for t in fetch_staff()]
+    logger = logging.getLogger(__name__)
+    logger.debug('Fuzzy matching teacher: ' + str(t1))
+
+    logger.debug('Fetching teachers.')
+    teachers = []
+    for t in fetch_staff():
+        try:
+            teachers.append(ApexStaffMember.from_powerschool(t))
+            logger.debug('Successfully fetched and created ' + str(t))
+        except exceptions.ApexEmailException as e:
+            logger.debug('Failed to create ' + str(t))
+            logger.debug(e)
     assert len(teachers) > 0
+    logger.debug(f'Successfully created {len(teachers)} teachers.')
 
     min_distance = float('inf')
     argmax = 0
@@ -265,7 +277,8 @@ def get_classrooms_for_eduids(eduids: Collection[Union[str, int]],
         logger.debug(f'{i + 1}/{len(eduids)} students')
         url = url_for_eduid(eduid)
         try:
-            classrooms[int(eduid)] = _get_classroom_for_eduid(url, token)
+            classrooms[int(eduid)] = _get_classroom_for_eduid(url, token,
+                                                              ids_only=ids_only)
         except exceptions.ApexObjectNotFoundException:
             continue
 
