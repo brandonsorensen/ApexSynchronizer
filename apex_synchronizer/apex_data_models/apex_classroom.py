@@ -366,5 +366,5 @@ def walk_ps_sections(archived: bool):
         except KeyError:
             logger.debug('JSON object does not contain "RoleStatus"')
 
-        progress = f'section {i}/{n_classrooms}'
+        progress = f'section {i + 1}/{n_classrooms}'
         yield section, progress
