@@ -1,14 +1,15 @@
 """
-The module servers as an interface for querying the PowerSchool
+This module servers as an interface for querying the PowerSchool
 database. It defines a function obtaining an PowerSchool token
-from the environment and a function for using that token to fetch
-a query from a given URL. Additionally, there are four wrapper functions
-that simply call the `_fetch_powerquery` function for an available
-URL. In practice, these are the functions that compose the API.
+from the environment and a class that uses said token to fetch
+a query from a given URL. Additionally, there are four
+:class:`PowerQuery` objs that simply call the four PowerQueries
+available to the Apex plugin. In practice, these are the functions that
+compose the API.
 
-The `course2program_code`, aptly named, maps a course code as defined
-in the documentation provided by Apex Learning to their respective
-program codes.
+The :data:`course2program_code`, aptly named, maps a course code as
+defined in the documentation provided by Apex Learning to their
+respective program codes.
 """
 
 import logging
@@ -30,49 +31,66 @@ course2program_code = {
 }
 
 
-def fetch_classrooms() -> dict:
-    return _fetch_powerquery('classrooms')
-
-
-def fetch_staff() -> dict:
-    return _fetch_powerquery('teachers')
-
-
-def fetch_students() -> dict:
-    return _fetch_powerquery('students')
-
-
-def fetch_enrollment() -> dict:
-    return _fetch_powerquery('enrollment')
-
-
-def _fetch_powerquery(url_ext: str, page_size=0) -> dict:
+class PowerQuery(object):
     """
-    Obtains an access token and calls a PowerQuery at a given url,
-    limiting it to `page_size` results.
+    Represents a PowerQuery call to the PowerSchool server. A
+    PowerQuery is a custom SQL statement that is defined in by a
+    PowerSchool plugin XML file. Four are defined for the Apex Learning
+    Plugin, and can be accessed by appending the following four key
+    words to PowerSchool URL + BASE_URL combination:
 
-    :param url_ext: the extension that, appended to the `PS_URL`
-        environment variable and `BASE_URL` as defined above,
-        composes the URL
-    :param page_size: how many results to return, 0 = all
-    :raises PSEmptyQueryException: when no results are returned
-    :return: the JSON object returned by the PowerQuery
+        - classrooms
+        - enrollment
+        - students
+        - teachers
+
+    These stock PowerQuery objects are defined in this :mod:`ps_agent`
+    module.
     """
-    logger = logging.getLogger(__name__)
-    logger.info('Fetching PowerQuery with extension ' + str(url_ext))
-    token = get_ps_token()
-    header = get_header(token, custom_args={'Content-Type': 'application/json'})
-    payload = {'pagesize': page_size}
-    url = urljoin(os.environ['PS_URL'], BASE_QUERY_URL + url_ext)
 
-    r = requests.post(url, headers=header, params=payload)
-    logger.info('PowerQuery returns with status ' + str(r.status_code))
-    try:
-        return r.json()['record']
-    except KeyError as e:
-        if e.args[0] == 'record':
-            raise PSEmptyQueryException(url)
-        raise e
+    def __init__(self, url_ext: str):
+        """
+        :param str url_ext: the extension that, appended to the `PS_URL`
+            environment variable and `BASE_URL` as defined above,
+            composes the URL
+        """
+        self.url_ext = url_ext
+
+    def fetch(self, page_size=0) -> dict:
+        """
+        Obtains an access token and calls a PowerQuery at a given url,
+        limiting it to `page_size` results.
+
+        :param page_size: how many results to return, 0 = all
+        :raises PSEmptyQueryException: when no results are returned
+        :return: the JSON object returned by the PowerQuery
+        """
+        logger = logging.getLogger(__name__)
+        logger.info('Fetching PowerQuery with extension ' + str(self.url_ext))
+        token = get_ps_token()
+        header = get_header(token,
+                            custom_args={'Content-Type': 'application/json'})
+        payload = {'pagesize': page_size}
+        url = urljoin(os.environ['PS_URL'], BASE_QUERY_URL + self.url_ext)
+
+        r = requests.post(url, headers=header, params=payload)
+        logger.info('PowerQuery returns with status ' + str(r.status_code))
+        try:
+            return r.json()['record']
+        except KeyError as e:
+            if e.args[0] == 'record':
+                raise PSEmptyQueryException(url)
+            raise e
+
+    def __call__(self, page_size=0) -> dict:
+        """Calls the fetch method."""
+        return self.fetch(page_size=page_size)
+
+
+fetch_classrooms = PowerQuery('classrooms')
+fetch_enrollment = PowerQuery('enrollment')
+fetch_staff = PowerQuery('teachers')
+fetch_students = PowerQuery('students')
 
 
 def get_ps_token() -> str:
@@ -110,5 +128,3 @@ def get_ps_token() -> str:
         raise PSNoConnectionError()
     
     return r.json()['access_token']
-
-
