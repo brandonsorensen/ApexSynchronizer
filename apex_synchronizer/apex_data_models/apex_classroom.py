@@ -20,13 +20,16 @@ from ..utils import get_header, levenshtein_distance
 ApexPersonType = Union['ApexStudent', 'ApexStaffMember']
 
 
-def _init_powerschool_teachers():
+def _init_powerschool_teachers() -> List[ApexStaffMember]:
+    """Creates `ApexStaffMember` objects from all PowerSchool teachers."""
+    logger = logging.getLogger(__name__)
     teachers = []
     for t in fetch_staff():
         try:
             teachers.append(ApexStaffMember.from_powerschool(t))
         except exceptions.ApexDataObjectException:
-            pass
+            logger.debug('Could not create teacher from the following JSON:\n'
+                         + str(t))
 
     assert len(teachers) > 0
     return teachers
