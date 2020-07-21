@@ -7,7 +7,7 @@ import requests
 from . import exceptions
 from .apex_data_models import ApexStudent, ApexClassroom
 from .apex_data_models.apex_classroom import walk_ps_sections
-from .apex_session import ApexSession, ApexAccessToken
+from .apex_session import ApexSession, TokenType
 from .enrollment import ApexEnrollment, PSEnrollment
 from .exceptions import ApexStudentNoEmailException, ApexMalformedEmailException
 from .ps_agent import fetch_students
@@ -51,7 +51,7 @@ class ApexSynchronizer(object):
                 progress = f':{i + 1}/{len(to_withdraw)}:'
                 self.logger.info(f'{progress}Removing student {student} '
                                  'from Apex.')
-                r = student.delete_from_apex(token=self.session.access_token)
+                r = student.delete_from_apex(session=self.session)
                 self.logger.debug(f'Received status from delete request: '
                                   + str(r.status_code))
         else:
@@ -188,12 +188,12 @@ def init_students_for_ids(student_ids: Collection[int]) -> List[ApexStudent]:
     return apex_students
 
 
-def post_students(token: Union[str, ApexAccessToken],
-                  apex_students: List[ApexStudent]):
+def post_students(apex_students: List[ApexStudent], token: TokenType = None,
+                  session: requests.Session = None):
     """Posts a list of ApexStudents to the Apex API."""
     logger = logging.getLogger(__name__)
     logger.info(f'Posting {len(apex_students)} students.')
-    r = ApexStudent.post_batch(token, apex_students)
+    r = ApexStudent.post_batch(apex_students, token=token, session=session)
     try:
         r.raise_for_status()
         logger.debug('Received status code ' + str(r.status_code))
@@ -212,7 +212,8 @@ def post_students(token: Union[str, ApexAccessToken],
             logger.exception('Response text:\n' + r.text)
 
 
-def put_duplicates(json_obj: dict, apex_students: List[ApexStudent], token: str):
+def put_duplicates(json_obj: dict, apex_students: List[ApexStudent],
+                   token: TokenType = None, session: requests.Session = None):
     """
     A helper function for `post_students`. PUTs students that already
     exist in Apex.
@@ -225,7 +226,7 @@ def put_duplicates(json_obj: dict, apex_students: List[ApexStudent], token: str)
     for student_idx in duplicates:
         student = apex_students[student_idx]
         logger.info(f'Putting student with EDUID {student.import_user_id}.')
-        r = student.put_to_apex(token)
+        r = student.put_to_apex(token=token, session=session)
         try:
             r.raise_for_status()
         except requests.exceptions.HTTPError as e:
@@ -233,7 +234,7 @@ def put_duplicates(json_obj: dict, apex_students: List[ApexStudent], token: str)
 
 
 def repost_students(json_obj: dict, apex_students: List[ApexStudent],
-                    token: str):
+                    token: TokenType = None, session: requests.Session = None):
     """
     Helper function for `post_students`. Removes invalid entries and
     attempts to POST again.
@@ -250,7 +251,7 @@ def repost_students(json_obj: dict, apex_students: List[ApexStudent],
     if to_retry:
         logger.info(f'Attempting to POST remaining {len(to_retry)} '
                     'students.')
-        r = ApexStudent.post_batch(token, to_retry)
+        r = ApexStudent.post_batch(to_retry, token=token, session=session)
         try:
             r.raise_for_status()
             logger.info('Successfully POSTed remaining students.')
