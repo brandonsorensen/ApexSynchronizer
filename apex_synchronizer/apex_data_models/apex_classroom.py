@@ -74,7 +74,12 @@ class ApexClassroom(ApexDataObject):
         del kwargs['section_number']
 
         kwargs['program_code'] = course2program_code[int(kwargs['import_org_id'])]
-        kwargs['product_codes'] = [kwargs['product_codes']]
+        if kwargs['product_codes'] is None:
+            product_codes = []
+        else:
+            product_codes = [kwargs['product_codes']]
+
+        kwargs['product_codes'] = product_codes
 
         return cls(**kwargs)
 
