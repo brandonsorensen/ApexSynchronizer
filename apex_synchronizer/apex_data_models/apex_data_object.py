@@ -157,9 +157,12 @@ class ApexDataObject(ABC):
         :return: the result of the POST operation
         """
         agent = check_args(token, session)
-        header = get_header(token)
-        payload = json.dumps({cls.post_heading: [c.to_json() for c in objects]})
         url = cls.url if len(objects) <= 50 else urljoin(cls.url + '/', 'batch')
+        payload = json.dumps({cls.post_heading: [c.to_json() for c in objects]})
+
+        header = get_header(token) if not isinstance(agent, requests.Session) \
+            else None
+
         r = agent.post(url=url, data=payload, headers=header)
 
         return r
