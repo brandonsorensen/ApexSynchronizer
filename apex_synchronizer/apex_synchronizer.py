@@ -4,7 +4,9 @@ from typing import Collection, List, Set, Union
 
 import requests
 
-from .apex_data_models import ApexStudent
+from . import exceptions
+from .apex_data_models import ApexStudent, ApexClassroom
+from .apex_data_models.apex_classroom import walk_ps_sections
 from .apex_session import ApexSession, ApexAccessToken
 from .enrollment import ApexEnrollment, PSEnrollment
 from .exceptions import ApexStudentNoEmailException, ApexMalformedEmailException
@@ -94,6 +96,17 @@ class ApexSynchronizer(object):
         except AttributeError:
             self.ps_enroll = PSEnrollment()
             return self.ps_enroll.roster
+
+    def sync_classrooms(self):
+        for i, (section, progress) in enumerate(walk_ps_sections(archived=False)):
+            try:
+                section_id = section['section_id']
+                apex_obj = ApexClassroom.get(self.session.access_token,
+                                             section_id)
+            except KeyError:
+                raise exceptions.ApexMalformedJsonException(section)
+            except exceptions.ApexObjectNotFoundException:
+                print(ApexClassroom.from_powerschool(section, already_flat=True))
 
 
 def init_students_for_ids(student_ids: Collection[int]) -> List[ApexStudent]:

@@ -81,8 +81,9 @@ class ApexClassroom(ApexDataObject):
         self.program_code = program_code
 
     @classmethod
-    def from_powerschool(cls, json_obj: dict) -> 'ApexClassroom':
-        kwargs = cls._init_kwargs_from_ps(json_obj)
+    def from_powerschool(cls, json_obj: dict, already_flat: bool = False) \
+            -> 'ApexClassroom':
+        kwargs = cls._init_kwargs_from_ps(json_obj, already_flat)
         kwargs['classroom_name'] = (kwargs['course_name']
                                     + ' - '
                                     + kwargs['section_number'])
@@ -135,21 +136,9 @@ class ApexClassroom(ApexDataObject):
         """
         logger = logging.getLogger(__name__)
 
-        ps_classrooms = fetch_classrooms()
-        n_classrooms = len(ps_classrooms)
-        logger.info(f'Successfully retrieved {n_classrooms} sections'
-                    'from PowerSchool.')
-
         ret_val = []
 
-        for i, section in enumerate(map(utils.flatten_ps_json, ps_classrooms)):
-            progress = f'section {i}/{n_classrooms}'
-            try:
-                if not archived and section['RoleStatus'] == 'Archived':
-                    continue
-            except KeyError:
-                logger.debug('JSON object does not contain "RoleStatus"')
-
+        for i, (section, progress) in enumerate(walk_ps_sections(archived)):
             try:
                 section_id = section['section_id']
                 apex_obj = cls.get(token, section_id)
@@ -362,3 +351,20 @@ def _get_classroom_for_eduid(url: str, token: TokenType,
     return ret_val
 
 
+def walk_ps_sections(archived: bool):
+    logger = logging.getLogger(__name__)
+
+    ps_classrooms = fetch_classrooms()
+    n_classrooms = len(ps_classrooms)
+    logger.info(f'Successfully retrieved {n_classrooms} sections'
+                'from PowerSchool.')
+
+    for i, section in enumerate(map(utils.flatten_ps_json, ps_classrooms)):
+        try:
+            if not archived and section['RoleStatus'] == 'Archived':
+                continue
+        except KeyError:
+            logger.debug('JSON object does not contain "RoleStatus"')
+
+        progress = f'section {i}/{n_classrooms}'
+        yield section, progress

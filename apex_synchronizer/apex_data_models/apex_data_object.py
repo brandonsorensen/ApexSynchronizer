@@ -207,18 +207,21 @@ class ApexDataObject(ABC):
 
     @classmethod
     @abstractmethod
-    def from_powerschool(cls, json_obj: dict) -> 'ApexDataObject':
+    def from_powerschool(cls, json_obj: dict, already_flat: bool = False) \
+            -> 'ApexDataObject':
         """
         Creates an instance of the class from a JSON object returned
         from PowerSchool.
 
-        :param json_obj: the PowerSchool JSON object
+        :param dict json_obj: the PowerSchool JSON object
+        :param bool already_flat: Whether the JSON object has already
+            been flattened
         :return: an instance of type cls representing the JSON object
         """
         pass
 
     @classmethod
-    def _init_kwargs_from_ps(cls, json_obj):
+    def _init_kwargs_from_ps(cls, json_obj, already_flat=False):
         """
         A helper method for the `from_powerschool` method. Takes the
         PowerSchool JSON and transforms it according to
@@ -228,7 +231,8 @@ class ApexDataObject(ABC):
         :return: the same JSON object with transformed keys.
         """
         kwargs = {}
-        json_obj = utils.flatten_ps_json(json_obj)
+        if not already_flat:
+            json_obj = utils.flatten_ps_json(json_obj)
         for ps_key, apex_key in cls.ps2apex_field_map.items():
             if type(apex_key) is str:
                 kwargs[apex_key] = json_obj[ps_key]

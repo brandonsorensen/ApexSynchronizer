@@ -61,8 +61,10 @@ class ApexStaffMember(ApexDataObject):
         self.login_id = email_lower.split('@')[0]
 
     @classmethod
-    def from_powerschool(cls, json_obj) -> 'ApexStaffMember':
-        kwargs = cls._init_kwargs_from_ps(json_obj=json_obj)
+    def from_powerschool(cls, json_obj, already_flat: bool = False) \
+            -> 'ApexStaffMember':
+        kwargs = cls._init_kwargs_from_ps(json_obj=json_obj,
+                                          already_flat=already_flat)
         try:
             # In case of old version of PowerSchool query
             del kwargs['login_id']

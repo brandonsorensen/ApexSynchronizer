@@ -68,9 +68,11 @@ class ApexStudent(ApexDataObject):
         return cls(**kwargs)
 
     @classmethod
-    def from_powerschool(cls, json_obj: dict) -> 'ApexStudent':
+    def from_powerschool(cls, json_obj: dict, already_flat: bool = False) \
+            -> 'ApexStudent':
         try:
-            kwargs = cls._init_kwargs_from_ps(json_obj=json_obj)
+            kwargs = cls._init_kwargs_from_ps(json_obj=json_obj,
+                                              already_flat=already_flat)
         except KeyError as e:
             if e.args[0].lower() == 'email':
                 try:
