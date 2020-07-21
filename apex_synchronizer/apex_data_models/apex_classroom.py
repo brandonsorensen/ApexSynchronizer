@@ -20,6 +20,18 @@ from ..utils import get_header, levenshtein_distance
 ApexPersonType = Union['ApexStudent', 'ApexStaffMember']
 
 
+def _init_powerschool_teachers():
+    teachers = []
+    for t in fetch_staff():
+        try:
+            teachers.append(ApexStaffMember.from_powerschool(t))
+        except exceptions.ApexDataObjectException:
+            pass
+
+    assert len(teachers) > 0
+    return teachers
+
+
 class ApexClassroom(ApexDataObject):
 
     """
@@ -51,6 +63,7 @@ class ApexClassroom(ApexDataObject):
     }
     post_heading = 'classroomEntries'
     main_id = 'ImportClassroomId'
+    _all_ps_teachers = _init_powerschool_teachers()
 
     def __init__(self, import_org_id: Union[str, int],
                  import_classroom_id: Union[str, int],
@@ -92,7 +105,8 @@ class ApexClassroom(ApexDataObject):
         date = datetime.strptime(kwargs['classroom_start_date'],
                                  APEX_DATETIME_FORMAT)
         kwargs['classroom_start_date'] = date.strftime(PS_DATETIME_FORMAT)
-        teacher = teacher_fuzzy_match(json_obj['PrimaryTeacher'])
+        teacher = teacher_fuzzy_match(json_obj['PrimaryTeacher'],
+                                      cls._all_ps_teachers)
         kwargs['import_user_id'] = teacher.import_user_id
 
         return cls(**kwargs)
@@ -104,6 +118,11 @@ class ApexClassroom(ApexDataObject):
         Get all objects. Must be overloaded because Apex does not
         support a global GET request for objects in the same. Loops
         through all PowerSchool objects and keeps the ones that exist.
+
+        Note: Because the Apex API does not provide a GET operation
+        that returns all classrooms, fetching only IDs does not yield
+        any performance boost. All classrooms must stll be fetched
+        individually.
 
         :param token: Apex access token
         :param bool ids_only: Whether or not to return only IDs
@@ -138,8 +157,8 @@ class ApexClassroom(ApexDataObject):
                 raise exceptions.ApexMalformedJsonException(section)
             except exceptions.ApexObjectNotFoundException:
                 msg = (f'{progress}:PowerSchool section indexed by '
-                       f'{section["section_id"]}' ' could not be found in Apex. '
-                       'Skipping ' 'classroom.')
+                       f'{section["section_id"]} could not be found in Apex. '
+                       'Skipping classroom.')
                 logger.info(msg)
 
         logger.info(f'Returning {len(ret_val)} ApexClassroom objects.')
@@ -217,7 +236,8 @@ class ApexClassroom(ApexDataObject):
         return urljoin(url + '/', obj_type_component)
 
 
-def teacher_fuzzy_match(t1: str) -> ApexStaffMember:
+def teacher_fuzzy_match(t1: str, teachers: Collection[ApexStaffMember] = None) \
+        -> ApexStaffMember:
     """
     Takes the forename and surname of a teacher in the form of a single
     string and fuzzy matches (case-insensitive) across all teachers
@@ -231,23 +251,26 @@ def teacher_fuzzy_match(t1: str) -> ApexStaffMember:
     performance.
 
     :param t1: teacher name in the format of "Forename Surname"
+    :param teachers: an optional list of teachers as ApexStaffMember
+        objs
     :return: the closest match as measured by Levenshtein distance
     :rtype: ApexStaffMember
     """
     logger = logging.getLogger(__name__)
     logger.debug('Fuzzy matching teacher: ' + str(t1))
 
-    logger.debug('Fetching teachers.')
-    teachers = []
-    for t in fetch_staff():
-        try:
-            teachers.append(ApexStaffMember.from_powerschool(t))
-            logger.debug('Successfully fetched and created ' + str(t))
-        except exceptions.ApexEmailException as e:
-            logger.debug('Failed to create ' + str(t))
-            logger.debug(e)
-    assert len(teachers) > 0
-    logger.debug(f'Successfully created {len(teachers)} teachers.')
+    if teachers is None:
+        logger.debug('Fetching teachers.')
+        teachers = []
+        for t in fetch_staff():
+            try:
+                teachers.append(ApexStaffMember.from_powerschool(t))
+                logger.debug('Successfully fetched and created ' + str(t))
+            except exceptions.ApexEmailException as e:
+                logger.debug('Failed to create ' + str(t))
+                logger.debug(e)
+        assert len(teachers) > 0
+        logger.debug(f'Successfully created {len(teachers)} teachers.')
 
     min_distance = float('inf')
     argmax = 0
@@ -333,4 +356,5 @@ def _get_classroom_for_eduid(url: str, token: TokenType,
                                            archived=False, ids_only=ids_only)
 
     return ret_val
+
 
