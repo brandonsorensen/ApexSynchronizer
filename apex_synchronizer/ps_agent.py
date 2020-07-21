@@ -4,6 +4,7 @@ from urllib.parse import urljoin
 
 import requests
 
+from .exceptions import PSEmptyQueryException, PSNoConnectionError
 from .utils import get_header
 
 BASE_QUERY_URL = '/ws/schema/query/com.apex.learning.school.'
@@ -42,7 +43,12 @@ def _fetch_powerquery(url_ext: str, page_size=0) -> dict:
 
     r = requests.post(url, headers=header, params=payload)
     logger.info('PowerQuery returns with status ' + str(r.status_code))
-    return r.json()['record']
+    try:
+        return r.json()['record']
+    except KeyError as e:
+        if e.args[0] == 'record':
+            raise PSEmptyQueryException(url)
+        raise e
 
 
 def get_ps_token() -> str:
@@ -63,11 +69,11 @@ def get_ps_token() -> str:
         'client_secret': client_secret
     }
 
+    r = requests.post(url, headers=header, data=payload)
     try:
-        r = requests.post(url, headers=header, data=payload)
         r.raise_for_status()
     except requests.exceptions.HTTPError as err:
-        raise SystemExit(err)
+        raise PSNoConnectionError()
     
     return r.json()['access_token']
 

@@ -118,3 +118,25 @@ class DuplicateUserException(ApexDataObjectException):
 
     def __str__(self):
         return f'Object with user id {self.object.import_user_id} already exists.'
+
+
+class PSException(Exception):
+
+    def __str__(self):
+        return 'An unexpected error occurred when attempting to interface' \
+               ' with PowerSchool.'
+
+
+class PSEmptyQueryException(PSException):
+
+    def __init__(self, url):
+        self.url = url
+
+    def __str__(self):
+        return f'Query to URL "{self.url}" returned no results.'
+
+
+class PSNoConnectionError(PSException):
+
+    def __str__(self):
+        return 'Could not establish connection with PowerSchool server.'
