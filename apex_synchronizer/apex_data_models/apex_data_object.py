@@ -111,19 +111,24 @@ class ApexDataObject(ABC):
 
         return ret_val
 
-    def post_to_apex(self, token: TokenType) -> Response:
+    def post_to_apex(self, token: TokenType = None,
+                     session: requests.Session = None) -> Response:
         """
         Posts the information contained in this object to the Apex API.
         Simply a convenience method that passes this object to the
         `post_batch` class method.
 
         :param token: Apex access token
+        :param session: existing requests Session object
         :return: the response returned by the POST operation
         """
-        return self.post_batch(token, [self])
+        check_args(token, session)
+        return self.post_batch([self], token=token, session=session)
 
     @classmethod
-    def post_batch(cls, token: TokenType, objects: Collection['ApexDataObject']):
+    def post_batch(cls, objects: Collection['ApexDataObject'],
+                   token: TokenType = None,
+                   session: requests.Session = None):
         """
         Posts a batch of `ApexDataObjects` to the Apex API. The `object`
         parameter
@@ -132,14 +137,21 @@ class ApexDataObject(ABC):
         subclass (i.e., attempting to call `ApexStudent.post_batch`
         with even one `ApexStaffMember` will result in an error.
 
-        :param token: Apex access token
+        Must supply one of either `token` or `session`. If both are
+        supplied, `session` will take precedence.
+
         :param objects: a heterogeneous collection of `ApexDataObjects`
+        :param token: Apex access token
+        :param session: an existing requests session
         :return: the result of the POST operation
         """
+        check_args(token, session)
+        agent = session if session else requests
         header = get_header(token)
         payload = json.dumps({cls.post_heading: [c.to_json() for c in objects]})
         url = cls.url if len(objects) <= 50 else urljoin(cls.url + '/', 'batch')
-        r = requests.post(url=url, data=payload, headers=header)
+        r = agent.post(url=url, data=payload, headers=header)
+
         return r
 
     def delete_from_apex(self, token: TokenType) -> Response:
@@ -349,3 +361,9 @@ class ApexDataObject(ABC):
         return (self.import_user_id == other.import_user_id
                 and self.import_org_id == other.import_org_id
                 and self.__class__ is other.__class__)
+
+
+def check_args(token: TokenType, session: requests.Session):
+    """Throws on error if both are not truthy.."""
+    if not any((token, session)):
+        raise ValueError('Must supply one of either `token` or `session`.')
