@@ -8,7 +8,8 @@ from requests import Response
 
 from .apex_data_object import ApexDataObject
 from .apex_classroom import ApexClassroom
-from .utils import BASE_URL, APEX_EMAIL_REGEX, make_userid
+from .utils import (BASE_URL, APEX_EMAIL_REGEX,
+                    make_userid, check_args)
 from .. import exceptions
 from ..apex_session import TokenType
 from ..utils import get_header
@@ -88,7 +89,8 @@ class ApexStudent(ApexDataObject):
 
         return cls(**kwargs)
 
-    def get_enrollments(self, token: TokenType) \
+    def get_enrollments(self, token: TokenType = None,
+                        session: requests.Session = None) \
             -> Optional[List['ApexClassroom']]:
         """
         Gets all classes in which this :class:`ApexStudent` is enrolled.
@@ -96,7 +98,7 @@ class ApexStudent(ApexDataObject):
         :param token: an Apex access token
         :return: a list of ApexClassroom objects
         """
-        classroom_ids = self.get_enrollment_ids(token)
+        classroom_ids = self.get_enrollment_ids(token=token, session=session)
         ret_val = []
         n_classrooms = len(classroom_ids)
         logger = logging.getLogger(__name__)
@@ -114,7 +116,8 @@ class ApexStudent(ApexDataObject):
 
         return ret_val
 
-    def get_enrollment_ids(self, token: TokenType) -> List[int]:
+    def get_enrollment_ids(self, token: TokenType = None,
+                           session: requests.Session = None) -> List[int]:
         """
         Gets the `ImportClassroomId` of all objects in which the student
         is enrolled. Differs from the `get_enrollments` in that it only
@@ -127,9 +130,13 @@ class ApexStudent(ApexDataObject):
             is enrolled
         :rtype: List[int]
         """
-        header = get_header(token)
-        r = requests.get(url=self.classroom_url, headers=header,
-                         params={'isActiveOnly': True})
+        agent = check_args(token, session)
+        if isinstance(agent, requests.Session):
+            r = agent.get(url=self.classroom_url, params={'isActiveOnly': True})
+        else:
+            header = get_header(token)
+            r = agent.get(url=self.classroom_url, headers=header,
+                          params={'isActiveOnly': True})
         try:
             r.raise_for_status()
             return [int(student['ImportClassroomId']) for student in r.json()]
@@ -138,8 +145,9 @@ class ApexStudent(ApexDataObject):
         except KeyError:
             raise exceptions.ApexMalformedJsonException(r.json())
 
-    def transfer(self, token: TokenType, old_classroom_id: str,
-                 new_classroom_id: str, new_org_id: str = None) -> Response:
+    def transfer(self, old_classroom_id: str, new_classroom_id: str,
+                 new_org_id: str = None, token: TokenType = None,
+                 session: requests.Session = None) -> Response:
         """
         Transfers student along with role and grade data from one
         classroom to another
@@ -151,7 +159,11 @@ class ApexStudent(ApexDataObject):
         :param new_org_id: optional new org_id
         :return: the response to the PUT operation
         """
-        header = get_header(token)
+        agent = check_args(token, session)
+        if isinstance(agent, requests.Session):
+            header = None
+        else:
+            header = get_header(token)
         url = urljoin(self.classroom_url + '/', old_classroom_id)
         params = {'newClassroomID': new_classroom_id}
         if new_org_id is not None:
@@ -160,7 +172,8 @@ class ApexStudent(ApexDataObject):
         r = requests.put(url=url, headers=header, params=params)
         return r
 
-    def enroll(self, token: TokenType, classroom_id: str) -> Response:
+    def enroll(self, classroom_id: str, token: TokenType = None,
+               session: requests.Session = None)  -> Response:
         """
         Enrolls this :class:`ApexStudent` object into the class indexed
         by `classroom_id`.
@@ -170,7 +183,7 @@ class ApexStudent(ApexDataObject):
         :return: the response of the PUT call
         """
         classroom = ApexClassroom.get(token, classroom_id)
-        return classroom.enroll(token, self)
+        return classroom.enroll(self, token=token, session=session)
 
     def withdraw(self, token: str, classroom_id: str) -> Response:
         classroom = ApexClassroom.get(token, classroom_id)

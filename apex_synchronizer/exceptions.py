@@ -78,10 +78,37 @@ class ApexMalformedEmailException(ApexEmailException):
                 'conform to Apex validation rules: ' + self.email)
 
 
+class ApexAuthenticationError(ApexError):
+
+    def __init__(self, msg: str = None):
+        self.msg = msg
+
+    def __str__(self):
+        if self.msg is None:
+            return 'There was a problem with Apex API authentication.'
+        else:
+            return self.msg
+
+
+class ApexNotAuthorizedError(ApexAuthenticationError):
+
+    def __str__(self):
+        return 'Apex token was rejected by the API.'
+
+
 class NoUserIdException(ApexDataObjectException):
 
     def __str__(self):
         return 'Object does not have an ImportUserID.'
+
+
+class NoProductCodesException(ApexDataObjectException):
+
+    def __init__(self, classroom_id):
+        self.classroom_id = classroom_id
+
+    def __str__(self):
+        return f'Classroom with ID {self.classroom_id} has no product codes.'
 
 
 class DuplicateUserException(ApexDataObjectException):

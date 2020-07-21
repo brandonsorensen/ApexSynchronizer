@@ -98,15 +98,50 @@ class ApexSynchronizer(object):
             return self.ps_enroll.roster
 
     def sync_classrooms(self):
+        n_posted = 0
+        total = 0
         for i, (section, progress) in enumerate(walk_ps_sections(archived=False)):
             try:
                 section_id = section['section_id']
-                apex_obj = ApexClassroom.get(self.session.access_token,
-                                             section_id)
+                self.logger.info(f'{progress}:Attempting to fetch classroom with'
+                                 f'ID {section_id}.')
+                ApexClassroom.get(section_id, session=self.session)
+                self.logger.info(f'{progress}:Classroom found.')
             except KeyError:
                 raise exceptions.ApexMalformedJsonException(section)
             except exceptions.ApexObjectNotFoundException:
-                print(ApexClassroom.from_powerschool(section, already_flat=True))
+                self.logger.info(f'{progress}:Classroom not found in Apex. '
+                                 'Creating classroom')
+                try:
+                    apex_obj = ApexClassroom.from_powerschool(section,
+                                                              already_flat=True)
+                    self._post_classroom(apex_obj, progress)
+                    n_posted += 1
+                except exceptions.NoProductCodesException as e:
+                    self.logger.info(e)
+            except (exceptions.ApexNotAuthorizedError,
+                    exceptions.ApexConnectionException):
+                self.logger.exception('Failed to connect to Apex server.')
+                return
+            except exceptions.ApexError:
+                self.logger.exception('Encountered unexpected error:\n')
+            finally:
+                total += 1
+
+        self.logger.info(f'Added {n_posted}/{total} classrooms.')
+
+    def _post_classroom(self, room: ApexClassroom, progress: str):
+        self.logger.info(f'{progress}:Attempting to POST classroom'
+                         'to Apex.')
+        r = room.post_to_apex(session=self.session)
+        try:
+            r.raise_for_status()
+            self.logger.info(f'{progress}:Successfully POSTed to Apex.')
+        except requests.exceptions.HTTPError:
+            self.logger.info(f'{progress}:POST failed. Received status: '
+                             f'{r.status_code} with response\n{r.text}.')
+        except requests.exceptions.ConnectionError:
+            raise exceptions.ApexConnectionException()
 
 
 def init_students_for_ids(student_ids: Collection[int]) -> List[ApexStudent]:

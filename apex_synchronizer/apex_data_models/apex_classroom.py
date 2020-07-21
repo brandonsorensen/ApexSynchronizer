@@ -10,7 +10,8 @@ import requests
 from .apex_data_object import ApexDataObject
 from .apex_staff_member import ApexStaffMember
 from .page_walker import PageWalker
-from .utils import BASE_URL, APEX_DATETIME_FORMAT, PS_DATETIME_FORMAT
+from .utils import (BASE_URL, APEX_DATETIME_FORMAT,
+                    PS_DATETIME_FORMAT, check_args)
 from .. import exceptions, utils
 from ..apex_session import TokenType
 from ..ps_agent import course2program_code, fetch_staff, fetch_classrooms
@@ -77,6 +78,8 @@ class ApexClassroom(ApexDataObject):
         self.import_classroom_id = import_classroom_id
         self.classroom_name = classroom_name
         self.product_codes = product_codes
+        if not self.product_codes:
+            raise exceptions.NoProductCodesException(self.import_classroom_id)
         self.classroom_start_date = classroom_start_date
         self.program_code = program_code
 
@@ -117,7 +120,8 @@ class ApexClassroom(ApexDataObject):
 
     @classmethod
     def get_all(cls, token: TokenType, ids_only: bool = False,
-                archived: bool = False) -> List[Union['ApexClassroom', int]]:
+                archived: bool = False,
+                session: requests.Session = None) -> List[Union['ApexClassroom', int]]:
         """
         Get all objects. Must be overloaded because Apex does not
         support a global GET request for objects in the same. Loops
@@ -129,6 +133,7 @@ class ApexClassroom(ApexDataObject):
         individually.
 
         :param token: Apex access token
+        :param session: an existing requests.Session object
         :param bool ids_only: Whether or not to return only IDs
         :param bool archived: Whether or not to returned archived
             results
@@ -141,7 +146,7 @@ class ApexClassroom(ApexDataObject):
         for i, (section, progress) in enumerate(walk_ps_sections(archived)):
             try:
                 section_id = section['section_id']
-                apex_obj = cls.get(token, section_id)
+                apex_obj = cls.get(section_id, token=token, session=session)
                 ret_val.append(int(apex_obj.import_classroom_id) if ids_only
                                else apex_obj)
                 logger.info(f'{progress}:Created ApexClassroom for'
@@ -157,8 +162,9 @@ class ApexClassroom(ApexDataObject):
         logger.info(f'Returning {len(ret_val)} ApexClassroom objects.')
         return ret_val
 
-    def enroll(self, token: TokenType,
-               objs: Union[List[ApexDataObject], ApexDataObject]) -> Response:
+    def enroll(self, objs: Union[List[ApexDataObject], ApexDataObject],
+               token: TokenType = None,
+               session: requests.Session = None) -> Response:
         """
         Enrolls one or more students or staff members into this
         classroom.
@@ -169,6 +175,7 @@ class ApexClassroom(ApexDataObject):
             multiple types
         :return: the response to the POST operation
         """
+        agent = check_args(token=token, session=session)
         if issubclass(type(objs), ApexDataObject):
             dtype = type(objs)
             objs = [objs]
@@ -191,7 +198,7 @@ class ApexClassroom(ApexDataObject):
             payload[dtype.post_heading].append(payload_entry)
 
         payload = json.dumps(payload)
-        return requests.post(url=url, headers=header, data=payload)
+        return agent.post(url=url, headers=header, data=payload)
 
     def withdraw(self, token: TokenType, obj: ApexPersonType) -> Response:
         """
@@ -314,13 +321,15 @@ def get_classrooms_for_eduids(eduids: Collection[Union[str, int]],
     return classrooms
 
 
-def _get_classroom_for_eduid(url: str, token: TokenType,
+def _get_classroom_for_eduid(url: str, token: TokenType = None,
+                             session: requests.Session = None,
                              ids_only: bool = False) \
         -> List[Union[int, ApexClassroom]]:
+    check_args(token, session)
     logger = logging.getLogger(__name__)
     ret_val = []
     custom_args = {'isActiveOnly': 'true'}
-    walker = PageWalker(logger=logger)
+    walker = PageWalker(logger=logger, session=session)
 
     for i, page_response in enumerate(walker.walk(url, token=token,
                                                   custom_args=custom_args)):

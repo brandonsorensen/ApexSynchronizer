@@ -1,6 +1,11 @@
 from string import punctuation
 import re
 
+import requests
+
+from ..apex_session import TokenType
+from ..exceptions import ApexAuthenticationError
+
 BASE_URL = 'https://api.apexvs.com/'
 APEX_DATETIME_FORMAT = '%a, %d %b %Y %H:%M:%S %Z'
 PS_DATETIME_FORMAT = '%Y/%m/%d'
@@ -15,3 +20,12 @@ def make_userid(first_name: str, last_name: str):
     userid = re.sub(PUNC_REGEX, '', last_name.lower())[:4]
     userid += re.sub(PUNC_REGEX, '', first_name.lower())[:4]
     return userid
+
+
+def check_args(token: TokenType, session: requests.Session):
+    """Throws on error if both are not truthy.."""
+    if not any((token, session)):
+        raise ApexAuthenticationError('Must supply one of either `token` '
+                                      'or `session`.')
+
+    return session if session else requests

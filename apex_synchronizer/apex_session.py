@@ -12,9 +12,10 @@ import apex_synchronizer
 TokenType = Union[str, 'ApexAccessToken']
 
 
-class ApexSession(object):
+class ApexSession(requests.Session):
 
     def __init__(self):
+        super().__init__()
         self._access_token = ApexAccessToken.get_new_token()
         self.logger = logging.getLogger(__name__)
         self.logger.info('Session opened.')

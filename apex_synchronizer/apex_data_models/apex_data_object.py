@@ -8,8 +8,9 @@ from requests import Response
 import requests
 
 from .page_walker import PageWalker
+from .utils import check_args
 from .. import exceptions, utils
-from ..apex_session import TokenType
+from ..apex_session import ApexSession, TokenType
 from ..utils import get_header
 
 
@@ -34,19 +35,23 @@ class ApexDataObject(ABC):
         self.import_org_id = str(import_org_id)
 
     @classmethod
-    def get(cls, token: TokenType,
-            import_id: Union[str, int]) -> 'ApexDataObject':
+    def get(cls, import_id: Union[str, int], token: TokenType = None,
+            session: requests.Session = None) -> 'ApexDataObject':
         """
         Gets the ApexDataObject corresponding to a given ImportId.
 
         :param token: ApexAccessToken
+        :param session: an exising Apex session
         :param import_id: the ImportId of the object
         :return: an ApexDataObject corresponding to the given ImportId
         """
+        r = cls._get_response(str(import_id), token=token,
+                              session=session)
         try:
-            r = cls._get_response(token, str(import_id))
             r.raise_for_status()
         except requests.exceptions.HTTPError:
+            if r.status_code == 401:
+                raise exceptions.ApexNotAuthorizedError()
             raise exceptions.ApexObjectNotFoundException(import_id)
         except requests.exceptions.ConnectionError:
             raise exceptions.ApexConnectionException()
@@ -69,7 +74,8 @@ class ApexDataObject(ABC):
         pass
 
     @classmethod
-    def _get_response(cls, token: TokenType, import_id) -> Response:
+    def _get_response(cls, import_id, token: TokenType = None,
+                      session: requests.Session = None) -> Response:
         """
         Calls a GET operation for a given ImportId and returns the
         response. The first (and constant across all subclasses)
@@ -79,17 +85,23 @@ class ApexDataObject(ABC):
         :param import_id:
         :return: the response from the GET operation
         """
-        custom_args = {
-            'importUserId': import_id
-        }
-        header = get_header(token, custom_args)
+        agent = check_args(token, session)
         url = urljoin(cls.url + '/', import_id)
-        r = requests.get(url=url, headers=header)
+        if isinstance(agent, ApexSession):
+            token = agent.access_token
+        custom_args = {'importUserId': import_id}
+        if type(agent) is requests.Session:
+            agent.headers.update(custom_args)
+            r = agent.get(url=url)
+        else:
+            header = get_header(token, custom_args)
+            r = agent.get(url=url, headers=header)
         return r
 
     @classmethod
     def get_all(cls, token: TokenType, ids_only: bool = False,
-                archived=False) -> List[Union['ApexDataObject', int]]:
+                archived: bool = False, session: requests.Session = None) \
+            -> List[Union['ApexDataObject', int]]:
         """
         Gets all objects of type `cls` in the Apex database.
 
@@ -101,7 +113,7 @@ class ApexDataObject(ABC):
         """
         logger = logging.getLogger(__name__)
         ret_val = []
-        walker = PageWalker(logger=logger)
+        walker = PageWalker(logger=logger, session=session)
 
         for current_page, r in enumerate(walker.walk(cls.url, token=token)):
             cls._parse_response_page(token=token, json_objs=r.json(),
@@ -122,7 +134,6 @@ class ApexDataObject(ABC):
         :param session: existing requests Session object
         :return: the response returned by the POST operation
         """
-        check_args(token, session)
         return self.post_batch([self], token=token, session=session)
 
     @classmethod
@@ -145,8 +156,7 @@ class ApexDataObject(ABC):
         :param session: an existing requests session
         :return: the result of the POST operation
         """
-        check_args(token, session)
-        agent = session if session else requests
+        agent = check_args(token, session)
         header = get_header(token)
         payload = json.dumps({cls.post_heading: [c.to_json() for c in objects]})
         url = cls.url if len(objects) <= 50 else urljoin(cls.url + '/', 'batch')
@@ -170,7 +180,8 @@ class ApexDataObject(ABC):
         r = requests.delete(url=url, headers=header)
         return r
 
-    def put_to_apex(self, token: TokenType) -> Response:
+    def put_to_apex(self, token: TokenType = None,
+                    session: requests.Session = None) -> Response:
         """
         Useful for updating a record in the Apex database.
 
@@ -180,6 +191,7 @@ class ApexDataObject(ABC):
             ImportClassroomId for `ApexClassroom` objects
         :return: the response from the PUT operation.
         """
+        agent = check_args(token, session)
         header = get_header(token)
         url = urljoin(self.url + '/', self.import_user_id)
         payload = self.to_json()
@@ -187,7 +199,7 @@ class ApexDataObject(ABC):
         # We don't want to update a password
         if 'LoginPw' in payload.keys():
             del payload['LoginPw']
-        r = requests.put(url=url, headers=header, data=payload)
+        r = agent.put(url=url, headers=header, data=payload)
         return r
 
     @property
@@ -275,10 +287,11 @@ class ApexDataObject(ABC):
         return kwargs, json_obj
 
     @classmethod
-    def _parse_response_page(cls, token: TokenType, json_objs: List[dict],
-                             page_number: int,
+    def _parse_response_page(cls, json_objs: List[dict], page_number: int,
                              all_objs: List[Union['ApexDataObject', int]],
-                             archived: bool = False, ids_only: bool = False):
+                             archived: bool = False, ids_only: bool = False,
+                             token: TokenType = None,
+                             session: requests.Session = None):
         """
         Parses a single page of a GET response and populates the
         `all_objs` list with either `ApexDataObject` objects or their
@@ -317,7 +330,8 @@ class ApexDataObject(ABC):
                 else:
                     logger.info(f'{progress}:Creating {cls.__name__} '
                                 f'with ImportUserId {iuid}')
-                    apex_obj = cls.get(token, import_id=iuid)
+                    apex_obj = cls.get(import_id=iuid, token=token,
+                                       session=session)
                     all_objs.append(apex_obj)
             except exceptions.ApexObjectNotFoundException:
                 main_id = utils.snake_to_camel(cls.main_id)
@@ -362,8 +376,3 @@ class ApexDataObject(ABC):
                 and self.import_org_id == other.import_org_id
                 and self.__class__ is other.__class__)
 
-
-def check_args(token: TokenType, session: requests.Session):
-    """Throws on error if both are not truthy.."""
-    if not any((token, session)):
-        raise ValueError('Must supply one of either `token` or `session`.')
