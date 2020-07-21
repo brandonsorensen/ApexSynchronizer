@@ -262,7 +262,8 @@ def teacher_fuzzy_match(t1: str) -> ApexStaffMember:
 
 
 def get_classrooms_for_eduids(eduids: Collection[Union[str, int]],
-                              token: TokenType, ids_only: bool = False) \
+                              token: TokenType, ids_only: bool = False,
+                              return_empty: bool = False) \
         -> Dict[int, List[Union[int, ApexClassroom]]]:
     logger = logging.getLogger(__name__)
     base_url = urljoin(BASE_URL, '/students/')
@@ -274,13 +275,20 @@ def get_classrooms_for_eduids(eduids: Collection[Union[str, int]],
     classrooms = {}
     logger.info(f'Getting classrooms for {len(eduids)} students.')
     for i, eduid in enumerate(eduids):
-        logger.debug(f'{i + 1}/{len(eduids)} students')
+        logger.info(f'{i + 1}/{len(eduids)} students')
         url = url_for_eduid(eduid)
         try:
-            classrooms[int(eduid)] = _get_classroom_for_eduid(url, token,
-                                                              ids_only=ids_only)
+            eduid_classrooms = _get_classroom_for_eduid(url, token,
+                                                        ids_only=ids_only)
         except exceptions.ApexObjectNotFoundException:
-            continue
+            logger.info('Could not find student with EDUID ' + str(eduid))
+            eduid_classrooms = []
+        except exceptions.ApexError:
+            logger.exception('Received generic Apex error:\n')
+            eduid_classrooms = []
+
+        if eduid_classrooms or (not eduid_classrooms and return_empty):
+            classrooms[int(eduid)] = eduid_classrooms
 
     return classrooms
 
@@ -298,9 +306,21 @@ def _get_classroom_for_eduid(url: str, token: TokenType,
         try:
             page_response.raise_for_status()
         except requests.exceptions.HTTPError:
-            if page_response.json()['message'] == 'Results not found.':
+            try:
+                message = page_response.json()['message']
+            except KeyError:
+                logger.debug(f'Received unknown response:\n{page_response.json()}')
+                raise requests.exceptions.RequestException()
+
+            if (message == 'Results not found.'
+                    or message == "User doesn't exist."):
                 eduid = url.split('/')[-2]
                 raise exceptions.ApexObjectNotFoundException(eduid)
+            raise exceptions.ApexError()
+        except requests.exceptions.ConnectionError:
+            raise exceptions.ApexConnectionException()
+        except StopIteration:
+            return ret_val
 
         json_obj = page_response.json()
         ApexClassroom._parse_response_page(token=token, json_objs=json_obj,
