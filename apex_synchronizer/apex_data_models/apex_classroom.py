@@ -116,7 +116,7 @@ class ApexClassroom(ApexDataObject):
 
     @classmethod
     def get_all(cls, token: TokenType, ids_only: bool = False,
-                archived: bool = False) -> List['ApexClassroom']:
+                archived: bool = False) -> List[Union['ApexClassroom', int]]:
         """
         Get all objects. Must be overloaded because Apex does not
         support a global GET request for objects in the same. Loops
@@ -153,7 +153,8 @@ class ApexClassroom(ApexDataObject):
             try:
                 section_id = section['section_id']
                 apex_obj = cls.get(token, section_id)
-                ret_val.append(apex_obj)
+                ret_val.append(int(apex_obj.import_classroom_id) if ids_only
+                               else apex_obj)
                 logger.info(f'{progress}:Created ApexClassroom for'
                             f'SectionID {section_id}')
             except KeyError:
