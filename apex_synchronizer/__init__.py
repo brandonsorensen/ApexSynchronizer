@@ -1,6 +1,4 @@
 from . import apex_data_models as adm
-from . import ps_agent
-from . import enrollment
-from . import exceptions
+from . import ps_agent, exceptions, enrollment, utils
 from .apex_session import ApexSession
 from .apex_synchronizer import ApexSynchronizer
