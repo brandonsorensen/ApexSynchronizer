@@ -102,6 +102,15 @@ class ApexSynchronizer(object):
         total = 0
         for i, (section, progress) in enumerate(walk_ps_sections(archived=False)):
             try:
+                # This will get checked again below, but if we can
+                # avoid it before making a GET call to the Apex
+                # server, it saves an appreciable amount of time
+                if not section['apex_program_code']:
+                    self.logger.info('Section has no program codes. Skipping...')
+                    continue
+            except KeyError:
+                raise exceptions.ApexMalformedJsonException(section)
+            try:
                 section_id = section['section_id']
                 self.logger.info(f'{progress}:Attempting to fetch classroom with'
                                  f'ID {section_id}.')
