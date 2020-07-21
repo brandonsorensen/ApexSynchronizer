@@ -21,7 +21,6 @@ import requests
 from .exceptions import PSEmptyQueryException, PSNoConnectionError
 from .utils import get_header
 
-BASE_QUERY_URL = '/ws/schema/query/com.apex.learning.school.'
 
 course2program_code = {
     616: 'Z1707458',
@@ -37,7 +36,7 @@ class PowerQuery(object):
     PowerQuery is a custom SQL statement that is defined in by a
     PowerSchool plugin XML file. Four are defined for the Apex Learning
     Plugin, and can be accessed by appending the following four key
-    words to PowerSchool URL + BASE_URL combination:
+    words to PowerSchool URL + :data:`BASE_QUERY_URL` combination:
 
         - classrooms
         - enrollment
@@ -46,7 +45,12 @@ class PowerQuery(object):
 
     These stock PowerQuery objects are defined in this :mod:`ps_agent`
     module.
+
+    :cvar BASE_QUERY_URL: the base URL schema for location the Apex
+        PowerQueries.
     """
+
+    BASE_QUERY_URL = '/ws/schema/query/com.apex.learning.school.'
 
     def __init__(self, url_ext: str):
         """
@@ -56,12 +60,12 @@ class PowerQuery(object):
         """
         self.url_ext = url_ext
 
-    def fetch(self, page_size=0) -> dict:
+    def fetch(self, page_size: int = 0) -> dict:
         """
         Obtains an access token and calls a PowerQuery at a given url,
         limiting it to `page_size` results.
 
-        :param page_size: how many results to return, 0 = all
+        :param int page_size: how many results to return, 0 = all
         :raises PSEmptyQueryException: when no results are returned
         :return: the JSON object returned by the PowerQuery
         """
@@ -71,7 +75,7 @@ class PowerQuery(object):
         header = get_header(token,
                             custom_args={'Content-Type': 'application/json'})
         payload = {'pagesize': page_size}
-        url = urljoin(os.environ['PS_URL'], BASE_QUERY_URL + self.url_ext)
+        url = urljoin(os.environ['PS_URL'], self.BASE_QUERY_URL + self.url_ext)
 
         r = requests.post(url, headers=header, params=payload)
         logger.info('PowerQuery returns with status ' + str(r.status_code))
@@ -124,7 +128,7 @@ def get_ps_token() -> str:
     r = requests.post(url, headers=header, data=payload)
     try:
         r.raise_for_status()
-    except requests.exceptions.HTTPError as err:
+    except requests.exceptions.HTTPError:
         raise PSNoConnectionError()
     
     return r.json()['access_token']
