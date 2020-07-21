@@ -14,14 +14,36 @@ TokenType = Union[str, 'ApexAccessToken']
 
 class ApexSession(requests.Session):
 
+    """
+    Extends the regular :class:`requests.Session` class to automatically
+    generate an access token for the Apex API based on credentials in
+    the environment.
+
+    :ivar logging.Logger logger: module-wide logger, accessed by
+        __name__
+    :ivar ApexAccessToken access_token: token for accessing the Apex
+        API
+    """
+
     def __init__(self):
+        """
+        Initializes instance variables from `super` and creates
+        an access token.
+        """
         super().__init__()
         self._access_token = ApexAccessToken.get_new_token()
         self.logger = logging.getLogger(__name__)
         self.logger.info('Session opened.')
+        self.headers.update(
+            apex_synchronizer.utils.get_header(self._access_token)
+        )
+
+    def __del__(self):
+        self.close()
 
     @property
     def access_token(self) -> 'ApexAccessToken':
+        """Automatically renews the access token when it expires."""
         if self._access_token.expiration < datetime.now():
             self.logger.debug('Old token expired. Generating new one.')
             self._access_token = ApexAccessToken.get_new_token()
@@ -30,18 +52,29 @@ class ApexSession(requests.Session):
 
 class ApexAccessToken(object):
 
-    PADDING = 10  # token will expire this many seconds before real expiration
+    """
+    Represents an access token for the Apex API, which is generated
+    with the following environment variables:
+
+    - CONSUMER_KEY
+    - SECRET_KEY
+
+    :param datetime expiration: the time at which the token expires
+    """
+    # token will expire this many seconds before real expiration
+    _PADDING = 10
 
     def __init__(self, token_reponse):
         as_json = token_reponse.json()
         self.token = as_json['access_token']
 
-        expires_in = int(as_json['expire_in']) - self.PADDING
+        expires_in = int(as_json['expire_in']) - self._PADDING
         # subtracting `PADDING` seconds to give some leeway
         self.expiration = datetime.now() + timedelta(seconds=expires_in)
         
     @classmethod
     def get_new_token(cls):
+        """Creates a new access token."""
         try:
             client_id = os.environ['CONSUMER_KEY']
             secret_key = os.environ['SECRET_KEY']
@@ -54,7 +87,7 @@ class ApexAccessToken(object):
         request_json = {
                 'grant_type': 'client_credentials',
                 'client_id': client_id,
-                'client_secret':secret_key 
+                'client_secret': secret_key
         }
 
         headers = {"Accept": "application/json"}

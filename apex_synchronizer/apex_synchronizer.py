@@ -15,7 +15,17 @@ from .ps_agent import fetch_students
 
 class ApexSynchronizer(object):
 
+    """
+    A driver class that synchronizes data between the PowerSchool and
+    Apex databases. In general, it treats the PowerSchool database as
+    a "master" copy that Apex data should match.
+
+    :ivar ApexSession session: an open ApexSession object
+    :ivar logging.Logger logger: a module-wide logger
+    """
+
     def __init__(self):
+        """Opens a session with the Apex API and initializes a logger."""
         self.session = ApexSession()
         self.logger = logging.getLogger(__name__)
 
@@ -64,9 +74,8 @@ class ApexSynchronizer(object):
 
     def enroll_students(self, student_ids: Collection[int]):
         apex_students = init_students_for_ids(student_ids)
-        token = self.session.access_token
         if len(apex_students) > 0:
-            post_students(token, apex_students)
+            post_students(apex_students, session=self.session)
 
     def _has_enrollment(self):
         return hasattr(self, 'ps_enroll') and hasattr(self, 'apex_enroll')
@@ -98,22 +107,29 @@ class ApexSynchronizer(object):
             return self.ps_enroll.roster
 
     def sync_classrooms(self):
-        n_posted = 0
+        """
+        Ensures that all relevant classrooms that are present in
+        PowerSchool appear in the Apex Learning database.
+        """
         total = 0
+        to_post = []
         for i, (section, progress) in enumerate(walk_ps_sections(archived=False)):
             try:
-                # This will get checked again below, but if we can
-                # avoid it before making a GET call to the Apex
-                # server, it saves an appreciable amount of time
+                """
+                This will get checked again below, but if we can
+                rule a section out before making a GET call to the
+                Apex server, it saves an appreciable amount of time.
+                """
                 if not section['apex_program_code']:
-                    self.logger.info('Section has no program codes. Skipping...')
+                    self.logger.info(f'{progress}:Section {section["section_id"]} '
+                                     'has no program codes. Skipping...')
                     continue
             except KeyError:
                 raise exceptions.ApexMalformedJsonException(section)
             try:
                 section_id = section['section_id']
                 self.logger.info(f'{progress}:Attempting to fetch classroom with'
-                                 f'ID {section_id}.')
+                                 f' ID {section_id}.')
                 ApexClassroom.get(section_id, session=self.session)
                 self.logger.info(f'{progress}:Classroom found.')
             except KeyError:
@@ -124,8 +140,7 @@ class ApexSynchronizer(object):
                 try:
                     apex_obj = ApexClassroom.from_powerschool(section,
                                                               already_flat=True)
-                    self._post_classroom(apex_obj, progress)
-                    n_posted += 1
+                    to_post.append(apex_obj)
                 except exceptions.NoProductCodesException as e:
                     self.logger.info(e)
             except (exceptions.ApexNotAuthorizedError,
@@ -137,20 +152,12 @@ class ApexSynchronizer(object):
             finally:
                 total += 1
 
-        self.logger.info(f'Added {n_posted}/{total} classrooms.')
-
-    def _post_classroom(self, room: ApexClassroom, progress: str):
-        self.logger.info(f'{progress}:Attempting to POST classroom'
-                         'to Apex.')
-        r = room.post_to_apex(session=self.session)
+        r = ApexClassroom.post_batch(to_post, session=self.session)
         try:
             r.raise_for_status()
-            self.logger.info(f'{progress}:Successfully POSTed to Apex.')
+            self.logger.info(f'Added {len(to_post)}/{total} classrooms.')
         except requests.exceptions.HTTPError:
-            self.logger.info(f'{progress}:POST failed. Received status: '
-                             f'{r.status_code} with response\n{r.text}.')
-        except requests.exceptions.ConnectionError:
-            raise exceptions.ApexConnectionException()
+            print(r.text)
 
 
 def init_students_for_ids(student_ids: Collection[int]) -> List[ApexStudent]:
