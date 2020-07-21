@@ -164,20 +164,26 @@ class ApexDataObject(ABC):
 
         return r
 
-    def delete_from_apex(self, token: TokenType) -> Response:
+    def delete_from_apex(self, token: TokenType = None,
+                         session: requests.Session = None) -> Response:
         """
         Deletes this object from the Apex database
 
         :param token: Apex access token
         :return: the response from the DELETE operation
         """
+        agent = check_args(token, session)
         custom_args = {
             'importUserId': self.import_user_id,
             'orgId': self.import_org_id
         }
-        header = get_header(token, custom_args)
         url = urljoin(self.url + '/', self.import_user_id)
-        r = requests.delete(url=url, headers=header)
+        if isinstance(agent, requests.Session):
+            agent.headers.update(custom_args)
+            r = agent.delete(url=url)
+        else:
+            header = get_header(token, custom_args)
+            r = agent.delete(url=url, headers=header)
         return r
 
     def put_to_apex(self, token: TokenType = None,
