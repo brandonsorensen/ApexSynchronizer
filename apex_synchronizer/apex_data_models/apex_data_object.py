@@ -429,7 +429,8 @@ class ApexUser(ApexDataObject, ABC):
             raise exceptions.ApexStaffNoEmailException(self.first_last)
 
         if not re.match(APEX_EMAIL_REGEX, email):
-            raise exceptions.ApexMalformedEmailException(email, email)
+            raise exceptions.ApexMalformedEmailException(self.import_user_id,
+                                                         email)
         self.email = email
         self.login_id = login_id
 
