@@ -1,6 +1,7 @@
 from datetime import datetime
+from enum import Enum
 from requests import Response
-from typing import Collection, Dict, List, Union
+from typing import Collection, Dict, List, Optional, Union
 from urllib.parse import urljoin, urlparse
 import json
 import logging
@@ -377,3 +378,64 @@ def walk_ps_sections(archived: bool):
 
         progress = f'section {i + 1}/{n_classrooms}'
         yield section, progress
+
+
+class ClassroomPostErrors(Enum):
+    NotAvailableOrder = 1
+    UserDoesNotExist = 2
+    Unrecognized = 3
+
+
+post_error_map = {
+    "User doesn't exist": ClassroomPostErrors.UserDoesNotExist,
+    'No available Order': ClassroomPostErrors.NotAvailableOrder,
+}
+
+
+def handle_400_response(r: Response, logger: logging.Logger = None):
+    if logger is None:
+        logger = logging.getLogger(__name__)
+
+    errors = _parse_400_response(r, logger)
+    print(errors)
+
+
+def _parse_400_response(r: Response, logger: logging.Logger = None) \
+        -> Optional[Dict[int, ClassroomPostErrors]]:
+    """
+    Parses a 400 response and takes actions based on the possible
+    errors.
+
+    :param r: the response to parse
+    :param logger: an optional logger, defaults to the
+        logger of the `apex_classroom` module
+    """
+    if logger is None:
+        logger = logging.getLogger(__name__)
+
+    as_json = r.json()
+
+    if type(as_json) is list:
+        # TODO
+        logger.debug('Received response: ' + str(r))
+        return
+    elif type(as_json) is not dict:
+        raise exceptions.ApexError()
+
+    try:
+        errors = as_json['classroomEntries']
+    except KeyError:
+        raise exceptions.ApexError
+
+    ret_val = {}
+    e: dict
+    for e in errors:
+        classroom_id = int(e['ImportClassroomId'])
+        for msg, post_error in post_error_map.items():
+            if e['Message'].startswith(msg):
+                ret_val[classroom_id] = post_error
+
+        if classroom_id not in ret_val.keys():
+            ret_val[classroom_id] = ClassroomPostErrors.Unrecognized
+
+    return ret_val
