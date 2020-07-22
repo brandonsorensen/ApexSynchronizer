@@ -4,7 +4,7 @@ from typing import Collection, List, Set, Union
 
 import requests
 
-from . import exceptions
+from . import adm, exceptions
 from .apex_data_models import ApexStudent, ApexClassroom
 from .apex_data_models.apex_classroom import walk_ps_sections
 from .apex_session import ApexSession, TokenType
@@ -153,11 +153,12 @@ class ApexSynchronizer(object):
                 total += 1
 
         r = ApexClassroom.post_batch(to_post, session=self.session)
+        # TODO: Parse response messages
         try:
             r.raise_for_status()
             self.logger.info(f'Added {len(to_post)}/{total} classrooms.')
         except requests.exceptions.HTTPError:
-            print(r.text)
+            adm.apex_classroom.handle_400_response(r, self.logger)
 
 
 def init_students_for_ids(student_ids: Collection[int]) -> List[ApexStudent]:
