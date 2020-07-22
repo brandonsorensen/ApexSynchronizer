@@ -6,7 +6,7 @@ from urllib.parse import urljoin
 
 from requests import Response
 
-from .apex_data_object import ApexDataObject
+from .apex_data_object import ApexUser
 from .apex_classroom import ApexClassroom
 from .utils import (BASE_URL, APEX_EMAIL_REGEX,
                     make_userid, check_args)
@@ -15,7 +15,7 @@ from ..apex_session import TokenType
 from ..utils import get_header
 
 
-class ApexStudent(ApexDataObject):
+class ApexStudent(ApexUser):
 
     """
     Represents a student in the Apex database.
@@ -49,15 +49,12 @@ class ApexStudent(ApexDataObject):
     def __init__(self, import_user_id: Union[int, str],
                  import_org_id: Union[int, str], first_name: str,
                  middle_name: str, last_name: str, email: str, grade_level: int):
-        super().__init__(import_user_id, import_org_id)
-        self.first_name = first_name
-        self.middle_name = middle_name
-        self.last_name = last_name
-        if not re.match(APEX_EMAIL_REGEX, email):
-            raise exceptions.ApexMalformedEmailException(import_user_id, email)
-        self.email = email
+        super().__init__(import_user_id=import_user_id,
+                         import_org_id=import_org_id, first_name=first_name,
+                         middle_name=middle_name, last_name=last_name,
+                         email=email,
+                         login_id=make_userid(first_name, last_name))
         self.grade_level = grade_level
-        self.login_id = make_userid(first_name, last_name)
         self.login_pw = import_user_id
 
     @classmethod

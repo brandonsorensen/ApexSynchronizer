@@ -3,12 +3,13 @@ from typing import Collection, List, Tuple, Union
 from urllib.parse import urljoin
 import json
 import logging
+import re
 
 from requests import Response
 import requests
 
 from .page_walker import PageWalker
-from .utils import check_args
+from .utils import check_args, APEX_EMAIL_REGEX
 from .. import exceptions, utils
 from ..apex_session import ApexSession, TokenType
 from ..utils import get_header
@@ -32,7 +33,7 @@ class ApexDataObject(ABC):
         """Initializes instance variables."""
         self.import_user_id = str(import_user_id)
         if not import_user_id:
-            raise exceptions.NoUserIdException
+            raise exceptions.NoUserIdException()
         self.import_org_id = str(import_org_id)
 
     @classmethod
@@ -356,6 +357,20 @@ class ApexDataObject(ABC):
             except exceptions.ApexError:
                 logger.exception('Received Apex error:')
 
+    @classmethod
+    def check_batch_status(cls, status_token: Union[str, int],
+                           access_token: TokenType = None,
+                           session: requests.Session = None) -> dict:
+        agent = check_args(token=access_token, session=session)
+        url = urljoin(cls.url + '/', 'batch/')
+        url = urljoin(url, str(status_token))
+        if not isinstance(agent, requests.Session):
+            header = get_header(token=access_token)
+        else:
+            header = None
+        return agent.get(url=url, headers=header)
+
+
     def to_dict(self) -> dict:
         """Converts attributes to a dictionary."""
         return self.__dict__
@@ -389,3 +404,27 @@ class ApexDataObject(ABC):
                 and self.import_org_id == other.import_org_id
                 and self.__class__ is other.__class__)
 
+
+class ApexUser(ApexDataObject, ABC):
+
+    def __init__(self, import_user_id: Union[int, str],
+                 import_org_id: Union[int, str], first_name: str,
+                 middle_name: str, last_name: str, email: str,
+                 login_id: str):
+        self.first_name = first_name
+        self.middle_name = middle_name
+        self.last_name = last_name
+        try:
+            super().__init__(import_user_id, import_org_id)
+        except exceptions.NoUserIdException:
+            raise exceptions.ApexStaffNoEmailException(self.first_last)
+
+        if not re.match(APEX_EMAIL_REGEX, email):
+            raise exceptions.ApexMalformedEmailException(email, email)
+        self.email = email
+        self.login_id = login_id
+
+    @property
+    def first_last(self) -> str:
+        """Returns the first and last name combined."""
+        return self.first_name + ' ' + self.last_name

@@ -8,7 +8,7 @@ import logging
 
 import requests
 
-from .apex_data_object import ApexDataObject
+from .apex_data_object import ApexDataObject, ApexUser
 from .apex_staff_member import ApexStaffMember
 from .page_walker import PageWalker
 from .utils import (BASE_URL, APEX_DATETIME_FORMAT,
@@ -17,9 +17,6 @@ from .. import exceptions, utils
 from ..apex_session import TokenType
 from ..ps_agent import course2program_code, fetch_staff, fetch_classrooms
 from ..utils import get_header, levenshtein_distance
-
-# Apex data types that represent people, i.e., not a classroom
-ApexPersonType = Union['ApexStudent', 'ApexStaffMember']
 
 
 def _init_powerschool_teachers() -> List[ApexStaffMember]:
@@ -201,7 +198,7 @@ class ApexClassroom(ApexDataObject):
         payload = json.dumps(payload)
         return agent.post(url=url, headers=header, data=payload)
 
-    def withdraw(self, token: TokenType, obj: ApexPersonType) -> Response:
+    def withdraw(self, token: TokenType, obj: ApexUser) -> Response:
         """
         Withdraws a single student or staff member from this classroom.
 
@@ -213,10 +210,40 @@ class ApexClassroom(ApexDataObject):
         url = self._get_data_object_class_url(type(obj))
         return requests.delete(url=url, headers=header)
 
-    def get_students(self, token: TokenType):
-        pass
+    def get_reports(self, token: TokenType = None,
+                    session: requests.Session = None) -> List[dict]:
+        """
+        Returns summary-level gradebook information for each student
+        that is enrolled in the classroom. If a 200 response is returned
+        the JSON is returned from this method as is without any
+        validation. The documentation on what can be expected in this
+        JSON object can be found on Apex's website.
 
-    def _get_data_object_class_url(self, dtype: ApexPersonType) -> str:
+        Either an access token or an existing session `may` be passed,
+        but at least one `must` be passed. If both a token and a session
+        are given, the session takes priority.
+
+        :param token: an Apex access token
+        :param session: an existing Apex session
+        :return: gradebook info for each student enrolled in the
+            classroom
+        """
+        agent = check_args(token, session)
+        url = urljoin(self.url + '/', self.import_classroom_id)
+        url = urljoin(url + '/', 'reportss')
+        if isinstance(agent, requests.Session):
+            r = agent.get(url=url)
+        else:
+            r = agent.get(url=url, headers=get_header(token))
+
+        try:
+            r.raise_for_status()
+        except requests.exceptions.HTTPError:
+            raise exceptions.ApexObjectNotFoundException
+
+        return r.json()
+
+    def _get_data_object_class_url(self, dtype: ApexUser) -> str:
         """
         Determines the URL path for a GET or DELETE call that enrolls or
         withdraws a student or staff from this class. The result will
@@ -291,7 +318,9 @@ def teacher_fuzzy_match(t1: str, teachers: Collection[ApexStaffMember] = None) \
 
 
 def get_classrooms_for_eduids(eduids: Collection[Union[str, int]],
-                              token: TokenType, ids_only: bool = False,
+                              token: TokenType = None,
+                              session: requests.Session = None,
+                              ids_only: bool = False,
                               return_empty: bool = False) \
         -> Dict[int, List[Union[int, ApexClassroom]]]:
     logger = logging.getLogger(__name__)
@@ -307,10 +336,12 @@ def get_classrooms_for_eduids(eduids: Collection[Union[str, int]],
         logger.info(f'{i + 1}/{len(eduids)} students')
         url = url_for_eduid(eduid)
         try:
-            eduid_classrooms = _get_classroom_for_eduid(url, token,
+            eduid_classrooms = _get_classroom_for_eduid(url, token=token,
+                                                        session=session,
                                                         ids_only=ids_only)
         except exceptions.ApexObjectNotFoundException:
-            logger.info('Could not find student with EDUID ' + str(eduid))
+            logger.info('Could not find student or student is not enrolled in '
+                        'any Apex classes: ' + str(eduid))
             eduid_classrooms = []
         except exceptions.ApexError:
             logger.exception('Received generic Apex error:\n')
@@ -332,7 +363,7 @@ def _get_classroom_for_eduid(url: str, token: TokenType = None,
     custom_args = {'isActiveOnly': 'true'}
     walker = PageWalker(logger=logger, session=session)
 
-    for i, page_response in enumerate(walker.walk(url, token=token,
+    for i, page_response in enumerate(walker.walk(url,
                                                   custom_args=custom_args)):
         try:
             page_response.raise_for_status()
@@ -354,9 +385,10 @@ def _get_classroom_for_eduid(url: str, token: TokenType = None,
             return ret_val
 
         json_obj = page_response.json()
-        ApexClassroom._parse_response_page(token=token, json_objs=json_obj,
-                                           page_number=i, all_objs=ret_val,
-                                           archived=False, ids_only=ids_only)
+        ApexClassroom._parse_response_page(token=token, session=session,
+                                           json_objs=json_obj, page_number=i,
+                                           all_objs=ret_val, archived=False,
+                                           ids_only=ids_only)
 
     return ret_val
 
@@ -398,6 +430,7 @@ def handle_400_response(r: Response, logger: logging.Logger = None):
 
     errors = _parse_400_response(r, logger)
     print(errors)
+    return errors
 
 
 def _parse_400_response(r: Response, logger: logging.Logger = None) \

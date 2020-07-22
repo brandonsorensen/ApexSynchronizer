@@ -1,13 +1,11 @@
 from typing import List, Union
 from urllib.parse import urljoin
-import re
 
-from .apex_data_object import ApexDataObject
-from .utils import BASE_URL, APEX_EMAIL_REGEX
-from .. import exceptions
+from .apex_data_object import ApexUser
+from .utils import BASE_URL
 
 
-class ApexStaffMember(ApexDataObject):
+class ApexStaffMember(ApexUser):
 
     """
     Represents a staff member (likely a teacher) in the Apex database.
@@ -45,20 +43,12 @@ class ApexStaffMember(ApexDataObject):
 
     def __init__(self, import_org_id: Union[int, str], first_name: str,
                  middle_name: str, last_name: str, email: str):
-        if not email:
-            raise exceptions.ApexStaffNoEmailException(
-                first_name + ' ' + last_name
-            )
-        if not re.match(APEX_EMAIL_REGEX, email):
-            raise exceptions.ApexMalformedEmailException(email, email)
-
-        email_lower = email.lower()
-        super().__init__(email_lower, import_org_id)
-        self.first_name = first_name
-        self.middle_name = middle_name
-        self.last_name = last_name
-        self.email = email
-        self.login_id = email_lower.split('@')[0]
+        email_lower = email.lower() if email else None
+        super().__init__(
+            import_user_id=email_lower, import_org_id=import_org_id,
+            first_name=first_name, middle_name=middle_name, last_name=last_name,
+            email=email, login_id=email_lower.split('@')[0] if email else None
+        )
 
     @classmethod
     def from_powerschool(cls, json_obj, already_flat: bool = False) \
