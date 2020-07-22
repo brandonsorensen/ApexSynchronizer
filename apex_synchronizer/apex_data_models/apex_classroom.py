@@ -305,7 +305,7 @@ def teacher_fuzzy_match(t1: str, teachers: Collection[ApexStaffMember] = None) \
     t1 = t1.lower()
 
     for i, t2 in enumerate(teachers):
-        t2_name = t2.first_name + ' ' + t2.last_name
+        t2_name = t2.first_last
         if abs(len(t1) - len(t2_name)) >= 5 and min_distance != float('inf'):
             # Difference in length of 5 is too large for this context
             continue
