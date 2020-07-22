@@ -54,6 +54,7 @@ class PageWalker(object):
         self.session.headers.update(header)
 
         current_page = 1
+        self.session.headers['page'] = str(current_page)
         r = self.session.get(url=url)
         try:
             r.raise_for_status()
