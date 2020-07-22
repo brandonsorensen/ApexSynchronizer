@@ -106,7 +106,7 @@ class ApexNotAuthorizedError(ApexAuthenticationError):
         return 'Apex token was rejected by the API.'
 
 
-class NoUserIdException(ApexDataObjectException):
+class NoUserIdException(ApexError):
 
     def __str__(self):
         return 'Object does not have an ImportUserID.'
