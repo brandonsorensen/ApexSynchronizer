@@ -18,11 +18,12 @@ from ..utils import get_header
 class ApexDataObject(ABC):
 
     """
-    The base class from which `ApexStaffMember`, 'ApexStudent` and
-    `ApexClassroom` will inherit. Defines a number of class methods
-    common to all objects that aid in making RESTful calls to the Apex
-    API. Additionally, contains a number of abstract methods that must
-    be implemented by the subclasses.
+    The base class from which :class:`ApexStaffMember`,
+    :class:`ApexStudent` and :class:`ApexClassroom` will inherit.
+    Defines a number of class methods common to all objects that aid in
+    making RESTful calls to the Apex API. Additionally, contains a
+    number of abstract methods that must be implemented by the
+    subclasses.
     """
 
     main_id = 'ImportUserId'
@@ -370,7 +371,6 @@ class ApexDataObject(ABC):
             header = None
         return agent.get(url=url, headers=header)
 
-
     def to_dict(self) -> dict:
         """Converts attributes to a dictionary."""
         return self.__dict__
@@ -407,6 +407,15 @@ class ApexDataObject(ABC):
 
 class ApexUser(ApexDataObject, ABC):
 
+    """
+    An Apex object that represents a person, i.e., not a classroom.
+    Cannot be instantiated. Initializes the attributes common to
+    :class:`ApexStaffMember` and :class:`ApexStudent` and
+    provides a property method for returning the first and last
+    names combined into a single string. Otherwise, serves a chiefly
+    semantic purpose.
+    """
+
     def __init__(self, import_user_id: Union[int, str],
                  import_org_id: Union[int, str], first_name: str,
                  middle_name: str, last_name: str, email: str,
@@ -426,5 +435,7 @@ class ApexUser(ApexDataObject, ABC):
 
     @property
     def first_last(self) -> str:
-        """Returns the first and last name combined."""
+        """
+        Returns the first and last name combined, separated by a space.
+        """
         return self.first_name + ' ' + self.last_name
