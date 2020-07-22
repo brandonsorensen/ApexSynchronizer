@@ -44,6 +44,7 @@ class ApexStudent(ApexDataObject):
         'grade_level': 'grade_level',
         'email': 'email'
     }
+    max_batch_size = 2000
 
     def __init__(self, import_user_id: Union[int, str],
                  import_org_id: Union[int, str], first_name: str,

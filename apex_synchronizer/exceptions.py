@@ -78,6 +78,16 @@ class ApexMalformedEmailException(ApexEmailException):
                 'conform to Apex validation rules: ' + self.email)
 
 
+class ApexMaxPostSizeException(ApexError):
+
+    def __init__(self, max_size):
+        self.max_size = max_size
+
+    def __str__(self):
+        return ('Attempted to post more than {:,} objects at once.'
+                .format(self.max_size))
+
+
 class ApexAuthenticationError(ApexError):
 
     def __init__(self, msg: str = None):

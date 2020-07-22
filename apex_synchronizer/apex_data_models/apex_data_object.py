@@ -25,6 +25,7 @@ class ApexDataObject(ABC):
     """
 
     main_id = 'ImportUserId'
+    max_batch_size = 2500
 
     def __init__(self, import_user_id: Union[str, int],
                  import_org_id: Union[str, int]):
@@ -156,6 +157,9 @@ class ApexDataObject(ABC):
         :param session: an existing requests session
         :return: the result of the POST operation
         """
+        if len(objects) > cls.max_batch_size:
+            raise exceptions.ApexMaxPostSizeException(max_size=cls.max_batch_size)
+
         agent = check_args(token, session)
         url = cls.url if len(objects) <= 50 else urljoin(cls.url + '/', 'batch')
         payload = json.dumps({cls.post_heading: [c.to_json() for c in objects]})
