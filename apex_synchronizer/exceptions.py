@@ -100,6 +100,16 @@ class ApexAuthenticationError(ApexError):
             return self.msg
 
 
+class ApexBatchTimeoutError(ApexError):
+
+    def __init__(self, batch_token: Union[str, int]):
+        self.status_token = int(batch_token)
+
+    def __str__(self):
+        return f'Batch processing time for token {self.status_token} ' \
+               'exceed the timeout limit.'
+
+
 class ApexNotAuthorizedError(ApexAuthenticationError):
 
     def __str__(self):
