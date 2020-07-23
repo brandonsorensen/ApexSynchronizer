@@ -1,5 +1,6 @@
 from enum import Enum
 from string import punctuation
+from typing import Union
 import re
 
 import requests
@@ -38,11 +39,37 @@ def check_args(token: TokenType, session: requests.Session):
 class PostErrors(Enum):
     NotAvailableOrder = 1
     UserDoesNotExist = 2
-    Unrecognized = 3
+    DuplicateUser = 3
+    Unrecognized = 4
 
+    __post_error_map = {
+        "User doesn't exist": UserDoesNotExist,
+        'No available Order': NotAvailableOrder,
+        'Duplicate user': DuplicateUser,
+        'User already exist': DuplicateUser
+    }
 
-post_error_map = {
-    "User doesn't exist": PostErrors.UserDoesNotExist,
-    'No available Order': PostErrors.NotAvailableOrder
-}
+    @classmethod
+    def get_for_message(cls, msg: Union[str, int],
+                        case_insensitive: bool = True) -> 'PostErrors':
+        """
+        This method is meant to be used to determine if a given message
+        contains the key phrases that mark it as a specific error.
+        If it can't find an associated error, it returns the
+        `Unrecognized` PostError enum.
+
+        :param msg: a given error message
+        :param case_insensitive: whether the match should be case
+            insensitive
+        :return: a post error enum matching what was found in the msg
+        """
+        if case_insensitive:
+            msg = msg.lower()
+        for error_msg, post_error in cls.__post_error_map.value.items():
+            if case_insensitive:
+                error_msg = error_msg.lower()
+            if error_msg in msg:
+                return cls(post_error)
+
+        return cls.Unrecognized
 

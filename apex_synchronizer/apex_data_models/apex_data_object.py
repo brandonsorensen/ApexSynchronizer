@@ -405,20 +405,30 @@ class ApexDataObject(ABC):
             header = None
         return agent.get(url=url, headers=header)
 
-    @staticmethod
-    def parse_batch(batch: Response) -> Dict[str, adm_utils.PostErrors]:
+    @classmethod
+    def parse_batch(cls, batch: Response) -> Dict[str, adm_utils.PostErrors]:
         errors = {}
-
         as_json = batch.json()
-        for obj in as_json['Users']:
+
+        # Sometimes the API labels the JSON array with the specific
+        # class label and other times it simply uses "User"
+        array_label = None
+
+        for label in cls.post_heading, 'Users':
+            if label in as_json:
+                array_label = label
+                break
+
+        if array_label is None:
+            raise exceptions.ApexMalformedJsonException(as_json)
+
+        for obj in as_json[array_label]:
             if obj['Code'] == 200:
                 continue
             msg = obj['Message']
             user_id = obj['ImportUserId']
 
-            for error_msg, post_error in adm_utils.post_error_map.items():
-                if msg in error_msg:
-                    errors[user_id] = post_error
+            errors[user_id] = adm_utils.PostErrors.get_for_message(msg)
 
         return errors
 
