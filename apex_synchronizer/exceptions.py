@@ -34,8 +34,8 @@ class ApexObjectNotFoundException(ApexError):
 
 class ApexMalformedJsonException(ApexError):
 
-    def __init__(self, obj):
-        self.obj = obj
+    def __init__(self, json_obj):
+        self.obj = json_obj
 
     def __str__(self):
         return 'Received bad JSON response: ' + str(self.obj)
