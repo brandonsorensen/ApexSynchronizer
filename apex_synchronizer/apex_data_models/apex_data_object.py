@@ -179,6 +179,7 @@ class ApexDataObject(ABC):
         # a reasonable amount of time for it to complete.
         try:
             status_token = r.json()['BatchStatusToken']
+            assert len(objects) > 50
             r = cls.check_batch_status(status_token, session=session)
             msg = r.json()['Message']
             logger.debug(f'Received status token {status_token}.')
@@ -235,13 +236,17 @@ class ApexDataObject(ABC):
         Useful for updating a record in the Apex database.
 
         :param token: Apex access token
+        :param session: an existing Apex session
         :param main_id: the idenitifying class attribute: ImportUserId
             for `ApexStudent` and `ApexStaffMember` objects,
             ImportClassroomId for `ApexClassroom` objects
         :return: the response from the PUT operation.
         """
         agent = check_args(token, session)
-        header = get_header(token)
+        if not isinstance(session, requests.Session):
+            header = get_header(token)
+        else:
+            header = None
         url = urljoin(self.url + '/', self.import_user_id)
         payload = self.to_json()
         del payload[self.main_id]  # Given in the URL
