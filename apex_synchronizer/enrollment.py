@@ -1,14 +1,16 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict, KeysView
-from typing import Iterable, Set, Union
+from typing import Iterable, List, Set, Union
 import logging
+
+import requests
 
 from .apex_data_models import ApexStudent, ApexClassroom
 from .apex_session import ApexSession
-from .exceptions import ApexObjectNotFoundException
 from .ps_agent import fetch_enrollment, fetch_students
 from .utils import flatten_ps_json
 from .apex_session import TokenType
+import apex_synchronizer.apex_data_models as adm
 
 
 class BaseEnrollment(ABC):
@@ -123,43 +125,50 @@ class PSEnrollment(BaseEnrollment):
 
 class ApexEnrollment(BaseEnrollment):
 
-    def __init__(self, access_token: TokenType = None):
+    def __init__(self, access_token: TokenType = None,
+                 session: requests.session = None,
+                 student_ids: List[int] = None):
+        """
+
+        :param access_token: An Apex access token
+        :param session: an existing Session
+        :param student_ids: an optional list of Apex student IDs for
+            which class enrollments should be obtained. If None,
+            gets all students in the Apex.
+        """
         super().__init__()
-        if access_token is None:
+
+        if not any([session, access_token]):
             session = ApexSession()
-            access_token = session.access_token
 
-        self.logger.info('Retrieving Apex student information from Apex API.')
-        self.apex_students = ApexStudent.get_all(access_token, ids_only=True)
-        self.logger.info('Retrieved Apex student information')
+        if student_ids is None:
+            self.logger.info('Retrieving Apex student information from Apex API.')
+            self.apex_students = ApexStudent.get_all(token=access_token,
+                                                     session=session,
+                                                     ids_only=True)
+        else:
+            self.apex_students = student_ids
+            self.logger.info('Retrieved Apex student information')
         self.logger.debug('Creating ApexStudent index')
-        self._apex_index = {int(student.import_user_id): student
-                            for student in self.apex_students}
+        self._apex_index = {student: student for student in self.apex_students[620:]}
 
-        self._student2classrooms = {}
-        self._classroom2students = {}
+        self._student2classrooms = (
+            adm.apex_classroom.get_classrooms_for_eduids(self._apex_index,
+                                                         session=session,
+                                                         return_empty=True)
+        )
 
-        n_students = len(self.apex_students)
-        logging.info(f'Getting enrollment info for {n_students} students.')
-        student: ApexStudent
-        for i, student in enumerate(self.apex_students):
-            progress = f'student {i + 1}/{n_students}'
-            try:
-                classrooms = student.get_enrollments(access_token)
-                by_id = set([int(c.import_classroom_id) for c in classrooms])
-            except ApexObjectNotFoundException:
-                logging.info(f'{progress}:could not find student with EDUID '
-                             f'{student.import_user_id} in PS.')
-                by_id = set()
-            self._student2classrooms[int(student.import_user_id)] = by_id
-            self.logger.info(f'{progress}:1/2:got classrooms for student '
-                             + str(student.import_user_id))
+        self._classroom2students = defaultdict(list)
 
-            for classroom in by_id:
-                self._classroom2students[classroom] = int(student.import_user_id)
-            self.logger.info(f'{progress}:2/2:created reverse mapping for student '
-                             + str(student.import_user_id))
+        for i, (student, classrooms) in enumerate(self._student2classrooms
+                                                      .items()):
+            progress = f'{i + 1}/{len(self._student2classrooms)}'
+            for classroom in classrooms:
+                self._classroom2students[classroom].append(student)
+            self.logger.info(f'{progress}:created reverse mapping for student '
+                             + str(student))
 
+        self._classroom2students = dict(self._classroom2students)
         self.logger.debug('ApexEnrollment object created successfully.')
 
     @property
