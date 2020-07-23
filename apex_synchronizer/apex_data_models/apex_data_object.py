@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Collection, List, Tuple, Union
+from datetime import datetime, timedelta
+from time import sleep
+from typing import Collection, Dict, List, Tuple, Union
 from urllib.parse import urljoin
 import json
 import logging
@@ -8,8 +10,9 @@ import re
 from requests import Response
 import requests
 
+from . import utils as adm_utils
 from .page_walker import PageWalker
-from .utils import check_args, APEX_EMAIL_REGEX
+from .utils import check_args
 from .. import exceptions, utils
 from ..apex_session import ApexSession, TokenType
 from ..utils import get_header
@@ -159,6 +162,7 @@ class ApexDataObject(ABC):
         :param session: an existing requests session
         :return: the result of the POST operation
         """
+        logger = logging.getLogger(__name__)
         if len(objects) > cls.max_batch_size:
             raise exceptions.ApexMaxPostSizeException(max_size=cls.max_batch_size)
 
@@ -171,6 +175,35 @@ class ApexDataObject(ABC):
 
         r = agent.post(url=url, data=payload, headers=header)
 
+        # In the event that a batch_token is returned, we want to
+        # a reasonable amount of time for it to complete.
+        try:
+            status_token = r.json()['BatchStatusToken']
+            r = cls.check_batch_status(status_token, session=session)
+            msg = r.json()['Message']
+            logger.debug(f'Received status token {status_token}.')
+            expire_at = (datetime.now()
+                         + timedelta(seconds=adm_utils.MAX_BATCH_WAIT_TIME))
+            processing = msg.lower().startswith('the batch processing results')
+            logger.info('Received batch status token ' + str(status_token))
+
+            while processing and datetime.now() < expire_at:
+                sleep(1)
+                logger.debug('Batch still processing...')
+                logger.debug('Received JSON response:\n' + msg)
+                r = cls.check_batch_status(status_token, session=session)
+                msg = r.json()['Message']
+                processing = (msg.lower()
+                              .startswith('the batch processing results'))
+            if processing:
+                raise exceptions.ApexBatchTimeoutError(status_token)
+
+            return r
+
+        except KeyError as e:
+            if e.args[0] != 'BatchStatusToken':
+                raise e
+
         return r
 
     def delete_from_apex(self, token: TokenType = None,
@@ -179,6 +212,7 @@ class ApexDataObject(ABC):
         Deletes this object from the Apex database
 
         :param token: Apex access token
+        :param session: an existing Apex session
         :return: the response from the DELETE operation
         """
         agent = check_args(token, session)
@@ -361,7 +395,7 @@ class ApexDataObject(ABC):
     @classmethod
     def check_batch_status(cls, status_token: Union[str, int],
                            access_token: TokenType = None,
-                           session: requests.Session = None) -> dict:
+                           session: requests.Session = None) -> Response:
         agent = check_args(token=access_token, session=session)
         url = urljoin(cls.url + '/', 'batch/')
         url = urljoin(url, str(status_token))
@@ -370,6 +404,23 @@ class ApexDataObject(ABC):
         else:
             header = None
         return agent.get(url=url, headers=header)
+
+    @staticmethod
+    def parse_batch(batch: Response) -> Dict[str, adm_utils.PostErrors]:
+        errors = {}
+
+        as_json = batch.json()
+        for obj in as_json['Users']:
+            if obj['Code'] == 200:
+                continue
+            msg = obj['Message']
+            user_id = obj['ImportUserId']
+
+            for error_msg, post_error in adm_utils.post_error_map.items():
+                if msg in error_msg:
+                    errors[user_id] = post_error
+
+        return errors
 
     def to_dict(self) -> dict:
         """Converts attributes to a dictionary."""
@@ -428,7 +479,7 @@ class ApexUser(ApexDataObject, ABC):
         except exceptions.NoUserIdException:
             raise exceptions.ApexStaffNoEmailException(self.first_last)
 
-        if not re.match(APEX_EMAIL_REGEX, email):
+        if not re.match(adm_utils.APEX_EMAIL_REGEX, email):
             raise exceptions.ApexMalformedEmailException(self.import_user_id,
                                                          email)
         self.email = email

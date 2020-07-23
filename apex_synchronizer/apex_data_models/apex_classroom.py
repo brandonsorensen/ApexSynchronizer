@@ -1,5 +1,4 @@
 from datetime import datetime
-from enum import Enum
 from requests import Response
 from typing import Collection, Dict, List, Optional, Union
 from urllib.parse import urljoin, urlparse
@@ -8,11 +7,11 @@ import logging
 
 import requests
 
+from . import utils as adm_utils
 from .apex_data_object import ApexDataObject, ApexUser
 from .apex_staff_member import ApexStaffMember
 from .page_walker import PageWalker
-from .utils import (BASE_URL, APEX_DATETIME_FORMAT,
-                    PS_DATETIME_FORMAT, check_args)
+from .utils import check_args
 from .. import exceptions, utils
 from ..apex_session import TokenType
 from ..ps_agent import course2program_code, fetch_staff, fetch_classrooms
@@ -52,7 +51,7 @@ class ApexClassroom(ApexDataObject):
     :param str program_code: the program to which the classroom belongs
     """
 
-    url = urljoin(BASE_URL, 'classrooms')
+    url = urljoin(adm_utils.BASE_URL, 'classrooms')
     role = 'T'
     ps2apex_field_map = {
         'first_day': 'classroom_start_date',
@@ -108,8 +107,10 @@ class ApexClassroom(ApexDataObject):
         kwargs['program_code'] = course2program_code[int(kwargs['import_org_id'])]
         kwargs['classroom_name'] = json_obj['ClassroomName']
         date = datetime.strptime(kwargs['classroom_start_date'],
-                                 APEX_DATETIME_FORMAT)
-        kwargs['classroom_start_date'] = date.strftime(PS_DATETIME_FORMAT)
+                                 adm_utils.APEX_DATETIME_FORMAT)
+        kwargs['classroom_start_date'] = date.strftime(
+            adm_utils.PS_DATETIME_FORMAT
+        )
         teacher = teacher_fuzzy_match(json_obj['PrimaryTeacher'],
                                       cls._all_ps_teachers)
         kwargs['import_user_id'] = teacher.import_user_id
@@ -324,7 +325,7 @@ def get_classrooms_for_eduids(eduids: Collection[Union[str, int]],
                               return_empty: bool = False) \
         -> Dict[int, List[Union[int, ApexClassroom]]]:
     logger = logging.getLogger(__name__)
-    base_url = urljoin(BASE_URL, '/students/')
+    base_url = urljoin(adm_utils.BASE_URL, '/students/')
 
     def url_for_eduid(eduid_: Union[str, int]) -> str:
         url_ = urljoin(base_url, str(eduid_))
@@ -412,18 +413,6 @@ def walk_ps_sections(archived: bool):
         yield section, progress
 
 
-class ClassroomPostErrors(Enum):
-    NotAvailableOrder = 1
-    UserDoesNotExist = 2
-    Unrecognized = 3
-
-
-post_error_map = {
-    "User doesn't exist": ClassroomPostErrors.UserDoesNotExist,
-    'No available Order': ClassroomPostErrors.NotAvailableOrder,
-}
-
-
 def handle_400_response(r: Response, logger: logging.Logger = None):
     if logger is None:
         logger = logging.getLogger(__name__)
@@ -434,7 +423,7 @@ def handle_400_response(r: Response, logger: logging.Logger = None):
 
 
 def _parse_400_response(r: Response, logger: logging.Logger = None) \
-        -> Optional[Dict[int, ClassroomPostErrors]]:
+        -> Optional[Dict[int, adm_utils.PostErrors]]:
     """
     Parses a 400 response and takes actions based on the possible
     errors.
@@ -464,11 +453,11 @@ def _parse_400_response(r: Response, logger: logging.Logger = None) \
     e: dict
     for e in errors:
         classroom_id = int(e['ImportClassroomId'])
-        for msg, post_error in post_error_map.items():
+        for msg, post_error in adm_utils.post_error_map.items():
             if e['Message'].startswith(msg):
                 ret_val[classroom_id] = post_error
 
         if classroom_id not in ret_val.keys():
-            ret_val[classroom_id] = ClassroomPostErrors.Unrecognized
+            ret_val[classroom_id] = adm_utils.PostErrors.Unrecognized
 
     return ret_val

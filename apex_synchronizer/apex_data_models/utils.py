@@ -1,3 +1,4 @@
+from enum import Enum
 from string import punctuation
 import re
 
@@ -13,6 +14,9 @@ PUNC_REGEX = re.compile(fr'[{punctuation + " "}]')
 APEX_EMAIL_REGEX = re.compile("^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9]"
                               "(?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:.[a-zA-Z0-9]"
                               "(?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$|^$/]")
+# How many seconds to wait for a batch to finish processing
+# before moving on
+MAX_BATCH_WAIT_TIME = 90
 
 
 def make_userid(first_name: str, last_name: str):
@@ -29,3 +33,16 @@ def check_args(token: TokenType, session: requests.Session):
                                       'or `session`.')
 
     return session if session else requests
+
+
+class PostErrors(Enum):
+    NotAvailableOrder = 1
+    UserDoesNotExist = 2
+    Unrecognized = 3
+
+
+post_error_map = {
+    "User doesn't exist": PostErrors.UserDoesNotExist,
+    'No available Order': PostErrors.NotAvailableOrder
+}
+
