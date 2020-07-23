@@ -1,16 +1,18 @@
-import logging
 from collections import KeysView
 from typing import Collection, List, Set, Union
+import json
+import logging
 
 import requests
 
 from . import adm, exceptions
-from .apex_data_models import ApexStudent, ApexClassroom
+from .apex_data_models import ApexStudent, ApexClassroom, ApexStaffMember
 from .apex_data_models.apex_classroom import walk_ps_sections
+from .apex_schedule import ApexSchedule
 from .apex_session import ApexSession, TokenType
 from .enrollment import ApexEnrollment, PSEnrollment
 from .exceptions import ApexStudentNoEmailException, ApexMalformedEmailException
-from .ps_agent import fetch_students
+from .ps_agent import fetch_students, fetch_staff
 
 
 class ApexSynchronizer(object):
@@ -28,6 +30,23 @@ class ApexSynchronizer(object):
         """Opens a session with the Apex API and initializes a logger."""
         self.session = ApexSession()
         self.logger = logging.getLogger(__name__)
+        self.batch_jobs = []
+
+    def run_schedule(self, s: ApexSchedule):
+        """
+        Run all the routines specified in the :class:`ApexSchedule`
+        object.
+
+        :param s: an ApexSchedule object
+        """
+        pretty_string = json.dumps(s.to_dict(), indent=2)
+        self.logger.info('Received the following ApexSchedule\n'
+                         + pretty_string)
+        for method_name, execute in s.to_dict().items():
+            if execute:
+                method = getattr(self, method_name)
+                self.logger.info(f'Executing routine: "{method_name}"')
+                method()
 
     def init_enrollment(self):
         if self._has_enrollment():
@@ -35,7 +54,7 @@ class ApexSynchronizer(object):
 
         self.ps_enroll = PSEnrollment()
         self.logger.info('Retrieved enrollment info from PowerSchool.')
-        self.apex_enroll = ApexEnrollment(access_token=self.session.access_token)
+        self.apex_enroll = ApexEnrollment(session=self.session)
         self.logger.info('Retrieved enrollment info from Apex.')
 
     def sync_rosters(self):
@@ -66,6 +85,33 @@ class ApexSynchronizer(object):
                                   + str(r.status_code))
         else:
             self.logger.info('Apex roster agrees with PowerSchool')
+
+    def sync_staff(self):
+        apex_staff = []
+        self.logger.info('Fetching staff from PowerSchool.')
+        for sm in fetch_staff():
+            try:
+                apex_sm = ApexStaffMember.from_powerschool(sm)
+                if int(apex_sm.import_org_id) == 616:
+                    apex_staff.append(apex_sm)
+            except exceptions.ApexEmailException as e:
+                self.logger.info(e)
+
+        self.logger.info(f'Successfully retrieved {len(apex_staff)} '
+                         'staff members from PowerSchool.')
+
+        self.logger.info('Posting staff members.')
+        try:
+            r = ApexStaffMember.post_batch(apex_staff, session=self.session)
+            errors = ApexStaffMember.parse_batch(r)
+            self.logger.info('Received the following errors:\n'
+                             + str({id_: error.name for id_, error
+                                    in errors.items()}))
+        except exceptions.ApexBatchTimeoutError as e:
+            self.logger.info('POST operation lasted longer than '
+                             f'{e.status_token} seconds. Will check again '
+                             'before deconstructing.')
+            self.batch_jobs.append(e.status_token)
 
     def sync_classroom_enrollment(self):
         self.init_enrollment()
@@ -123,6 +169,7 @@ class ApexSynchronizer(object):
                 if not section['apex_program_code']:
                     self.logger.info(f'{progress}:Section {section["section_id"]} '
                                      'has no program codes. Skipping...')
+                    total += 1
                     continue
             except KeyError:
                 raise exceptions.ApexMalformedJsonException(section)
@@ -152,13 +199,20 @@ class ApexSynchronizer(object):
             finally:
                 total += 1
 
+        self.logger.info(f'Posting {len(to_post)} classrooms.')
         r = ApexClassroom.post_batch(to_post, session=self.session)
         # TODO: Parse response messages
         try:
             r.raise_for_status()
             self.logger.info(f'Added {len(to_post)}/{total} classrooms.')
         except requests.exceptions.HTTPError:
-            adm.apex_classroom.handle_400_response(r, self.logger)
+            errors = adm.apex_classroom.handle_400_response(r, self.logger)
+            n_posted = len(to_post) - len(errors)
+            self.logger.info(f'Received {len(errors)} errors.')
+            if n_posted:
+                self.logger.info(f'Successfully added {n_posted} classrooms.')
+            else:
+                self.logger.info('No classrooms were added to Apex.')
 
 
 def init_students_for_ids(student_ids: Collection[int]) -> List[ApexStudent]:
@@ -182,7 +236,7 @@ def init_students_for_ids(student_ids: Collection[int]) -> List[ApexStudent]:
         if not eduid:
             last_name = obj['tables']['students']['last_name']
             first_name = obj['tables']['students']['first_name']
-            logger.info(f'Student "{first_name} {last_name}" does not have an'
+            logger.info(f'Student "{first_name} {last_name}" does not have an '
                         'EDUID. Skipping...')
             continue
 

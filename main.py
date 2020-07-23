@@ -4,7 +4,7 @@ import logging
 import os
 import json
 
-from apex_synchronizer import ApexSynchronizer
+from apex_synchronizer import ApexSynchronizer, ApexSchedule
 
 
 def setup_logging(config_file: str = None, log_dir: str = None,
@@ -34,8 +34,15 @@ def setup_logging(config_file: str = None, log_dir: str = None,
 def main():
     logging_config = setup_logging(log_dir=os.environ.get('LOGDIR'))
     dictConfig(logging_config)
+
+    schedule_path = os.environ.get('SCHEDULE_PATH', 'apex_schedule.json')
+    try:
+        schedule = ApexSchedule.from_json(schedule_path)
+    except FileNotFoundError:
+        schedule = ApexSchedule.default()
+
     sync_agent = ApexSynchronizer()
-    sync_agent.sync_rosters()
+    sync_agent.run_schedule(schedule)
 
 
 if __name__ == '__main__':
