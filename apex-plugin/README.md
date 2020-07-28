@@ -43,9 +43,15 @@ Four such queries are defined in the [named_queries](queries_root/com.apex.learn
   create an `ApexStudent` object for each student in the PowerSchool database.
 - `com.apex.learning.school.classrooms` returns all information necessary to
   create an `ApexClassroom` object for each _section_ in the PowerSchool
-database.
+  database.
 - `com.apex.learning.school.teachers` returns all information necessary to
   create an `ApexStaffMember` object 
+- `com.apex.learning.school.enrollment` returns the student ID and section ID 
+  pair for each section in which an _active_ student is enrolled. If, for 
+  example, student John Dewey with ID 1234 were enrolled in two classes for 
+  the current semester, two JSON objects might be returns of the format:
+  `{"EDUID": 1234, "SECTION_ID": 10}` and `{"EDUID": 1234, "SECTION_ID": 11}`.
+  This is useful when syncing enrollment information.
 
 Note: After rummaging around the internals of the PowerSchool database I had on
 hand as well as some ~~tedious~~ experimentation, it seems that PowerQueries
