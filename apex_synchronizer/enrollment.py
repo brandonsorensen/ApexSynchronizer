@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections import defaultdict, KeysView
+from collections import defaultdict, ValuesView, KeysView
 from typing import Iterable, List, Set, Union
 import logging
 
@@ -65,8 +65,19 @@ class BaseEnrollment(ABC):
 
     @property
     def roster(self) -> KeysView:
-        """Returns a complete roster encompassing all students."""
+        """
+        Returns a complete roster encompassing all students in the form
+        of student IDs.
+        """
         return self.student2classrooms.keys()
+
+    @property
+    def students(self) -> ValuesView:
+        """
+        Returns a complete roster encompassing all students in the form
+        of data objects, i.e. `ApexStudent` or dict/JSON objects.
+        """
+        return self.classroom2students.values()
 
     @property
     def classrooms(self) -> KeysView:
@@ -144,16 +155,16 @@ class ApexEnrollment(BaseEnrollment):
         if student_ids is None:
             self.logger.info('Retrieving Apex student information from Apex API.')
             self.apex_students = ApexStudent.get_all(token=access_token,
-                                                     session=session,
-                                                     ids_only=True)
+                                                     session=session)
         else:
             self.apex_students = student_ids
             self.logger.info('Retrieved Apex student information')
         self.logger.debug('Creating ApexStudent index')
-        self._apex_index = {student: student for student in self.apex_students[620:]}
+        self._apex_index = {student.import_user_id: student
+                            for student in self.apex_students}
 
         self._student2classrooms = (
-            adm.apex_classroom.get_classrooms_for_eduids(self._apex_index,
+            adm.apex_classroom.get_classrooms_for_eduids(set(self._apex_index),
                                                          session=session,
                                                          return_empty=True)
         )

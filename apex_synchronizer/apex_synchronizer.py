@@ -1,4 +1,5 @@
-from collections import KeysView
+from collections import defaultdict, KeysView
+from dataclasses import dataclass
 from typing import Collection, List, Set, Union
 import json
 import logging
@@ -13,6 +14,16 @@ from .apex_session import ApexSession, TokenType
 from .enrollment import ApexEnrollment, PSEnrollment
 from .exceptions import ApexStudentNoEmailException, ApexMalformedEmailException
 from .ps_agent import fetch_students, fetch_staff
+
+
+@dataclass
+class StudentTuple(object):
+    """
+    A tuple containing a reference to an `ApexStudent` object and
+    a PowerSchool student JSON-object.
+    """
+    apex: ApexStudent = None
+    powerschool: ApexStudent = None
 
 
 class ApexSynchronizer(object):
@@ -60,9 +71,11 @@ class ApexSynchronizer(object):
     def sync_rosters(self):
         self.logger.info('Beginning roster synchronization.')
 
+        self.init_enrollment()
         self.logger.info('Comparing enrollment information.')
         to_enroll = self.ps_roster - self.apex_roster
         to_withdraw = self.apex_roster - self.ps_roster
+        to_update = self.find_conflicts()
         if len(to_enroll) == len(to_withdraw) == 0:
             self.logger.info('Rosters already in sync')
             return
@@ -71,6 +84,12 @@ class ApexSynchronizer(object):
             self.enroll_students(set(to_enroll))
         else:
             self.logger.info('PowerSchool roster agrees with Apex roster.')
+
+        if len(to_update) > 0:
+            # TODO
+            print(to_update)
+        else:
+            self.logger.info('All records match one another. None to update.')
 
         if len(to_withdraw) > 0:
             self.logger.info(f'Found {len(to_withdraw)} students in Apex'
@@ -207,6 +226,35 @@ class ApexSynchronizer(object):
             else:
                 self.logger.info('No classrooms were added to Apex.')
 
+    def find_conflicts(self) -> List[ApexStudent]:
+        """
+        Finds all students who need to be updated.
+        :return: a list of student with updated information that can be
+            used in PUT calls to the Apex server
+        """
+        transfer_map = defaultdict(StudentTuple)
+
+        self.logger.debug('Adding Apex students to transfer map.')
+        for student in self.apex_enroll.students:
+            transfer_map[student.import_user_id].apex = student
+
+        self.logger.debug('Adding PowerSchool student to transfer map.')
+        for student in map(ApexStudent.from_powerschool,
+                           self.ps_enroll.students):
+            transfer_map[student.import_user_id].powerschool = student
+
+        self.logger.debug('Searching for mismatching records.')
+        to_update = []
+        for st in transfer_map.values():
+            current = st.apex  # How the record is in Apex
+            master = st.powerschool  # What to update to
+            if all((current, master)) and current != master:
+                self.logger.debug(f'Student {st.apex.import_user_id} will be'
+                                  'updated to match PowerSchool records.')
+                to_update.append(st.powerschool.import_user_id)
+
+        return to_update
+
 
 def init_students_for_ids(student_ids: Collection[int]) -> List[ApexStudent]:
     """
@@ -324,3 +372,4 @@ def repost_students(json_obj: dict, apex_students: List[ApexStudent],
                              f'Received response:\n' + r.text)
     else:
         logger.info('No entries passed validation.')
+
