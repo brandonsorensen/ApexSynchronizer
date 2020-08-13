@@ -75,14 +75,7 @@ class ApexSynchronizer(object):
         if len(to_withdraw) > 0:
             self.logger.info(f'Found {len(to_withdraw)} students in Apex'
                              ' not enrolled in PowerSchool.')
-            student: ApexStudent
-            for i, student in enumerate(to_withdraw):
-                progress = f':{i + 1}/{len(to_withdraw)}:'
-                self.logger.info(f'{progress}Removing student {student} '
-                                 'from Apex.')
-                r = student.delete_from_apex(session=self.session)
-                self.logger.debug(f'Received status from delete request: '
-                                  + str(r.status_code))
+            ApexStudent.delete_batch(to_withdraw, session=self.session)
         else:
             self.logger.info('Apex roster agrees with PowerSchool')
 

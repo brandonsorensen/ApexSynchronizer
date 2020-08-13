@@ -1,15 +1,13 @@
 import logging
-import re
 import requests
-from typing import List, Optional, Union
+from typing import Collection, List, Optional, Union
 from urllib.parse import urljoin
 
 from requests import Response
 
 from .apex_data_object import ApexUser
 from .apex_classroom import ApexClassroom
-from .utils import (BASE_URL, APEX_EMAIL_REGEX,
-                    make_userid, check_args)
+from .utils import (BASE_URL, make_userid, check_args)
 from .. import exceptions
 from ..apex_session import TokenType
 from ..utils import get_header
@@ -171,13 +169,14 @@ class ApexStudent(ApexUser):
         return r
 
     def enroll(self, classroom_id: str, token: TokenType = None,
-               session: requests.Session = None)  -> Response:
+               session: requests.Session = None) -> Response:
         """
         Enrolls this :class:`ApexStudent` object into the class indexed
         by `classroom_id`.
 
         :param token: an Apex access token
         :param classroom_id: the ID of the relevant classroom
+        :param session: an existing `requests.Session` object
         :return: the response of the PUT call
         """
         classroom = ApexClassroom.get(token, classroom_id)
@@ -192,3 +191,55 @@ class ApexStudent(ApexUser):
         url = urljoin(self.url + '/', self.import_user_id)
         url = urljoin(url + '/', 'classrooms')
         return url
+
+    @classmethod
+    def delete_batch(cls, students: Collection[Union['ApexStudent', int]],
+                     token: TokenType = None,
+                     session: requests.Session = None) \
+            -> List[requests.Response]:
+        if len(students) == 0:
+            return []
+        dtype = type(next(iter(students)))
+        if not all(isinstance(s, dtype) for s in students):
+            raise ValueError('Collection is not homogeneous – it contains'
+                             ' mixed types.')
+        if issubclass(dtype, int):
+            return cls._delete_id_batch(students, token=token, session=session)
+
+        return _delete_student_batch(students, token=token, session=session)
+
+    @classmethod
+    def _delete_id_batch(cls, eduids: Collection[int], token: TokenType,
+                         session: requests.Session) -> List[requests.Response]:
+        logger = logging.getLogger(__name__)
+        responses = []
+
+        for i, eduid in enumerate(eduids):
+            progress = f':{i + 1}/{len(eduids)}:'
+            logger.info(f'{progress}Removing student {eduid} from Apex.')
+            agent = check_args(token, session)
+            url = urljoin(cls.url + '/', str(eduid))
+            r = agent.delete(url=url)
+
+            logger.debug(f'Received status from delete request: '
+                         + str(r.status_code))
+            responses.append(r)
+
+        return responses
+
+
+def _delete_student_batch(students: Collection[ApexStudent],
+                          token: TokenType, session: requests.Session) \
+        -> List[requests.Response]:
+    logger = logging.getLogger(__name__)
+    responses = []
+    for i, s in enumerate(students):
+        progress = f':{i + 1}/{len(students)}:'
+        logger.info(f'{progress}Removing student {s} from Apex.')
+        r = s.delete_from_apex(token=token, session=session)
+        logger.debug(f'Received status from delete request: '
+                     + str(r.status_code))
+        responses.append(r)
+
+    return responses
+
