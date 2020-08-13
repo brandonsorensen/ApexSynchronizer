@@ -40,6 +40,10 @@ class ApexDataObject(ABC):
             raise exceptions.NoUserIdException()
         self.import_org_id = str(import_org_id)
 
+    def __eq__(self, other: 'ApexDataObject'):
+        return (isinstance(other, ApexDataObject)
+                and self.to_json() == other.to_json())
+
     @classmethod
     def get(cls, import_id: Union[str, int], token: TokenType = None,
             session: requests.Session = None) -> 'ApexDataObject':
