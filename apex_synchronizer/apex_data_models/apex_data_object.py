@@ -116,6 +116,7 @@ class ApexDataObject(ABC):
         Gets all objects of type `cls` in the Apex database.
 
         :param token: Apex access token
+        :param session: an existing Apex session
         :param bool ids_only: Whether to only return IDs
         :param archived: whether or not to return archived objects
         :return: a list containing all objects of this type in the Apex
@@ -127,7 +128,7 @@ class ApexDataObject(ABC):
 
         for current_page, r in enumerate(walker.walk(cls.url, token=token)):
             cls._parse_response_page(token=token, json_objs=r.json(),
-                                     page_number=current_page,
+                                     page_number=current_page, session=session,
                                      all_objs=ret_val, archived=archived,
                                      ids_only=ids_only)
 
