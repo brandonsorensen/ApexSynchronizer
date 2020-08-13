@@ -128,7 +128,7 @@ class ApexSynchronizer(object):
     def sync_classroom_enrollment(self):
         self.init_enrollment()
         self.logger.info('Syncing classroom enrollments.')
-        print(self.apex_enroll.classrooms & self.ps_enroll.classrooms)
+        print(self.apex_enroll.classroom_ids & self.ps_enroll.classroom_ids)
 
     def enroll_students(self, student_ids: Collection[int]):
         apex_students = init_students_for_ids(student_ids)

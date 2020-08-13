@@ -470,11 +470,6 @@ class ApexDataObject(ABC):
                      self.import_org_id,
                      self.__class__.__name__))
 
-    def __eq__(self, other: 'ApexDataObject'):
-        return (self.import_user_id == other.import_user_id
-                and self.import_org_id == other.import_org_id
-                and self.__class__ is other.__class__)
-
 
 class ApexUser(ApexDataObject, ABC):
 

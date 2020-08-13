@@ -22,6 +22,8 @@ class BaseEnrollment(ABC):
     def __init__(self):
         logger_name = '.'.join([__name__, self.__class__.__name__])
         self.logger = logging.getLogger(logger_name)
+        self._all_students = set()
+        self._all_classrooms = set()
 
     def get_classrooms(self, eduid: Union[int, str, ApexStudent]) -> Set[int]:
         """
@@ -72,22 +74,28 @@ class BaseEnrollment(ABC):
         return self.student2classrooms.keys()
 
     @property
-    def students(self) -> ValuesView:
+    def students(self) -> Set:
         """
         Returns a complete roster encompassing all students in the form
         of data objects, i.e. `ApexStudent` or dict/JSON objects.
         """
-        return self.classroom2students.values()
+        return self._all_students
 
     @property
-    def classrooms(self) -> KeysView:
-        """Returns all classrooms."""
+    def classroom_ids(self) -> KeysView:
+        """Returns all classroom IDs."""
         return self.classroom2students.keys()
+
+    @property
+    def classrooms(self) -> Set:
+        """Returns all classroom objects."""
+        return self._all_classrooms
 
 
 class PSEnrollment(BaseEnrollment):
 
     def __init__(self, ps_json=None):
+        # TODO: What to do about _all_classrooms attribute?
         super().__init__()
         if ps_json is None:
             self.logger.debug('Fetching enrollment')
@@ -111,6 +119,7 @@ class PSEnrollment(BaseEnrollment):
             self.logger.debug(f'student {i}:eduid={eduid},section_id={sec_id}')
 
             self.student2classrooms[eduid].add(sec_id)
+            self._all_students.add(ApexStudent.from_powerschool(entry))
             self.classroom2students[sec_id].add(eduid)
 
         self._student2classrooms = dict(self.student2classrooms)
@@ -133,6 +142,11 @@ class PSEnrollment(BaseEnrollment):
     def student2classrooms(self) -> dict:
         return self._student2classrooms
 
+    @property
+    def classrooms(self):
+        # FIXME
+        raise NotImplementedError
+
 
 class ApexEnrollment(BaseEnrollment):
 
@@ -154,19 +168,20 @@ class ApexEnrollment(BaseEnrollment):
 
         if student_ids is None:
             self.logger.info('Retrieving Apex student information from Apex API.')
-            self.apex_students = ApexStudent.get_all(token=access_token,
+            self._all_students = ApexStudent.get_all(token=access_token,
                                                      session=session)
         else:
-            self.apex_students = student_ids
+            self._all_students = student_ids
             self.logger.info('Retrieved Apex student information')
         self.logger.debug('Creating ApexStudent index')
         self._apex_index = {student.import_user_id: student
-                            for student in self.apex_students}
+                            for student in self._all_students}
 
         self._student2classrooms = (
             adm.apex_classroom.get_classrooms_for_eduids(set(self._apex_index),
                                                          session=session,
-                                                         return_empty=True)
+                                                         return_empty=True,
+                                                         ids_only=False)
         )
 
         self._classroom2students = defaultdict(list)
@@ -174,8 +189,10 @@ class ApexEnrollment(BaseEnrollment):
         for i, (student, classrooms) in enumerate(self._student2classrooms
                                                       .items()):
             progress = f'{i + 1}/{len(self._student2classrooms)}'
+            classroom: ApexClassroom
             for classroom in classrooms:
                 self._classroom2students[classroom].append(student)
+                self._all_classrooms.add(classroom)
             self.logger.info(f'{progress}:created reverse mapping for student '
                              + str(student))
 
