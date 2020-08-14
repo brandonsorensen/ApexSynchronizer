@@ -94,7 +94,7 @@ class ApexSynchronizer(object):
         to_enroll = self.ps_roster - self.apex_roster
         to_withdraw = self.apex_roster - self.ps_roster
         to_update = self.find_conflicts()
-        if len(to_enroll) == len(to_withdraw) == 0:
+        if len(to_enroll) == len(to_withdraw) == len(to_update) == 0:
             self.logger.info('Rosters already in sync')
             return
 
