@@ -248,8 +248,7 @@ class ApexSynchronizer(object):
             transfer_map[student.import_user_id].apex = student
 
         self.logger.debug('Adding PowerSchool student to transfer map.')
-        for student in map(ApexStudent.from_powerschool,
-                           self.ps_enroll.students):
+        for student in self.ps_enroll.students:
             transfer_map[student.import_user_id].powerschool = student
 
         self.logger.debug('Searching for mismatching records.')
