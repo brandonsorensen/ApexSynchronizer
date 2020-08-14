@@ -110,11 +110,13 @@
         </args>
         <columns>
 			<column column="STUDENTS.STATE_STUDENTNUMBER">EDUID</column>
+			<column column="STUDENTS.SCHOOLID">SCHOOL_ID</column>
 			<column column="CC.SECTIONID">SECTION_ID</column>
  		</columns>
         <sql>
 			<![CDATA[
 				SELECT students.State_StudentNumber,
+					   students.SchoolID,
 					   cc.sectionid
 				FROM   cc
 					   INNER JOIN students
@@ -124,7 +126,7 @@
 				WHERE  cc.schoolid = 616
 					   AND students.enroll_status = 0
 					   AND courses.course_name LIKE '%(APEX)'
-				GROUP  BY students.State_StudentNumber, cc.sectionid
+				GROUP  BY students.State_StudentNumber, students.SchoolID, cc.sectionid
 				ORDER  BY students.State_StudentNumber
 			]]>
         </sql>
