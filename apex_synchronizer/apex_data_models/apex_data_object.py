@@ -196,6 +196,7 @@ class ApexDataObject(ABC):
             while processing and datetime.now() < expire_at:
                 sleep(1)
                 logger.debug('Batch still processing...')
+                logger.debug(f'{expire_at - datetime.now()} seconds remaining...')
                 logger.debug('Received JSON response:\n' + msg)
                 r = cls.check_batch_status(status_token, session=session)
                 msg = r.json()['Message']
