@@ -52,13 +52,15 @@ class PowerQuery(object):
 
     BASE_QUERY_URL = '/ws/schema/query/com.apex.learning.school.'
 
-    def __init__(self, url_ext: str):
+    def __init__(self, url_ext: str, description: str = None):
         """
         :param str url_ext: the extension that, appended to the `PS_URL`
             environment variable and `BASE_URL` as defined above,
             composes the URL
         """
         self.url_ext = url_ext
+        if description is not None:
+            self.__doc__ = description
 
     def fetch(self, page_size: int = 0) -> dict:
         """
