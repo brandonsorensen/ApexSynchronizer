@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from collections import defaultdict, ValuesView, KeysView
+from collections import defaultdict, KeysView
+from dataclasses import dataclass
 from typing import Iterable, List, Set, Union
 import logging
 
@@ -23,7 +24,6 @@ class BaseEnrollment(ABC):
         logger_name = '.'.join([__name__, self.__class__.__name__])
         self.logger = logging.getLogger(logger_name)
         self._all_students = set()
-        self._all_classrooms = set()
 
     def get_classrooms(self, eduid: Union[int, str, ApexStudent]) -> Set[int]:
         """
@@ -86,21 +86,47 @@ class BaseEnrollment(ABC):
         """Returns all classroom IDs."""
         return self.classroom2students.keys()
 
-    @property
-    def classrooms(self) -> Set:
-        """Returns all classroom objects."""
-        return self._all_classrooms
+
+@dataclass
+class PSStudent(object):
+    import_user_id: int
+    import_org_id: int
+
+    def __hash__(self):
+        return hash((self.import_user_id, self.import_org_id))
+
+    def equivalent(self, apex_student: ApexStudent):
+        return (
+            self.import_user_id == int(apex_student.import_user_id)
+            and self.import_org_id == int(apex_student.import_org_id)
+        )
+
+    def update_other(self, other: ApexStudent):
+        """
+        Updates an `ApexStudent` object so that it matches the information
+        that is contained in this object.
+        """
+        other.import_org_id = self.import_org_id
+
+
+@dataclass
+class EnrollmentEntry(object):
+    student: PSStudent
+    import_classroom_id: int
+
+    def __hash__(self):
+        return hash((self.student, self.import_classroom_id))
 
 
 class PSEnrollment(BaseEnrollment):
 
     def __init__(self, ps_json=None):
-        # TODO: What to do about _all_classrooms attribute?
         super().__init__()
         if ps_json is None:
             self.logger.debug('Fetching enrollment')
             ps_json = fetch_enrollment()
 
+        self._all_entries: Set[EnrollmentEntry] = set()
         self._parse_enrollment_json(map(flatten_ps_json, ps_json))
         self._parse_student_json(map(flatten_ps_json, fetch_students()))
 
@@ -115,11 +141,17 @@ class PSEnrollment(BaseEnrollment):
         self.logger.info('Iterating over enrollment.')
         for i, entry in enumerate(json_obj):
             eduid = int(entry['eduid'])
+            org_id = int(entry['school_id'])
             sec_id = int(entry['section_id'])
+
+            student = PSStudent(eduid, org_id)
+            enroll_entry = EnrollmentEntry(student, sec_id)
+            self._all_entries.add(enroll_entry)
+
             self.logger.debug(f'student {i}:eduid={eduid},section_id={sec_id}')
 
             self.student2classrooms[eduid].add(sec_id)
-            self._all_students.add(ApexStudent.from_powerschool(entry))
+            self._all_students.add(student)
             self.classroom2students[sec_id].add(eduid)
 
         self._student2classrooms = dict(self.student2classrooms)
@@ -131,8 +163,15 @@ class PSEnrollment(BaseEnrollment):
         """
         for entry in json_obj:
             eduid = entry['eduid']
+            org_id = entry['school_id']
+            if not all((eduid, org_id)):
+                self.logger.debug('The following JSON object has no EDUID. '
+                                  'Skipping.\n' + str(entry))
+                continue
+            eduid, org_id = int(eduid), int(org_id)
+            student = PSStudent(eduid, org_id)
             if eduid and eduid not in self._student2classrooms.keys():
-                self._student2classrooms[int(eduid)] = set()
+                self._student2classrooms[student.import_user_id] = set()
 
     @property
     def classroom2students(self) -> dict:
@@ -173,6 +212,7 @@ class ApexEnrollment(BaseEnrollment):
         else:
             self._all_students = student_ids
             self.logger.info('Retrieved Apex student information')
+        self._all_classrooms = set()
         self.logger.debug('Creating ApexStudent index')
         self._apex_index = {student.import_user_id: student
                             for student in self._all_students}
@@ -209,3 +249,9 @@ class ApexEnrollment(BaseEnrollment):
 
     def get_student(self, eduid: Union[str, int]):
         return self._apex_index[int(eduid)]
+
+    @property
+    def classrooms(self) -> Set:
+        """Returns all classroom objects."""
+        return self._all_classrooms
+

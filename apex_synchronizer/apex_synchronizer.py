@@ -11,7 +11,7 @@ from .apex_data_models import ApexStudent, ApexClassroom, ApexStaffMember
 from .apex_data_models.apex_classroom import walk_ps_sections
 from .apex_schedule import ApexSchedule
 from .apex_session import ApexSession, TokenType
-from .enrollment import ApexEnrollment, PSEnrollment
+from .enrollment import ApexEnrollment, PSEnrollment, PSStudent
 from .exceptions import ApexStudentNoEmailException, ApexMalformedEmailException
 from .ps_agent import fetch_students, fetch_staff
 
@@ -23,7 +23,13 @@ class StudentTuple(object):
     a PowerSchool student JSON-object.
     """
     apex: ApexStudent = None
-    powerschool: ApexStudent = None
+    powerschool: PSStudent = None
+
+    def __iter__(self):
+        return iter((self.apex, self.powerschool))
+
+    def all(self):
+        return self.apex and self.powerschool
 
 
 class ApexSynchronizer(object):
@@ -88,6 +94,9 @@ class ApexSynchronizer(object):
         if len(to_update) > 0:
             # TODO
             print(to_update)
+
+            # for student in to_update:
+            #     student.put_to_apex(session=self.session)
         else:
             self.logger.info('All records match one another. None to update.')
 
@@ -248,10 +257,11 @@ class ApexSynchronizer(object):
         for st in transfer_map.values():
             current = st.apex  # How the record is in Apex
             master = st.powerschool  # What to update to
-            if all((current, master)) and current != master:
+            if st.all() and not master.equivalent(current):
                 self.logger.debug(f'Student {st.apex.import_user_id} will be'
                                   'updated to match PowerSchool records.')
-                to_update.append(st.powerschool.import_user_id)
+                master.update_other(current)
+                to_update.append(current)
 
         return to_update
 
