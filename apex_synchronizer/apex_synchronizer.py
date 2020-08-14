@@ -32,13 +32,16 @@ class StudentTuple(object):
         return self.apex and self.powerschool
 
     def matching(self):
+        if not self.all():
+            return False
         return (
             int(self.apex.import_user_id) == self.powerschool.import_user_id
             and self.apex.import_org_id == self.powerschool.import_org_id
         )
 
     def update_apex(self):
-        self.apex.import_org_id = self.powerschool.import_org_id
+        if self.all():
+            self.apex.import_org_id = self.powerschool.import_org_id
 
 
 class ApexSynchronizer(object):
