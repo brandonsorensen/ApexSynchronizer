@@ -95,19 +95,6 @@ class PSStudent(object):
     def __hash__(self):
         return hash((self.import_user_id, self.import_org_id))
 
-    def equivalent(self, apex_student: ApexStudent):
-        return (
-            self.import_user_id == int(apex_student.import_user_id)
-            and self.import_org_id == int(apex_student.import_org_id)
-        )
-
-    def update_other(self, other: ApexStudent):
-        """
-        Updates an `ApexStudent` object so that it matches the information
-        that is contained in this object.
-        """
-        other.import_org_id = self.import_org_id
-
 
 @dataclass
 class EnrollmentEntry(object):

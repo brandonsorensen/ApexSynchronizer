@@ -31,6 +31,15 @@ class StudentTuple(object):
     def all(self):
         return self.apex and self.powerschool
 
+    def matching(self):
+        return (
+            int(self.apex.import_user_id) == self.powerschool.import_user_id
+            and self.apex.import_org_id == self.powerschool.import_org_id
+        )
+
+    def update_apex(self):
+        self.apex.import_org_id = self.powerschool.import_org_id
+
 
 class ApexSynchronizer(object):
 
@@ -254,13 +263,11 @@ class ApexSynchronizer(object):
         self.logger.debug('Searching for mismatching records.')
         to_update = []
         for st in transfer_map.values():
-            current = st.apex  # How the record is in Apex
-            master = st.powerschool  # What to update to
-            if st.all() and not master.equivalent(current):
+            if st.all() and not st.matching():
                 self.logger.debug(f'Student {st.apex.import_user_id} will be'
                                   'updated to match PowerSchool records.')
-                master.update_other(current)
-                to_update.append(current)
+                st.update_apex()
+                to_update.append(st.apex)
 
         return to_update
 
