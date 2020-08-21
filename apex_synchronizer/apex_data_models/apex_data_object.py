@@ -253,13 +253,17 @@ class ApexDataObject(ABC):
             header = get_header(token)
         else:
             header = None
-        url = urljoin(self.url + '/', self.import_user_id)
+
+        main_to_snake = utils.camel_to_snake(self.main_id)
+        url = urljoin(self.url + '/', getattr(self, main_to_snake))
         payload = self.to_json()
         del payload[self.main_id]  # Given in the URL
-        # We don't want to update a password
-        if 'LoginPw' in payload.keys():
-            del payload['LoginPw']
-        r = agent.put(url=url, headers=header, data=payload)
+        # We don't want to update a password and role cannot be included
+        exclude_keys = ('LoginPw', 'Role', 'ProgramCode')
+        for key in exclude_keys:
+            if key in payload.keys():
+                del payload[key]
+        r = agent.put(url=url, headers=header, data=json.dumps(payload))
         return r
 
     @property
