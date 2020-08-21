@@ -202,13 +202,17 @@ class ApexEnrollment(BaseEnrollment):
         self.logger.debug('Creating ApexStudent index')
         self._apex_index = {student.import_user_id: student
                             for student in self._all_students}
-        self._classroom_index = {}
+        self.logger.info('Getting all Apex classrooms.')
+        self._classroom_index = {int(c.import_classroom_id): c
+                                 for c in ApexClassroom.get_all(session=session)}
 
+        self.logger.info('Getting enrollment information for all relevant '
+                         'students.')
         self._student2classrooms = (
             adm.apex_classroom.get_classrooms_for_eduids(set(self._apex_index),
                                                          session=session,
                                                          return_empty=True,
-                                                         ids_only=False)
+                                                         ids_only=True)
         )
 
         self._classroom2students = defaultdict(list)
@@ -220,8 +224,6 @@ class ApexEnrollment(BaseEnrollment):
             for classroom in classrooms:
                 c_id = int(classroom.import_classroom_id)
                 self._classroom2students[c_id].append(student)
-                if c_id not in self._classroom_index:
-                    self._classroom_index[c_id] = classroom
             self.logger.info(f'{progress}:created reverse mapping for student '
                              + str(student))
 
