@@ -165,7 +165,12 @@ class ApexSynchronizer(object):
     def sync_classroom_enrollment(self):
         self.init_enrollment()
         self.logger.info('Syncing classroom enrollments.')
-        for c_id, student_list in self.ps_enroll.classroom2students.items():
+        c2s = self.ps_enroll.classroom2students.items()
+        n_classrooms = len(c2s)
+        n_entries_changed = 0
+        for i, (c_id, student_list) in enumerate(c2s):
+            self.logger.info(f'{i + 1}/{n_classrooms}: Checking enrollment '
+                             f'for classroom with ID \"{c_id}\".')
             try:
                 apex_classroom = self.apex_enroll.get_classroom_for_id(c_id)
             except KeyError:
@@ -179,14 +184,21 @@ class ApexSynchronizer(object):
                 try:
                     to_enroll.append(self.apex_enroll.get_student_for_id(ps_st))
                 except KeyError:
-                    self.logger.info(f'Student bearing ID \"{ps_st}\" is not in '
-                                     'Apex. He or she must be added before syncing '
-                                     'enrollment. Skipping for now...')
+                    self.logger.info(f'Student bearing ID \"{ps_st}\" is not in'
+                                     ' Apex. He or she must be added before '
+                                     'syncing enrollment. Skipping for now...')
                     continue
 
             self.logger.info(f'Adding {len(to_enroll)} students to classroom '
                              + str(c_id))
-            # apex_classroom.enroll(to_enroll, session=self.session)
+            diff = len(student_list) - len(to_enroll)
+            if diff:
+                self.logger.debug(f'{diff} students will not be added.')
+
+            r = apex_classroom.enroll(to_enroll, session=self.session)
+            self.logger.info('Received response: ' + str(r.status_code))
+            n_entries_changed += len(to_enroll)
+        self.logger.info(f'Updated {n_entries_changed} enrollment records.')
 
     def enroll_students(self, student_ids: Collection[int]):
         apex_students = init_students_for_ids(student_ids)
