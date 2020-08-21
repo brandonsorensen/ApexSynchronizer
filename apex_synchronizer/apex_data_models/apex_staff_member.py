@@ -78,8 +78,10 @@ class ApexStaffMember(ApexUser):
 
     @classmethod
     def _parse_get_response(cls, r) -> 'ApexStaffMember':
-        # TODO
-        print(r.text)
+        kwargs, json_obj = cls._init_kwargs_from_get(r)
+        orgs = json_obj['Organizations']
+        kwargs['import_org_id'] = orgs[0]['ImportOrgId']
+        return cls(**kwargs)
 
     def get_classrooms(self, token) -> List['ApexClassroom']:
         # TODO

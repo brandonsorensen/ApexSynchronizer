@@ -249,22 +249,32 @@ class ApexDataObject(ABC):
         :return: the response from the PUT operation.
         """
         agent = check_args(token, session)
+        main_to_snake = utils.camel_to_snake(self.main_id)
+        url = urljoin(self.url + '/', getattr(self, main_to_snake))
         if not isinstance(session, requests.Session):
             header = get_header(token)
         else:
             header = None
+        payload = self._get_put_payload()
 
-        main_to_snake = utils.camel_to_snake(self.main_id)
-        url = urljoin(self.url + '/', getattr(self, main_to_snake))
+        r = agent.put(url=url, headers=header, data=json.dumps(payload))
+        return r
+
+    def _get_put_payload(self) -> dict:
+        """
+        A helper method for getting the PUT payload. This exists to
+        accommodate `ApexClassroom` object, who need one extra step
+        compared to the others.
+        """
         payload = self.to_json()
         del payload[self.main_id]  # Given in the URL
         # We don't want to update a password and role cannot be included
-        exclude_keys = ('LoginPw', 'Role', 'ProgramCode')
+        exclude_keys = ('LoginPw', 'Role')
         for key in exclude_keys:
             if key in payload.keys():
                 del payload[key]
-        r = agent.put(url=url, headers=header, data=json.dumps(payload))
-        return r
+
+        return payload
 
     @property
     @abstractmethod

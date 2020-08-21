@@ -16,6 +16,7 @@ from .. import exceptions, utils
 from ..apex_session import TokenType
 from ..ps_agent import course2program_code, fetch_staff, fetch_classrooms
 from ..utils import get_header, levenshtein_distance
+import apex_synchronizer.apex_data_models as adm
 
 
 def _init_powerschool_teachers() -> List[ApexStaffMember]:
@@ -165,7 +166,7 @@ class ApexClassroom(ApexDataObject):
         logger.info(f'Returning {len(ret_val)} ApexClassroom objects.')
         return ret_val
 
-    def enroll(self, objs: Union[List[ApexDataObject], ApexDataObject],
+    def enroll(self, objs: Union[List[ApexUser], ApexUser],
                token: TokenType = None,
                session: requests.Session = None) -> Response:
         """
@@ -195,28 +196,89 @@ class ApexClassroom(ApexDataObject):
             header = None
         url = self._get_data_object_class_url(dtype)
 
+        logger = logging.getLogger(__name__)
         payload = {dtype.post_heading: []}
+        logger.info(f'Creating payload for {len(objs)} objects.')
         for apex_obj in objs:
+            logger.debug('Creating payload for obj with ID '
+                         f'\"{apex_obj.import_user_id}\".')
             payload_entry = {
                 'ImportUserId': apex_obj.import_user_id,
                 'ImportOrgId': apex_obj.import_org_id
             }
+            if isinstance(apex_obj, ApexStaffMember):
+                payload_entry['IsPrimary'] = True
             payload[dtype.post_heading].append(payload_entry)
 
         payload = json.dumps(payload)
-        return agent.post(url=url, headers=header, data=payload)
+        logger.info('Posting payload.')
+        r = agent.post(url=url, headers=header, data=payload)
+        logger.debug('Received response ' + str(r.status_code))
+        return r
 
-    def withdraw(self, token: TokenType, obj: ApexUser) -> Response:
+    def change_teacher(self, new_teacher: Union['ApexStaffMember', str],
+                       token: TokenType = None,
+                       session: requests.Session = None):
+        """
+        Withdraws the current teachers and enrolls a new one as a
+        primary teacher.
+
+        :param new_teacher: the new teacher
+        :param token: an Apex access token
+        :param session: an existing Apex session
+        """
+        logger = logging.getLogger(__name__)
+        if type(new_teacher) is str:
+            new_teacher = ApexStaffMember.get(new_teacher, token=token,
+                                              session=session)
+        logger.info(f'Changing teachers from {self.import_user_id} '
+                    f'to {new_teacher.import_user_id}.')
+        current_teacher = ApexStaffMember.get(self.import_user_id,
+                                              token=token, session=session)
+        self.withdraw(current_teacher, token=token, session=session)
+        self.enroll(new_teacher, token=token, session=session)
+
+    def withdraw(self, obj: Union[ApexUser, int, str],
+                 obj_type: str = None,
+                 token: TokenType = None,
+                 session: requests.Session = None) -> Response:
         """
         Withdraws a single student or staff member from this classroom.
 
         :param token: Apex access token
+        :param session: an existing Apex session
+        :param obj_type: one of either 'S' for student or 'T' for
+            teacher/staff member
         :param obj: the given student or staff member
         :return: the response to the DELETE call
         """
-        header = get_header(token)
-        url = self._get_data_object_class_url(type(obj))
-        return requests.delete(url=url, headers=header)
+        logger = logging.getLogger(__name__)
+        agent = check_args(token, session)
+        if obj_type is not None:
+            if obj_type.lower() not in ('s', 't'):
+                raise ValueError("`obj_type` must be one of ('S', 'T'), "
+                                 "case insensitive.")
+            dtype = (adm.ApexStudent if obj_type.lower() == 'S'
+                     else ApexStaffMember)
+        else:
+            if isinstance(obj, ApexUser):
+                user_id = obj.import_user_id
+                dtype = type(obj)
+            else:
+                raise ValueError('Must supply argument to `obj_type` or '
+                                 'pass an object of a type that subclasses'
+                                 'the ApexUser class.')
+        try:
+            user_id
+        except NameError:
+            user_id = obj
+
+        url = self._get_data_object_class_url(dtype)
+        url = urljoin(url + '/', str(user_id))
+        logger.info('Withdrawing user from classroom.')
+        r = agent.delete(url=url)
+        logger.debug('Received response: ' + str(r))
+        return r
 
     def get_reports(self, token: TokenType = None,
                     session: requests.Session = None) -> List[dict]:
@@ -238,7 +300,7 @@ class ApexClassroom(ApexDataObject):
         """
         agent = check_args(token, session)
         url = urljoin(self.url + '/', self.import_classroom_id)
-        url = urljoin(url + '/', 'reportss')
+        url = urljoin(url + '/', 'reports')
         if isinstance(agent, requests.Session):
             r = agent.get(url=url)
         else:
@@ -270,6 +332,36 @@ class ApexClassroom(ApexDataObject):
         # Get the final component in the object's url
         obj_type_component = urlparse(dtype.url).path.rsplit("/", 1)[-1]
         return urljoin(url + '/', obj_type_component)
+
+    def _get_put_payload(self) -> dict:
+        payload = super()._get_put_payload()
+        if 'ProgramCode' in payload.keys():
+            del payload['ProgramCode']
+        payload['IsPrimary'] = True
+        return payload
+
+    def update(self, new_classroom: 'ApexClassroom',
+               token: TokenType = None,
+               session: requests.Session = None) -> Optional[requests.Response]:
+        """
+
+        :param new_classroom:
+        :param token:
+        :param session:
+        :return:
+        """
+        if self == new_classroom:
+            return
+
+        if self.import_classroom_id != new_classroom.import_classroom_id:
+            raise ValueError('`new_classroom` object contains a different'
+                             'classroom ID.')
+
+        if self.import_user_id != new_classroom.import_user_id:
+            self.change_teacher(new_classroom.import_user_id, token=token,
+                                session=session)
+
+        return new_classroom.put_to_apex(token=token, session=session)
 
 
 def teacher_fuzzy_match(t1: str, teachers: Collection[ApexStaffMember] = None) \

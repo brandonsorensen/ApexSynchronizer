@@ -64,6 +64,7 @@ class ApexSynchronizer(object):
         self.session = ApexSession()
         self.logger = logging.getLogger(__name__)
         self.batch_jobs = []
+        self.staff = {}
         self.apex_enroll: ApexEnrollment = None
         self.ps_enroll: PSEnrollment = None
 
@@ -102,6 +103,19 @@ class ApexSynchronizer(object):
             self.logger.debug('Caching Apex roster to ' + str(apex_path))
             pickle.dump(self.apex_enroll, open(apex_path, 'wb+'))
 
+    def init_staff(self):
+        self.staff = {}
+        self.logger.info('Fetching staff from PowerSchool.')
+        for sm in fetch_staff():
+            try:
+                apex_sm = ApexStaffMember.from_powerschool(sm)
+                if int(apex_sm.import_org_id) == 616:
+                    self.staff[int(apex_sm.import_user_id)] = apex_sm
+            except exceptions.ApexEmailException as e:
+                self.logger.info(e)
+        self.logger.info(f'Successfully retrieved {len(self.staff)} '
+                         'staff members from PowerSchool.')
+
     def sync_rosters(self):
         self.logger.info('Beginning roster synchronization.')
 
@@ -136,22 +150,10 @@ class ApexSynchronizer(object):
             self.logger.info('Apex roster agrees with PowerSchool')
 
     def sync_staff(self):
-        apex_staff = []
-        self.logger.info('Fetching staff from PowerSchool.')
-        for sm in fetch_staff():
-            try:
-                apex_sm = ApexStaffMember.from_powerschool(sm)
-                if int(apex_sm.import_org_id) == 616:
-                    apex_staff.append(apex_sm)
-            except exceptions.ApexEmailException as e:
-                self.logger.info(e)
-
-        self.logger.info(f'Successfully retrieved {len(apex_staff)} '
-                         'staff members from PowerSchool.')
-
         self.logger.info('Posting staff members.')
         try:
-            r = ApexStaffMember.post_batch(apex_staff, session=self.session)
+            r = ApexStaffMember.post_batch(list(self.staff.values()),
+                                           session=self.session)
             errors = ApexStaffMember.parse_batch(r)
             self.logger.info('Received the following errors:\n'
                              + str({id_: error.name for id_, error
@@ -272,6 +274,7 @@ class ApexSynchronizer(object):
                                      + str(ps_cr.import_classroom_id))
                     r = ps_cr.put_to_apex(session=self.session)
                     self.logger.info('Received response: ' + str(r.status_code))
+                    apex_cr.update(ps_cr, session=self.session)
                     if self.apex_enroll is not None:
                         self.apex_enroll.update_classroom(ps_cr)
                     updated += 1
