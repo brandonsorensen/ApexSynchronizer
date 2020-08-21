@@ -173,7 +173,10 @@ class ApexSynchronizer(object):
             post_students(apex_students, session=self.session)
 
     def _has_enrollment(self):
-        return hasattr(self, 'ps_enroll') and hasattr(self, 'apex_enroll')
+        try:
+            self.apex_enroll is not None and self.ps_enroll is not None
+        except AttributeError:
+            return False
 
     @property
     def apex_roster(self) -> Union[Set[int], KeysView]:
