@@ -378,6 +378,7 @@ def _get_classroom_for_eduid(url: str, token: TokenType = None,
             if (message == 'Results not found.'
                     or message == "User doesn't exist."):
                 eduid = url.split('/')[-2]
+                # TODO: Distinguish between these two cases
                 raise exceptions.ApexObjectNotFoundException(eduid)
             raise exceptions.ApexError()
         except requests.exceptions.ConnectionError:

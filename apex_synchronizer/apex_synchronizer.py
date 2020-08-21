@@ -64,8 +64,8 @@ class ApexSynchronizer(object):
         self.session = ApexSession()
         self.logger = logging.getLogger(__name__)
         self.batch_jobs = []
-        self.apex_enroll = None
-        self.ps_enroll = None
+        self.apex_enroll: ApexEnrollment = None
+        self.ps_enroll: PSEnrollment = None
 
     def run_schedule(self, s: ApexSchedule):
         """
@@ -165,7 +165,28 @@ class ApexSynchronizer(object):
     def sync_classroom_enrollment(self):
         self.init_enrollment()
         self.logger.info('Syncing classroom enrollments.')
-        print(self.apex_enroll.classroom_ids & self.ps_enroll.classroom_ids)
+        for c_id, student_list in self.ps_enroll.classroom2students.items():
+            try:
+                apex_classroom = self.apex_enroll.get_classroom_for_id(c_id)
+            except KeyError:
+                self.logger.info(f'Classroom bearing ID \"{c_id}\" is not in '
+                                 'Apex. It must be added before syncing '
+                                 'enrollment. Skipping for now...')
+                continue
+
+            to_enroll = []
+            for ps_st in student_list:
+                try:
+                    to_enroll.append(self.apex_enroll.get_student_for_id(ps_st))
+                except KeyError:
+                    self.logger.info(f'Student bearing ID \"{ps_st}\" is not in '
+                                     'Apex. He or she must be added before syncing '
+                                     'enrollment. Skipping for now...')
+                    continue
+
+            self.logger.info(f'Adding {len(to_enroll)} students to classroom '
+                             + str(c_id))
+            # apex_classroom.enroll(to_enroll, session=self.session)
 
     def enroll_students(self, student_ids: Collection[int]):
         apex_students = init_students_for_ids(student_ids)
