@@ -185,7 +185,10 @@ class ApexClassroom(ApexDataObject):
             # Ensures the list is homogeneous
             assert all(isinstance(x, dtype) for x in objs)
 
-        header = get_header(token)
+        if not isinstance(session, requests.Session):
+            header = get_header(token)
+        else:
+            header = None
         url = self._get_data_object_class_url(dtype)
 
         payload = {dtype.post_heading: []}
