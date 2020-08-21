@@ -87,8 +87,8 @@ class ApexSynchronizer(object):
         if self._has_enrollment():
             return
 
-        use_serial = bool(environ.get('USE_PICKLE', False))
-        cache_apex = bool(environ.get('CACHE_APEX', False))
+        use_serial = bool(int(environ.get('USE_PICKLE', False)))
+        cache_apex = bool(int(environ.get('CACHE_APEX', False)))
         apex_path = PICKLE_DIR / 'apex_enroll.pickle'
         if use_serial:
             self.apex_enroll = pickle.load(open(apex_path, 'rb'))
