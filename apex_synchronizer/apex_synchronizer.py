@@ -243,6 +243,7 @@ class ApexSynchronizer(object):
         PowerSchool appear in the Apex Learning database.
         """
         total = 0
+        updated = 0
         to_post = []
         for i, (section, progress) in enumerate(walk_ps_sections(archived=False)):
             try:
@@ -272,6 +273,7 @@ class ApexSynchronizer(object):
                     r = ps_cr.put_to_apex(session=self.session)
                     self.logger.info('Received response: ' + str(r.status_code))
                     self.apex_enroll.update_classroom(ps_cr)
+                    updated += 1
             except KeyError:
                 raise exceptions.ApexMalformedJsonException(section)
             except exceptions.ApexObjectNotFoundException:
@@ -292,6 +294,7 @@ class ApexSynchronizer(object):
             finally:
                 total += 1
 
+        self.logger.info(f'Updated {updated} classrooms.')
         self.logger.info(f'Posting {len(to_post)} classrooms.')
         r = ApexClassroom.post_batch(to_post, session=self.session)
         # TODO: Parse response messages
