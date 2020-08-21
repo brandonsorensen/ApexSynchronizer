@@ -222,8 +222,7 @@ class ApexEnrollment(BaseEnrollment):
             progress = f'{i + 1}/{len(self._student2classrooms)}'
             classroom: ApexClassroom
             for classroom in classrooms:
-                c_id = int(classroom.import_classroom_id)
-                self._classroom2students[c_id].append(student)
+                self._classroom2students[classroom].append(student)
             self.logger.info(f'{progress}:created reverse mapping for student '
                              + str(student))
 
