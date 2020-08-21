@@ -118,7 +118,7 @@ class ApexClassroom(ApexDataObject):
         return cls(**kwargs)
 
     @classmethod
-    def get_all(cls, token: TokenType, ids_only: bool = False,
+    def get_all(cls, token: TokenType = None, ids_only: bool = False,
                 archived: bool = False,
                 session: requests.Session = None) -> List[Union['ApexClassroom', int]]:
         """
