@@ -199,10 +199,10 @@ class ApexEnrollment(BaseEnrollment):
         else:
             self._all_students = student_ids
             self.logger.info('Retrieved Apex student information')
-        self._all_classrooms = set()
         self.logger.debug('Creating ApexStudent index')
         self._apex_index = {student.import_user_id: student
                             for student in self._all_students}
+        self._classroom_index = {}
 
         self._student2classrooms = (
             adm.apex_classroom.get_classrooms_for_eduids(set(self._apex_index),
@@ -218,8 +218,10 @@ class ApexEnrollment(BaseEnrollment):
             progress = f'{i + 1}/{len(self._student2classrooms)}'
             classroom: ApexClassroom
             for classroom in classrooms:
-                self._classroom2students[classroom].append(student)
-                self._all_classrooms.add(classroom)
+                c_id = int(classroom.import_classroom_id)
+                self._classroom2students[c_id].append(student)
+                if c_id not in self._classroom_index:
+                    self._classroom_index[c_id] = classroom
             self.logger.info(f'{progress}:created reverse mapping for student '
                              + str(student))
 
@@ -240,5 +242,5 @@ class ApexEnrollment(BaseEnrollment):
     @property
     def classrooms(self) -> Set:
         """Returns all classroom objects."""
-        return self._all_classrooms
+        return set(self._classroom_index.values())
 
