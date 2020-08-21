@@ -246,6 +246,12 @@ class ApexEnrollment(BaseEnrollment):
     def get_student_for_id(self, user_id: int) -> ApexStudent:
         return self._apex_index[int(user_id)]
 
+    def update_classroom(self, c: ApexClassroom):
+        self._classroom_index[int(c.import_classroom_id)] = c
+
+    def update_student(self, s: ApexStudent):
+        self._apex_index[int(s.import_user_id)] = s
+
     @property
     def classrooms(self) -> Set:
         """Returns all classroom objects."""

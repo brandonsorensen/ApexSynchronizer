@@ -271,6 +271,7 @@ class ApexSynchronizer(object):
                                      + str(ps_cr.import_classroom_id))
                     r = ps_cr.put_to_apex(session=self.session)
                     self.logger.info('Received response: ' + str(r.status_code))
+                    self.apex_enroll.update_classroom(ps_cr)
             except KeyError:
                 raise exceptions.ApexMalformedJsonException(section)
             except exceptions.ApexObjectNotFoundException:
