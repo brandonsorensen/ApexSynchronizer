@@ -262,8 +262,15 @@ class ApexSynchronizer(object):
                 section_id = section['section_id']
                 self.logger.info(f'{progress}:Attempting to fetch classroom with'
                                  f' ID {section_id}.')
-                ApexClassroom.get(section_id, session=self.session)
+                apex_cr = ApexClassroom.get(section_id, session=self.session)
+                ps_cr = ApexClassroom.from_powerschool(section,
+                                                       already_flat=True)
                 self.logger.info(f'{progress}:Classroom found.')
+                if apex_cr != ps_cr:
+                    self.logger.info('Updating record '
+                                     + str(ps_cr.import_classroom_id))
+                    r = ps_cr.put_to_apex(session=self.session)
+                    self.logger.info('Received response: ' + str(r.status_code))
             except KeyError:
                 raise exceptions.ApexMalformedJsonException(section)
             except exceptions.ApexObjectNotFoundException:
