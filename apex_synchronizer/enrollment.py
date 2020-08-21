@@ -200,7 +200,7 @@ class ApexEnrollment(BaseEnrollment):
             self._all_students = student_ids
             self.logger.info('Retrieved Apex student information')
         self.logger.debug('Creating ApexStudent index')
-        self._apex_index = {student.import_user_id: student
+        self._apex_index = {int(student.import_user_id): student
                             for student in self._all_students}
         self.logger.info('Getting all Apex classrooms.')
         self._classroom_index = {int(c.import_classroom_id): c
@@ -241,10 +241,10 @@ class ApexEnrollment(BaseEnrollment):
         return self._apex_index[int(eduid)]
 
     def get_classroom_for_id(self, c_id: int) -> ApexClassroom:
-        return self._classroom_index[c_id]
+        return self._classroom_index[int(c_id)]
 
     def get_student_for_id(self, user_id: int) -> ApexStudent:
-        return self._apex_index[user_id]
+        return self._apex_index[int(user_id)]
 
     @property
     def classrooms(self) -> Set:
