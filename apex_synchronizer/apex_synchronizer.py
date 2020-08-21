@@ -1,8 +1,11 @@
 from collections import defaultdict, KeysView
 from dataclasses import dataclass
+from os import environ
+from pathlib import Path
 from typing import Collection, List, Set, Union
 import json
 import logging
+import pickle
 
 import requests
 
@@ -15,6 +18,7 @@ from .enrollment import ApexEnrollment, PSEnrollment, PSStudent
 from .exceptions import ApexStudentNoEmailException, ApexMalformedEmailException
 from .ps_agent import fetch_students, fetch_staff
 
+PICKLE_DIR = Path('serial')
 
 @dataclass
 class StudentTuple(object):
@@ -60,6 +64,8 @@ class ApexSynchronizer(object):
         self.session = ApexSession()
         self.logger = logging.getLogger(__name__)
         self.batch_jobs = []
+        self.apex_enroll = None
+        self.ps_enroll = None
 
     def run_schedule(self, s: ApexSchedule):
         """
@@ -81,10 +87,20 @@ class ApexSynchronizer(object):
         if self._has_enrollment():
             return
 
+        use_serial = bool(environ.get('USE_PICKLE', False))
+        cache_apex = bool(environ.get('CACHE_APEX', False))
+        apex_path = PICKLE_DIR / 'apex_enroll.pickle'
+        if use_serial:
+            self.apex_enroll = pickle.load(open(apex_path, 'rb'))
+        else:
+            self.apex_enroll = ApexEnrollment(session=self.session)
+            self.logger.info('Retrieved enrollment info from Apex.')
         self.ps_enroll = PSEnrollment()
         self.logger.info('Retrieved enrollment info from PowerSchool.')
-        self.apex_enroll = ApexEnrollment(session=self.session)
-        self.logger.info('Retrieved enrollment info from Apex.')
+
+        if cache_apex:
+            self.logger.debug('Caching Apex roster to ' + str(apex_path))
+            pickle.dump(self.apex_enroll, open(apex_path, 'wb+'))
 
     def sync_rosters(self):
         self.logger.info('Beginning roster synchronization.')
