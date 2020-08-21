@@ -9,8 +9,10 @@ from ..apex_session import TokenType
 from ..exceptions import ApexAuthenticationError
 
 BASE_URL = 'https://api.apexvs.com/'
-APEX_DATETIME_FORMAT = '%a, %d %b %Y %H:%M:%S %Z'
+APEX_DATETIME_FORMAT = '%a, %d %b %Y %H:%M:%S %Z'  # Apex date format
+# PowerSchool date format; how ApexDataObjects store dates
 PS_DATETIME_FORMAT = '%Y/%m/%d'
+PS_OUTPUT_FORMAT = '%Y-%m-%d'  # How dates are return from PowerQueries
 PUNC_REGEX = re.compile(fr'[{punctuation + " "}]')
 APEX_EMAIL_REGEX = re.compile("^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9]"
                               "(?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:.[a-zA-Z0-9]"

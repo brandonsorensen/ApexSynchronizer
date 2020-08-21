@@ -71,7 +71,7 @@ class ApexClassroom(ApexDataObject):
                  classroom_name: str, product_codes: [str],
                  import_user_id: str,
                  classroom_start_date: str, program_code: str):
-        super().__init__(import_user_id, import_org_id)
+        super().__init__(import_user_id.lower(), import_org_id)
         self.import_classroom_id = import_classroom_id
         self.classroom_name = classroom_name
         self.product_codes = product_codes
@@ -97,6 +97,10 @@ class ApexClassroom(ApexDataObject):
             product_codes = [kwargs['product_codes']]
 
         kwargs['product_codes'] = product_codes
+        ps_dt = datetime.strptime(kwargs['classroom_start_date'],
+                                  adm_utils.PS_OUTPUT_FORMAT)
+        apex_dt = ps_dt.strftime(adm_utils.PS_DATETIME_FORMAT)
+        kwargs['classroom_start_date'] = apex_dt
 
         return cls(**kwargs)
 
