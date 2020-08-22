@@ -553,11 +553,7 @@ def _parse_400_response(r: Response, logger: logging.Logger = None) \
     e: dict
     for e in errors:
         classroom_id = int(e['ImportClassroomId'])
-        for msg, post_error in adm_utils.post_error_map.items():
-            if e['Message'].startswith(msg):
-                ret_val[classroom_id] = post_error
-
-        if classroom_id not in ret_val.keys():
-            ret_val[classroom_id] = adm_utils.PostErrors.Unrecognized
+        msg = e['Message']
+        ret_val[classroom_id] = adm_utils.PostErrors.get_for_message(msg)
 
     return ret_val
