@@ -183,6 +183,8 @@ class ApexSynchronizer(object):
 
             to_enroll = []
             for ps_st in student_list:
+                if ps_st == 443432287:
+                    breakpoint()
                 try:
                     to_enroll.append(self.apex_enroll.get_student_for_id(ps_st))
                 except KeyError:
@@ -198,7 +200,21 @@ class ApexSynchronizer(object):
                 self.logger.debug(f'{diff} students will not be added.')
 
             r = apex_classroom.enroll(to_enroll, session=self.session)
-            self.logger.info('Received response: ' + str(r.status_code))
+            try:
+                r.raise_for_status()
+            except requests.HTTPError:
+                to_json = r.json()
+                msg = 'enrollment already exists'
+                if 'studentUsers' in to_json.keys():
+                    for user in to_json['studentUsers']:
+                        if int(user['Code']) == 200:
+                            continue
+                        if user['Message'].lower().startswith(msg):
+                            self.logger.info('Student already enrolled.: '
+                                             f'{r.status_code}\n{r.text}')
+                        else:
+                            self.logger.info('Could not add student. Received '
+                                             'the following error:\n' + user)
             n_entries_changed += len(to_enroll)
         self.logger.info(f'Updated {n_entries_changed} enrollment records.')
 
