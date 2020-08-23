@@ -269,8 +269,9 @@ class ApexDataObject(ABC):
         payload = self.to_json()
         del payload[self.main_id]  # Given in the URL
         # We don't want to update a password
-        if 'LoginPw' in payload.keys():
-            del payload['LoginPw']
+        for key in ('LoginPw', 'Role'):
+            if key in payload.keys():
+                del payload[key]
 
         return payload
 
