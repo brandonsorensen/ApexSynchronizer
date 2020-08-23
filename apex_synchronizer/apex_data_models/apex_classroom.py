@@ -240,7 +240,13 @@ class ApexClassroom(ApexDataObject):
                     f'to {new_teacher.import_user_id}.')
         current_teacher = ApexStaffMember.get(self.import_user_id,
                                               token=token, session=session)
-        self.withdraw(current_teacher, token=token, session=session)
+
+        r = self.withdraw(current_teacher, token=token, session=session)
+        try:
+            r.raise_for_status()
+        except requests.HTTPError:
+            return
+
         self.enroll(new_teacher, token=token, session=session)
 
     def withdraw(self, obj: Union[ApexUser, int, str],
@@ -282,7 +288,12 @@ class ApexClassroom(ApexDataObject):
         url = urljoin(url + '/', str(user_id))
         logger.info('Withdrawing user from classroom.')
         r = agent.delete(url=url)
-        logger.debug('Received response: ' + str(r))
+        try:
+            r.raise_for_status()
+            logger.debug('Successfully withdrawn')
+        except requests.HTTPError:
+            logger.debug('Failed to withdraw; received response\n'
+                         + r.text)
         return r
 
     def get_reports(self, token: TokenType = None,
