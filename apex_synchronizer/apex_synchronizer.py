@@ -200,6 +200,7 @@ class ApexSynchronizer(object):
                 self.logger.debug(f'{diff} students will not be added.')
 
             r = apex_classroom.enroll(to_enroll, session=self.session)
+            n_errors = 0
             try:
                 r.raise_for_status()
             except requests.HTTPError:
@@ -217,7 +218,12 @@ class ApexSynchronizer(object):
                         else:
                             self.logger.info('Could not add student. Received '
                                              'the following error:\n' + user)
-            n_entries_changed += len(to_enroll)
+                        n_errors += 1
+                else:
+                    raise exceptions.ApexMalformedJsonException(to_json)
+            n_entries_changed += len(to_enroll) - n_errors
+            if n_errors:
+                self.logger.debug(f'Received {n_errors} errors.')
         self.logger.info(f'Updated {n_entries_changed} enrollment records.')
 
     def enroll_students(self, student_ids: Collection[int]):
