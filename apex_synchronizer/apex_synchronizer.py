@@ -210,8 +210,10 @@ class ApexSynchronizer(object):
                         if int(user['Code']) == 200:
                             continue
                         if user['Message'].lower().startswith(msg):
-                            self.logger.info('Student already enrolled.: '
-                                             f'{r.status_code}\n{r.text}')
+                            user_id = user['ImportUserId']
+                            self.logger.info(f'Student \"{user_id}\" already '
+                                             'enrolled.')
+
                         else:
                             self.logger.info('Could not add student. Received '
                                              'the following error:\n' + user)
