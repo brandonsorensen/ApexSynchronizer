@@ -199,6 +199,10 @@ class ApexSynchronizer(object):
             if diff:
                 self.logger.debug(f'{diff} students will not be added.')
 
+            if len(to_enroll) == 0:
+                self.logger.info('Not eligible student to enroll.')
+                continue
+
             r = apex_classroom.enroll(to_enroll, session=self.session)
             n_errors = 0
             try:
