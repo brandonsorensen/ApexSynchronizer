@@ -213,7 +213,12 @@ class ApexClassroom(ApexDataObject):
         payload = json.dumps(payload)
         logger.info('Posting payload.')
         r = agent.post(url=url, headers=header, data=payload)
-        logger.debug('Received response ' + str(r.status_code))
+        try:
+            r.raise_for_status()
+            logger.debug('Received response ' + str(r.status_code))
+        except requests.HTTPError:
+            logger.debug('Enrollment failed with the following response:\n'
+                         + r.text)
         return r
 
     def change_teacher(self, new_teacher: Union['ApexStaffMember', str],
