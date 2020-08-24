@@ -150,6 +150,7 @@ class ApexSynchronizer(object):
             self.logger.info('Apex roster agrees with PowerSchool')
 
     def sync_staff(self):
+        self.init_staff()
         self.logger.info('Posting staff members.')
         try:
             r = ApexStaffMember.post_batch(list(self.staff.values()),
