@@ -206,6 +206,7 @@ class ApexSynchronizer(object):
 
             r = apex_classroom.enroll(to_enroll, session=self.session)
             n_errors = 0
+            already_exist = 0
             try:
                 r.raise_for_status()
             except requests.HTTPError:
@@ -219,6 +220,7 @@ class ApexSynchronizer(object):
                             user_id = user['ImportUserId']
                             self.logger.info(f'Student \"{user_id}\" already '
                                              'enrolled.')
+                            already_exist += 1
 
                         else:
                             self.logger.info('Could not add student. Received '
@@ -229,6 +231,11 @@ class ApexSynchronizer(object):
             n_entries_changed += len(to_enroll) - n_errors
             if n_errors:
                 self.logger.debug(f'Received {n_errors} errors.')
+
+            if already_exist:
+                self.logger.debug(f'Of {n_errors} errors, {already_exist}'
+                                  f'{already_exist / n_errors} are \"already'
+                                  'exists\" errors.')
         self.logger.info(f'Updated {n_entries_changed} enrollment records.')
 
     def enroll_students(self, student_ids: Collection[int]):
