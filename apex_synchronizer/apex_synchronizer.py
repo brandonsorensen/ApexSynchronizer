@@ -110,7 +110,7 @@ class ApexSynchronizer(object):
             try:
                 apex_sm = ApexStaffMember.from_powerschool(sm)
                 if int(apex_sm.import_org_id) == 616:
-                    self.staff[int(apex_sm.import_user_id)] = apex_sm
+                    self.staff[apex_sm.import_user_id] = apex_sm
             except exceptions.ApexEmailException as e:
                 self.logger.info(e)
         self.logger.info(f'Successfully retrieved {len(self.staff)} '
