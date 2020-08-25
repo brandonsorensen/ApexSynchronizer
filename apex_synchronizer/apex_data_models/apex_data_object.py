@@ -503,6 +503,9 @@ class ApexUser(ApexDataObject, ABC):
         self.first_name = first_name
         self.middle_name = middle_name
         self.last_name = last_name
+        if not email:
+            raise exceptions.ApexStaffNoEmailException(self.first_last)
+
         try:
             super().__init__(import_user_id, import_org_id)
         except exceptions.NoUserIdException:

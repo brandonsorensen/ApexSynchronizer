@@ -109,7 +109,7 @@ class ApexSynchronizer(object):
         for sm in fetch_staff():
             try:
                 apex_sm = ApexStaffMember.from_powerschool(sm)
-                if int(apex_sm.import_org_id) == 616:
+                if int(apex_sm.import_org_id) in (501, 616):
                     self.staff[apex_sm.import_user_id] = apex_sm
             except exceptions.ApexEmailException as e:
                 self.logger.info(e)
@@ -184,8 +184,6 @@ class ApexSynchronizer(object):
 
             to_enroll = []
             for ps_st in student_list:
-                if ps_st == 443432287:
-                    breakpoint()
                 try:
                     to_enroll.append(self.apex_enroll.get_student_for_id(ps_st))
                 except KeyError:
@@ -410,7 +408,9 @@ def init_students_for_ids(student_ids: Collection[int]) -> List[ApexStudent]:
                 continue
             try:
                 logger.info(f'Creating student for EDUID {eduid}')
+                breakpoint()
                 apex_student = ApexStudent.from_powerschool(obj)
+                #if int(apex_student.import_org_id) == 616:
                 seen_eduids.add(eduid)
                 apex_students.append(apex_student)
             except ApexStudentNoEmailException:
@@ -428,12 +428,13 @@ def post_students(apex_students: List[ApexStudent], token: TokenType = None,
     logger = logging.getLogger(__name__)
     logger.info(f'Posting {len(apex_students)} students.')
     r = ApexStudent.post_batch(apex_students, token=token, session=session)
+    breakpoint()
     try:
         r.raise_for_status()
         logger.debug('Received status code ' + str(r.status_code))
     except requests.exceptions.HTTPError:
-        logger.exception('Failed to POST students. Received status '
-                         + str(r.status_code))
+        logger.exception('Failed to POST students. Received response:\n'
+                         + str(r.text))
 
         as_json = r.json()
         if type(as_json) is dict:

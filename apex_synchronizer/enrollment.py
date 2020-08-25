@@ -156,6 +156,9 @@ class PSEnrollment(BaseEnrollment):
                                   'Skipping.\n' + str(entry))
                 continue
             eduid, org_id = int(eduid), int(org_id)
+            grade_level = int(entry['grade_level'])
+            if org_id == 615 and grade_level not in range(7, 9):
+                continue
             student = PSStudent(eduid, org_id)
             if eduid and eduid not in self._student2classrooms.keys():
                 self._student2classrooms[student.import_user_id] = set()
