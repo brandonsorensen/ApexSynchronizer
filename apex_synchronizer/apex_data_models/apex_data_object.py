@@ -504,12 +504,12 @@ class ApexUser(ApexDataObject, ABC):
         self.middle_name = middle_name
         self.last_name = last_name
         if not email:
-            raise exceptions.ApexStaffNoEmailException(self.first_last)
+            raise exceptions.ApexNoEmailException(self.first_last)
 
         try:
             super().__init__(import_user_id, import_org_id)
         except exceptions.NoUserIdException:
-            raise exceptions.ApexStaffNoEmailException(self.first_last)
+            raise exceptions.ApexNoEmailException(self.first_last)
 
         if not re.match(adm_utils.APEX_EMAIL_REGEX, email):
             raise exceptions.ApexMalformedEmailException(self.import_user_id,

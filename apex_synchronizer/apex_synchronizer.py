@@ -15,7 +15,7 @@ from .apex_data_models.apex_classroom import walk_ps_sections
 from .apex_schedule import ApexSchedule
 from .apex_session import ApexSession, TokenType
 from .enrollment import ApexEnrollment, PSEnrollment, PSStudent
-from .exceptions import ApexStudentNoEmailException, ApexMalformedEmailException
+from .exceptions import ApexNoEmailException, ApexMalformedEmailException
 from .ps_agent import fetch_students, fetch_staff
 
 PICKLE_DIR = Path('serial')
@@ -413,7 +413,7 @@ def init_students_for_ids(student_ids: Collection[int]) -> List[ApexStudent]:
                 #if int(apex_student.import_org_id) == 616:
                 seen_eduids.add(eduid)
                 apex_students.append(apex_student)
-            except ApexStudentNoEmailException:
+            except ApexNoEmailException:
                 logger.info(f'Student with EDUID "{eduid}" has no email.'
                             'Skipping...')
             except ApexMalformedEmailException as e:
