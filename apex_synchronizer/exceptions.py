@@ -48,22 +48,13 @@ class ApexEmailException(ApexDataObjectException):
                 'Apex data object.')
 
 
-class ApexStudentNoEmailException(ApexEmailException):
-
-    def __init__(self, import_user_id):
-        self.user_id = import_user_id
-
-    def __str__(self):
-        return f'Student with EDUID {self.user_id} has no email.'
-
-
-class ApexStaffNoEmailException(ApexEmailException):
+class ApexNoEmailException(ApexEmailException):
 
     def __init__(self, name):
         self.name = name
 
     def __str__(self):
-        return f'Staff member "{self.name}" does not have an email address.'
+        return f'User "{self.name}" does not have an email address.'
 
 
 class ApexMalformedEmailException(ApexEmailException):
