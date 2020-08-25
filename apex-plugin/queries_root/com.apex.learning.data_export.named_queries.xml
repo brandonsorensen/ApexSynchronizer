@@ -29,7 +29,6 @@
 						INNER JOIN u_def_ext_students
 						ON students.dcid = u_def_ext_students.studentsdcid
 				WHERE   students.schoolid in (501, 601, 615, 616)
-						AND students.Grade_Level in (7, 8)
 						AND students.Enroll_Status = 0
 				ORDER BY students.id
 			]]>
