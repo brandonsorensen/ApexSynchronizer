@@ -408,7 +408,6 @@ def init_students_for_ids(student_ids: Collection[int]) -> List[ApexStudent]:
                 continue
             try:
                 logger.info(f'Creating student for EDUID {eduid}')
-                breakpoint()
                 apex_student = ApexStudent.from_powerschool(obj)
                 #if int(apex_student.import_org_id) == 616:
                 seen_eduids.add(eduid)
@@ -428,7 +427,6 @@ def post_students(apex_students: List[ApexStudent], token: TokenType = None,
     logger = logging.getLogger(__name__)
     logger.info(f'Posting {len(apex_students)} students.')
     r = ApexStudent.post_batch(apex_students, token=token, session=session)
-    breakpoint()
     try:
         r.raise_for_status()
         logger.debug('Received status code ' + str(r.status_code))
@@ -439,10 +437,12 @@ def post_students(apex_students: List[ApexStudent], token: TokenType = None,
         as_json = r.json()
         if type(as_json) is dict:
             logger.info('Found duplicates.')
-            put_duplicates(as_json, apex_students, token)
+            put_duplicates(as_json, apex_students, token=token,
+                           session=session)
         elif type(as_json) is list:
             logger.info('Removing invalid entries.')
-            repost_students(as_json, apex_students, token)
+            repost_students(as_json, apex_students, token=token,
+                            session=session)
         else:
             logger.exception('Response text:\n' + r.text)
 
