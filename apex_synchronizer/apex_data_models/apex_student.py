@@ -47,6 +47,9 @@ class ApexStudent(ApexUser):
     def __init__(self, import_user_id: Union[int, str],
                  import_org_id: Union[int, str], first_name: str,
                  middle_name: str, last_name: str, email: str, grade_level: int):
+        # We don't like middle schoolers going to middle school
+        if str(import_org_id) == '615':
+            import_org_id = '616'
         super().__init__(import_user_id=import_user_id,
                          import_org_id=import_org_id, first_name=first_name,
                          middle_name=middle_name, last_name=last_name,

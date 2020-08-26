@@ -38,9 +38,11 @@ class StudentTuple(object):
     def matching(self):
         if not self.all():
             return False
+        if self.powerschool.import_org_id == 615:
+            self.powerschool.import_org_id += 1
         return (
             int(self.apex.import_user_id) == self.powerschool.import_user_id
-            and self.apex.import_org_id == self.powerschool.import_org_id
+            and int(self.apex.import_org_id) == self.powerschool.import_org_id
         )
 
     def update_apex(self):
@@ -134,11 +136,10 @@ class ApexSynchronizer(object):
             self.logger.info('PowerSchool roster agrees with Apex roster.')
 
         if len(to_update) > 0:
-            # TODO
-            print(to_update)
-
-            # for student in to_update:
-            #     student.put_to_apex(session=self.session)
+            for student in to_update:
+                r = student.put_to_apex(session=self.session)
+                self.logger.info('Recieved response from PUT call:\n'
+                                 + str(r.text))
         else:
             self.logger.info('All records match one another. None to update.')
 
@@ -222,7 +223,7 @@ class ApexSynchronizer(object):
 
                         else:
                             self.logger.info('Could not add student. Received '
-                                             'the following error:\n' + user)
+                                             'the following error:\n' + str(user))
                         n_errors += 1
                 else:
                     raise exceptions.ApexMalformedJsonException(to_json)
