@@ -235,7 +235,55 @@ class ApexSynchronizer(object):
                 self.logger.debug(f'Of {n_errors} errors, {already_exist}'
                                   f'{already_exist / n_errors}% are \"already'
                                   'exists\" errors.')
+
+        self._withdraw_students()
         self.logger.info(f'Updated {n_entries_changed} enrollment records.')
+
+    def _withdraw_students(self):
+        """
+        Finds all classes in which a student is no longer enrolled and
+        withdraws them in Apex.
+        """
+        self.init_enrollment()
+        self.logger.info('Finding instances in which students are enrolled in '
+                         'a class in Apex but not PowerSchool.')
+        n_students = len(self.apex_enroll.roster)
+        for i, eduid in enumerate(self.apex_enroll.roster):
+            prog = f'{i + 1}/{n_students}:{eduid}:'
+            self.logger.info(f'{prog}Checking for classes from which '
+                             'to withdraw.')
+            apex_class_ids = self.apex_enroll.get_classrooms(eduid)
+            try:
+                ps_class_ids = self.ps_enroll.get_classrooms(eduid)
+            except KeyError:
+                self.logger.info(f'Student "{eduid}" does not exist in Apex '
+                                 'roster. Sync rosters and try again.')
+                continue
+
+            to_withdraw = apex_class_ids - ps_class_ids
+
+            if not to_withdraw:
+                self.logger.info(f'{prog}Student will not be withdrawn from '
+                                 f'any sections.')
+                continue
+
+            for c_id in to_withdraw:
+                try:
+                    classroom = self.apex_enroll.get_classroom_for_id(c_id)
+                    student = self.apex_enroll.get_student_for_id(eduid)
+                except KeyError as ke:
+                    # This should be impossible, but we'll catch it just in case
+                    raise exceptions.ApexError(e=ke)
+
+                r = classroom.withdraw(student, session=self.session)
+                try:
+                    r.raise_for_status()
+                    self.logger.info(f'{prog}Successfully withdrawn from '
+                                     f'"{c_id}".')
+                except requests.HTTPError:
+                    self.logger.info(f'{prog}Could not withdraw student from '
+                                     f'"{c_id}". Received response:\n'
+                                     + str(r.text))
 
     def enroll_students(self, student_ids: Collection[int]):
         apex_students = init_students_for_ids(student_ids)
