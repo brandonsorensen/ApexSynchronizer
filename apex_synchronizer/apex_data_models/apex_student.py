@@ -106,7 +106,7 @@ class ApexStudent(ApexUser):
             progress = f'Classroom {i + 1}/{n_classrooms}:id {c_id}:'
             logger.info(f'{progress}:retrieving classroom info from Apex.')
             try:
-                ret_val.append(ApexClassroom.get(token, str(c_id)))
+                ret_val.append(ApexClassroom.get(c_id, session=session))
             except exceptions.ApexObjectNotFoundException:
                 logger.info(f'Could not retrieve classroom {c_id}. Skipping..')
             except exceptions.ApexConnectionException:
@@ -138,7 +138,14 @@ class ApexStudent(ApexUser):
                           params={'isActiveOnly': True})
         try:
             r.raise_for_status()
-            return [int(student['ImportClassroomId']) for student in r.json()]
+            ret_val = []
+            for student in r.json():
+                c_id = student['ImportClassroomId']
+                if not c_id:
+                    continue
+                ret_val.append(int(c_id))
+            return ret_val
+
         except requests.exceptions.HTTPError:
             raise exceptions.ApexObjectNotFoundException(self.import_user_id)
         except KeyError:

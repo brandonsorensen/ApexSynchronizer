@@ -215,7 +215,7 @@ class ApexSynchronizer(object):
                             continue
                         if user['Message'].lower().startswith(msg):
                             user_id = user['ImportUserId']
-                            self.logger.info(f'Student \"{user_id}\" already '
+                            self.logger.debug(f'Student \"{user_id}\" already '
                                              'enrolled.')
                             already_exist += 1
 
@@ -230,9 +230,9 @@ class ApexSynchronizer(object):
                 self.logger.debug(f'Received {n_errors} errors.')
 
             if already_exist:
-                self.logger.debug(f'Of {n_errors} errors, {already_exist}'
-                                  f'{already_exist / n_errors}% are \"already'
-                                  'exists\" errors.')
+                self.logger.debug(f'Of {n_errors} errors, {already_exist} '
+                                  f'({already_exist / n_errors}%) are \"already'
+                                  ' exists\" errors.')
 
         self._withdraw_students()
         self.logger.info(f'Updated {n_entries_changed} enrollment records.')
