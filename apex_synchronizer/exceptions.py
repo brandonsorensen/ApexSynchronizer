@@ -3,8 +3,15 @@ from typing import Union
 
 class ApexError(Exception):
 
+    def __init__(self, e=None):
+        self.error = e
+
     def __str__(self):
-        return 'There was an error when interfacing with the Apex API.'
+        out = 'There was an error when interfacing with the Apex API'
+        if self.error is None:
+            return out + '.'
+        else:
+            return f'{out}:\n{self.error}'
 
 
 class ApexConnectionException(ApexError):
