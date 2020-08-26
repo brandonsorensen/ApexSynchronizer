@@ -330,6 +330,9 @@ class ApexSynchronizer(object):
                 raise exceptions.ApexMalformedJsonException(section)
             try:
                 section_id = section['section_id']
+                if not section_id:
+                    self.logger.info('No classroom ID give for object below. '
+                                     'Skipping.\n' + str(section))
                 self.logger.info(f'{progress}:Attempting to fetch classroom with'
                                  f' ID {section_id}.')
                 apex_cr = ApexClassroom.get(section_id, session=self.session)
