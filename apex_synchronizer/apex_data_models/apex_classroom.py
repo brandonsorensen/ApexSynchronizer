@@ -109,7 +109,8 @@ class ApexClassroom(ApexDataObject):
     def _parse_get_response(cls, r: Response) -> 'ApexClassroom':
         kwargs, json_obj = cls._init_kwargs_from_get(r)
 
-        kwargs['program_code'] = course2program_code[int(kwargs['import_org_id'])]
+        org_id = int(kwargs['import_org_id'])
+        kwargs['program_code'] = course2program_code[org_id]
         kwargs['classroom_name'] = json_obj['ClassroomName']
         date = datetime.strptime(kwargs['classroom_start_date'],
                                  adm_utils.APEX_DATETIME_FORMAT)
@@ -117,7 +118,8 @@ class ApexClassroom(ApexDataObject):
             adm_utils.PS_DATETIME_FORMAT
         )
         teacher = teacher_fuzzy_match(json_obj['PrimaryTeacher'],
-                                      cls._all_ps_teachers)
+                                      org=org_id,
+                                      teachers=cls._all_ps_teachers)
         kwargs['import_user_id'] = teacher.import_user_id
 
         return cls(**kwargs)
@@ -380,7 +382,8 @@ class ApexClassroom(ApexDataObject):
         return new_classroom.put_to_apex(token=token, session=session)
 
 
-def teacher_fuzzy_match(t1: str, teachers: Collection[ApexStaffMember] = None) \
+def teacher_fuzzy_match(t1: str, org: Union[str, int] = None,
+                        teachers: Collection[ApexStaffMember] = None) \
         -> ApexStaffMember:
     """
     Takes the forename and surname of a teacher in the form of a single
@@ -395,6 +398,8 @@ def teacher_fuzzy_match(t1: str, teachers: Collection[ApexStaffMember] = None) \
     performance.
 
     :param t1: teacher name in the format of "Forename Surname"
+    :param org: the school to which the teacher belongs, to make search
+        quicker and more accurate, optional
     :param teachers: an optional list of teachers as ApexStaffMember
         objs
     :return: the closest match as measured by Levenshtein distance
@@ -419,9 +424,13 @@ def teacher_fuzzy_match(t1: str, teachers: Collection[ApexStaffMember] = None) \
     min_distance = float('inf')
     argmax = 0
     t1 = t1.lower()
+    org_id = int(org) if org is not None else None
 
     for i, t2 in enumerate(teachers):
         t2_name = t2.first_last
+        t2_org = int(t2.import_org_id)
+        if org_id is not None and org_id != t2_org:
+            continue
         if abs(len(t1) - len(t2_name)) >= 5 and min_distance != float('inf'):
             # Difference in length of 5 is too large for this context
             continue
