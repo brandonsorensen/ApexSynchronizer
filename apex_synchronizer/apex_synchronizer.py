@@ -67,8 +67,7 @@ class ApexSynchronizer(object):
         self.logger = logging.getLogger(__name__)
         self.batch_jobs = []
         self.staff = {}
-        self.apex_enroll: ApexEnrollment = None
-        self.ps_enroll: PSEnrollment = None
+        self.apex_enroll, self.ps_enroll = self.init_enrollment()
 
     def run_schedule(self, s: ApexSchedule):
         """
@@ -94,16 +93,18 @@ class ApexSynchronizer(object):
         cache_apex = bool(int(environ.get('CACHE_APEX', False)))
         apex_path = PICKLE_DIR / 'apex_enroll.pickle'
         if use_serial:
-            self.apex_enroll = pickle.load(open(apex_path, 'rb'))
+            apex_enroll = pickle.load(open(apex_path, 'rb'))
         else:
-            self.apex_enroll = ApexEnrollment(session=self.session)
+            apex_enroll = ApexEnrollment(session=self.session)
             self.logger.info('Retrieved enrollment info from Apex.')
-        self.ps_enroll = PSEnrollment()
+        ps_enroll = PSEnrollment()
         self.logger.info('Retrieved enrollment info from PowerSchool.')
 
         if cache_apex:
             self.logger.debug('Caching Apex roster to ' + str(apex_path))
             pickle.dump(self.apex_enroll, open(apex_path, 'wb+'))
+
+        return apex_enroll, ps_enroll
 
     def init_staff(self):
         self.staff = {}
@@ -120,8 +121,6 @@ class ApexSynchronizer(object):
 
     def sync_rosters(self):
         self.logger.info('Beginning roster synchronization.')
-
-        self.init_enrollment()
         self.logger.info('Comparing enrollment information.')
         to_enroll = self.ps_roster - self.apex_roster
         to_withdraw = self.apex_roster - self.ps_roster
@@ -167,7 +166,6 @@ class ApexSynchronizer(object):
             self.batch_jobs.append(e.status_token)
 
     def sync_classroom_enrollment(self):
-        self.init_enrollment()
         self.logger.info('Syncing classroom enrollments.')
         c2s = self.ps_enroll.classroom2students.items()
         n_classrooms = len(c2s)
@@ -244,7 +242,6 @@ class ApexSynchronizer(object):
         Finds all classes in which a student is no longer enrolled and
         withdraws them in Apex.
         """
-        self.init_enrollment()
         self.logger.info('Finding instances in which students are enrolled in '
                          'a class in Apex but not PowerSchool.')
         n_students = len(self.apex_enroll.roster)
@@ -252,9 +249,9 @@ class ApexSynchronizer(object):
             prog = f'{i + 1}/{n_students}:{eduid}:'
             self.logger.info(f'{prog}Checking for classes from which '
                              'to withdraw.')
-            apex_class_ids = self.apex_enroll.get_classrooms(eduid)
+            apex_class_ids = set(self.apex_enroll.get_classrooms(eduid))
             try:
-                ps_class_ids = self.ps_enroll.get_classrooms(eduid)
+                ps_class_ids = set(self.ps_enroll.get_classrooms(eduid))
             except KeyError:
                 self.logger.info(f'Student "{eduid}" does not exist in Apex '
                                  'roster. Sync rosters and try again.')
@@ -297,30 +294,17 @@ class ApexSynchronizer(object):
             return False
 
     @property
-    def apex_roster(self) -> Union[Set[int], KeysView]:
+    def apex_roster(self) -> KeysView:
         """
         Avoids creating an ApexEnrollment object if it doesn't
         have to.
         """
-        try:
-            return self.apex_enroll.roster
-        except AttributeError:
-            try:
-                return self._apex_roster
-            except AttributeError:
-                token = self.session.access_token
-                self._apex_roster = set(ApexStudent.get_all(token=token,
-                                                            ids_only=True))
-                return self._apex_roster
+        return self.apex_enroll.roster
 
     @property
     def ps_roster(self) -> KeysView:
         """Exists only to mirror the `apex_roster` method."""
-        try:
-            return self.ps_enroll.roster
-        except AttributeError:
-            self.ps_enroll = PSEnrollment()
-            return self.ps_enroll.roster
+        return self.ps_enroll.roster
 
     def sync_classrooms(self):
         """
