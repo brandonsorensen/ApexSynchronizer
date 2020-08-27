@@ -2,7 +2,7 @@ from collections import defaultdict, KeysView
 from dataclasses import dataclass
 from os import environ
 from pathlib import Path
-from typing import Collection, List, Set, Union
+from typing import Collection, List
 import json
 import logging
 import pickle
@@ -19,6 +19,7 @@ from .exceptions import ApexNoEmailException, ApexMalformedEmailException
 from .ps_agent import fetch_students, fetch_staff
 
 PICKLE_DIR = Path('serial')
+
 
 @dataclass
 class StudentTuple(object):
@@ -216,7 +217,7 @@ class ApexSynchronizer(object):
                         if user['Message'].lower().startswith(msg):
                             user_id = user['ImportUserId']
                             self.logger.debug(f'Student \"{user_id}\" already '
-                                             'enrolled.')
+                                              'enrolled.')
                             already_exist += 1
 
                         else:
@@ -454,7 +455,6 @@ def init_students_for_ids(student_ids: Collection[int]) -> List[ApexStudent]:
             try:
                 logger.info(f'Creating student for EDUID {eduid}')
                 apex_student = ApexStudent.from_powerschool(obj)
-                #if int(apex_student.import_org_id) == 616:
                 seen_eduids.add(eduid)
                 apex_students.append(apex_student)
             except ApexNoEmailException:
