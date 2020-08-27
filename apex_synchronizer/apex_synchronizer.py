@@ -230,9 +230,16 @@ class ApexSynchronizer(object):
                 self.logger.debug(f'Received {n_errors} errors.')
 
             if already_exist:
-                self.logger.debug(f'Of {n_errors} errors, {already_exist} '
-                                  f'({already_exist / n_errors}%) are \"already'
-                                  ' exists\" errors.')
+                # TODO: Should already detect already exist errors
+                # before putting
+                pct_already_exist = already_exist / n_errors
+                no_changes = pct_already_exist == 1
+                if no_changes:
+                    self.logger.info('No entries were updated.')
+                else:
+                    self.logger.debug(f'Of {n_errors} errors, {already_exist} '
+                                      f'({pct_already_exist * 100}%) are \"already'
+                                      ' exists\" errors.')
 
         self._withdraw_students()
         self.logger.info(f'Updated {n_entries_changed} enrollment records.')
