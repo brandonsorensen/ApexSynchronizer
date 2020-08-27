@@ -256,7 +256,6 @@ class ApexDataObject(ABC):
         else:
             header = None
         payload = self._get_put_payload()
-
         r = agent.put(url=url, headers=header, data=json.dumps(payload))
         return r
 
@@ -269,7 +268,7 @@ class ApexDataObject(ABC):
         payload = self.to_json()
         del payload[self.main_id]  # Given in the URL
         # We don't want to update a password
-        for key in ('LoginPw', 'Role'):
+        for key in ('LoginPw',):
             if key in payload.keys():
                 del payload[key]
 
