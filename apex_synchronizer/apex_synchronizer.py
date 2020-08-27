@@ -102,7 +102,7 @@ class ApexSynchronizer(object):
 
         if cache_apex:
             self.logger.debug('Caching Apex roster to ' + str(apex_path))
-            pickle.dump(self.apex_enroll, open(apex_path, 'wb+'))
+            pickle.dump(apex_enroll, open(apex_path, 'wb+'))
 
         return apex_enroll, ps_enroll
 
@@ -344,9 +344,11 @@ class ApexSynchronizer(object):
                                      + str(ps_cr.import_classroom_id))
                     r = ps_cr.put_to_apex(session=self.session)
                     self.logger.info('Received response: ' + str(r.status_code))
+                    if (apex_cr.import_user_id == 'naylmary@sd351.k12.id.us'
+                        or ps_cr.import_user_id == 'naylmary@sd351.k12.id.us'):
+                        breakpoint()
                     apex_cr.update(ps_cr, session=self.session)
-                    if self.apex_enroll is not None:
-                        self.apex_enroll.update_classroom(ps_cr)
+                    self.apex_enroll.update_classroom(ps_cr)
                     updated += 1
             except KeyError:
                 raise exceptions.ApexMalformedJsonException(section)
