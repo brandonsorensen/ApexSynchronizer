@@ -88,16 +88,20 @@ class ApexStudent(ApexUser):
 
         return cls(**kwargs)
 
-    def get_enrollments(self, token: TokenType = None,
+    def get_enrollments(self, active_only: bool = True, token: TokenType = None,
                         session: requests.Session = None) \
             -> Optional[List['ApexClassroom']]:
         """
         Gets all classes in which this :class:`ApexStudent` is enrolled.
 
         :param token: an Apex access token
+        :param bool active_only: whether or not to only retrieve active
+            enrollments
+        :param session: an existing Apex session
         :return: a list of ApexClassroom objects
         """
-        classroom_ids = self.get_enrollment_ids(token=token, session=session)
+        classroom_ids = self.get_enrollment_ids(active_only=active_only,
+                                                token=token, session=session)
         ret_val = []
         n_classrooms = len(classroom_ids)
         logger = logging.getLogger(__name__)
@@ -115,7 +119,7 @@ class ApexStudent(ApexUser):
 
         return ret_val
 
-    def get_enrollment_ids(self, token: TokenType = None,
+    def get_enrollment_ids(self, active_only=True, token: TokenType = None,
                            session: requests.Session = None) -> List[int]:
         """
         Gets the `ImportClassroomId` of all objects in which the student
@@ -125,6 +129,9 @@ class ApexStudent(ApexUser):
         made.
 
         :param token: an Apex access token
+        :param bool active_only: whether or not to only retrieve active
+            enrollments
+        :param session: an existing Apex session
         :return: a list of IDs for each classroom in which the student
             is enrolled
         :rtype: List[int]
@@ -135,7 +142,7 @@ class ApexStudent(ApexUser):
         else:
             header = get_header(token)
             r = agent.get(url=self.classroom_url, headers=header,
-                          params={'isActiveOnly': True})
+                          params={'isActiveOnly': active_only})
         try:
             r.raise_for_status()
             ret_val = []
@@ -147,7 +154,7 @@ class ApexStudent(ApexUser):
             return ret_val
 
         except requests.exceptions.HTTPError:
-            raise exceptions.ApexObjectNotFoundException(self.import_user_id)
+            return []
         except KeyError:
             raise exceptions.ApexMalformedJsonException(r.json())
 
@@ -189,12 +196,16 @@ class ApexStudent(ApexUser):
         :param session: an existing `requests.Session` object
         :return: the response of the PUT call
         """
-        classroom = ApexClassroom.get(token, classroom_id)
+        classroom = ApexClassroom.get(classroom_id, token=token,
+                                      session=session)
         return classroom.enroll(self, token=token, session=session)
 
-    def withdraw(self, token: str, classroom_id: str) -> Response:
-        classroom = ApexClassroom.get(token, classroom_id)
-        return classroom.withdraw(token, self.import_user_id)
+    def withdraw(self, classroom_id: str, token: TokenType = None,
+                 session: requests.Session = None) -> Response:
+        classroom = ApexClassroom.get(classroom_id, token=token,
+                                      session=session)
+        return classroom.withdraw(self.import_user_id, token=token,
+                                  session=session)
 
     @property
     def classroom_url(self) -> str:
