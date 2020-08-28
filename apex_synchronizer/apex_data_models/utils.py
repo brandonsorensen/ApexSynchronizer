@@ -20,7 +20,7 @@ APEX_EMAIL_REGEX = re.compile("^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9]"
                               "(?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$|^$/]")
 # How many seconds to wait for a batch to finish processing
 # before moving on
-MAX_BATCH_WAIT_TIME = 180
+MAX_BATCH_WAIT_TIME = 300
 
 
 @dataclass
