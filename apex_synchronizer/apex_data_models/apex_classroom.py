@@ -124,11 +124,6 @@ class ApexClassroom(ApexDataObject):
 
         return cls(**kwargs)
 
-    def get_put_payload(self):
-        payload = super().get_put_payload()
-        del payload['Role']
-        return payload
-
     @classmethod
     def get_all(cls, token: TokenType = None, ids_only: bool = False,
                 archived: bool = False,
@@ -360,6 +355,8 @@ class ApexClassroom(ApexDataObject):
         payload = super().get_put_payload()
         if 'ProgramCode' in payload.keys():
             del payload['ProgramCode']
+        if 'Role' in payload.keys():
+            del payload['Role']
         payload['IsPrimary'] = True
         return payload
 
