@@ -57,6 +57,15 @@ class ApexNoEnrollmentsError(object):
                'enrolled in Apex but has not enrollments.'
 
 
+class ApexUnrecognizedOrganizationError(ApexError):
+    """Used when an org_id is not one of the recognized Oneida orgs."""
+    def __init__(self, org: Union[int, str]):
+        self.org = org
+
+    def __str__(self):
+        return f'{self.org} is not a recognizaed organization.'
+
+
 class ApexIncompleteOperationError(ApexError):
     """
     To be raised when an operation that requires multiple calls to the
