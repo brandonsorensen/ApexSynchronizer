@@ -42,6 +42,17 @@ class ApexObjectNotFoundException(ApexError):
                'be retrieved.'
 
 
+class ApexNoEnrollmentsError(ApexDataObjectException):
+
+    """
+    For use when attempting to fetch enrollments for a student who is
+    enrolled in a school in Apex but not in any classrooms.
+    """
+
+    def __str__(self):
+        return f'Student bearing EDUID "{self.object.import_user_id}" is ' \
+               f'enrolled in Apex but has not enrollments.'
+
 class ApexIncompleteOperationError(ApexError):
     """
     To be raised when an operation that requires multiple calls to the
