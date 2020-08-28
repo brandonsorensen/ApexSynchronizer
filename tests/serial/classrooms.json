@@ -64,27 +64,5 @@
         "section_number": "1001"
       }
     }
-  },
-  {
-    "tables": {
-      "courses": {
-        "course_name": "Algebra 1A Honors (APEX)"
-      },
-      "terms": {
-        "first_day": "2020-08-24"
-      },
-      "teachers": {
-        "teacher_last_name": "Krause",
-        "teacher_id": "NancyK@techtrepacademy.com",
-        "teacher_first_name": "Nancy",
-        "teacher_middle_name": null
-      },
-      "sections": {
-        "school_id": "616",
-        "apex_program_code": null,
-        "section_id": "79719",
-        "section_number": "1"
-      }
-    }
   }
 ]
