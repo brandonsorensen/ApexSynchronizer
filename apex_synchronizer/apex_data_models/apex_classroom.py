@@ -301,12 +301,14 @@ class ApexClassroom(ApexDataObject):
     def update_product_codes(self, new_codes: Union[List[str], str],
                              token: TokenType = None,
                              session: requests.Session = None) \
-            -> [requests.Response]:
+            -> requests.Response:
         """
         Updates the product codes and submits the change to the Apex
         API, returning the response from the PUT call.
 
         :param new_codes: the new product codes to submit to Apex
+        :param token: an Apex access token
+        :param session: an existing Apex session
         :raises exceptions.ApexNoChangeSubmitted: when the codes are
             the same
         :raises ValueError: when new_codes is empty or does not contain
@@ -330,41 +332,9 @@ class ApexClassroom(ApexDataObject):
                          'provided codes are the same as the current ones.')
             raise exceptions.ApexNoChangeSubmitted()
 
-        responses = []
-
-        def commit_operation(code: str, operation: Callable):
-            self.product_codes = [code]
-            r = operation(token=token, session=session)
-            try:
-                r.raise_for_status()
-                responses.append(r)
-                logger.debug('Successfully withdrawn.')
-            except requests.exceptions.RequestException as e:
-                raise exceptions.ApexIncompleteOperationError(e, responses)
-            finally:
-                self.product_codes = old_codes
-
-        to_withdraw = old_codes - new_codes
-        if to_withdraw:
-            logger.debug(f'Withdrawing class "{self.import_classroom_id}" from '
-                         f'{to_withdraw} curricula.')
-
-        for code in to_withdraw:
-            logger.info(f'Withdrawing class "{self.import_classroom_id}" from '
-                        f'product code "{code}".')
-            commit_operation(code, self.delete_from_apex)
-
-        to_enroll = new_codes - old_codes
-        if to_enroll:
-            logger.debug(f'Enrolling class "{self.import_classroom_id}" in '
-                         f'{len(to_enroll)} curricula.')
-        for code in to_enroll:
-            logger.info(f'Enrolling class "{self.import_classroom_id}" in '
-                        f'product code "{code}".')
-            commit_operation(code, self.put_to_apex)
-
-        logger.info('Product codes successfully updated.')
-        return responses
+        self.product_codes = new_codes
+        r = self.put_to_apex(token=token, session=session)
+        return r
 
     def get_reports(self, token: TokenType = None,
                     session: requests.Session = None) -> List[dict]:
@@ -538,6 +508,9 @@ def get_classrooms_for_eduids(eduids: Collection[Union[str, int]],
             logger.info('Could not find student or student is not enrolled in '
                         'any Apex classes: ' + str(eduid))
             eduid_classrooms = []
+        except exceptions.ApexNoEnrollmentsError as e:
+            logger.info(str(e))
+            eduid_classrooms = []
         except exceptions.ApexError:
             logger.exception('Received generic Apex error:\n')
             eduid_classrooms = []
@@ -569,10 +542,11 @@ def _get_classroom_for_eduid(url: str, token: TokenType = None,
                 logger.debug(f'Received unknown response:\n{page_response.json()}')
                 raise requests.exceptions.RequestException()
 
-            if (message == 'Results not found.'
-                    or message == "User doesn't exist."):
+            if message == 'Results not found.':
                 eduid = url.split('/')[-2]
-                # TODO: Distinguish between these two cases
+                raise exceptions.ApexNoEnrollmentsError(eduid)
+            elif message == "User doesn't exist.":
+                eduid = url.split('/')[-2]
                 raise exceptions.ApexObjectNotFoundException(eduid)
             raise exceptions.ApexError()
         except requests.exceptions.ConnectionError:
