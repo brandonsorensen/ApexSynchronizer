@@ -121,6 +121,8 @@ class ApexClassroom(ApexDataObject):
         kwargs['classroom_start_date'] = date.strftime(
             adm_utils.PS_DATETIME_FORMAT
         )
+        if not json_obj['PrimaryTeacher']:
+            raise exceptions.ApexNoTeacherException(json_obj)
         teacher = teacher_fuzzy_match(json_obj['PrimaryTeacher'],
                                       org=org_id,
                                       teachers=cls._all_ps_teachers)

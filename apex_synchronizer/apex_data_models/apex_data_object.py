@@ -68,7 +68,10 @@ class ApexDataObject(ABC):
         except requests.exceptions.ConnectionError:
             raise exceptions.ApexConnectionException()
 
-        return cls._parse_get_response(r)
+        try:
+            return cls._parse_get_response(r)
+        except KeyError:
+            raise exceptions.ApexIncompleteDataException()
 
     @classmethod
     @abstractmethod
@@ -414,6 +417,8 @@ class ApexDataObject(ABC):
                 logger.info(error_msg)
             except exceptions.ApexMalformedEmailException as e:
                 logger.info(e)
+            except exceptions.ApexIncompleteDataException as e:
+                logger.debug(e)
             except exceptions.ApexError:
                 logger.exception('Received Apex error:')
 

@@ -197,12 +197,15 @@ class ApexIncompleteDataException(ApexError):
     When JSON objects fetched from the Apex API cannot be used to
     create new `ApexDataObject` objects.
     """
-    def __init__(self, json_obj: dict):
+    msg = 'Received an incomplete JSON object from Apex'
+
+    def __init__(self, json_obj: dict = None):
         self.json_obj = json_obj
 
     def __str__(self):
-        return 'Received the following incomplete JSON object from ' \
-               f'Apex:\n{self.json_obj}'
+        if self.json_obj is None:
+            return self.msg + '.'
+        return self.msg + ':\n' + str(self.json_obj)
 
 
 class ApexNoTeacherException(ApexIncompleteDataException):
@@ -210,9 +213,7 @@ class ApexNoTeacherException(ApexIncompleteDataException):
     To be raised when a class fetched from the Apex API does not have a
     primary teacher.
     """
-    def __str__(self):
-        return f'A JSON object returned from Apex is missing a primary ' \
-               f'teacher: ' + str(self.json_obj)
+    msg = 'A JSON object returned from Apex is missing a primary teacher'
 
 
 class DuplicateUserException(ApexDataObjectException):
