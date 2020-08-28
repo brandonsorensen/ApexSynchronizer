@@ -109,6 +109,15 @@ class ApexEmailException(ApexDataObjectException):
                 'Apex data object.')
 
 
+class ApexDatetimeException(ApexError):
+    """Raised when a date is not given in the correct format."""
+    def __init__(self, date: str):
+        self.date = date
+
+    def __str__(self):
+        return 'The following date is not in the correct format: ' + self.date
+
+
 class ApexNoEmailException(ApexEmailException):
 
     def __init__(self, name):
