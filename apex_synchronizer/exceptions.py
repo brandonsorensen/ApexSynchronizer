@@ -1,4 +1,7 @@
-from typing import Union
+from typing import List, Union
+
+from requests import Response
+from requests.exceptions import RequestException
 
 
 class ApexError(Exception):
@@ -37,6 +40,22 @@ class ApexObjectNotFoundException(ApexError):
     def __str__(self):
         return f'Object bearing ImportId {self.import_id} could not ' \
                'be retrieved.'
+
+
+class ApexIncompleteOperationError(ApexError):
+    """
+    To be raised when an operation that requires multiple calls to the
+    Apex API does finish all of those calls.
+    """
+    def __init__(self, error: RequestException, responses: List[Response]):
+        self.error = error
+        self.responses = responses
+        self.n_success = len(responses)
+
+    def __str__(self):
+        return ('Operation could not complete. Received the following error '
+                f'after {self.n_success} successful sub-operations:'
+                f'\n{self.error}')
 
 
 class ApexMalformedJsonException(ApexError):
