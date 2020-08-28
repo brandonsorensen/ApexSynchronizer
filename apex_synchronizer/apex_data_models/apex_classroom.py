@@ -161,10 +161,12 @@ class ApexClassroom(ApexDataObject):
                 apex_obj = cls.get(section_id, token=token, session=session)
                 ret_val.append(int(apex_obj.import_classroom_id) if ids_only
                                else apex_obj)
-                logger.info(f'{progress}:Created ApexClassroom for'
+                logger.info(f'{progress}:Created ApexClassroom for '
                             f'SectionID {section_id}')
             except KeyError:
                 raise exceptions.ApexMalformedJsonException(section)
+            except exceptions.ApexIncompleteDataException as e:
+                logger.info(f'{progress}:{e}')
             except exceptions.ApexObjectNotFoundException:
                 msg = (f'{progress}:PowerSchool section indexed by '
                        f'{section["section_id"]} could not be found in Apex. '
