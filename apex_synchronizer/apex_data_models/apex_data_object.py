@@ -33,14 +33,14 @@ class ApexDataObject(ABC):
     max_batch_size = 2500
 
     def __init__(self, import_user_id: Union[str, int],
-                 import_org_id: Union[str, int]):
+                 import_org_id: int):
         """Initializes instance variables."""
-        self.import_user_id = str(import_user_id)
+        self.import_user_id = import_user_id
         if not import_user_id:
             raise exceptions.NoUserIdException()
         if int(import_org_id) not in SCHOOL_CODE_MAP.keys():
             raise exceptions.ApexUnrecognizedOrganizationError(import_org_id)
-        self.import_org_id = str(import_org_id)
+        self.import_org_id = int(import_org_id)
 
     def __eq__(self, other: 'ApexDataObject'):
         return (isinstance(other, ApexDataObject)

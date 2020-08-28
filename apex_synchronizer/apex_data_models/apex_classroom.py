@@ -48,7 +48,7 @@ class ApexClassroom(ApexDataObject):
     :param str classroom_name: name of the classroom
     :param List[str] product_codes: the Apex product codes representing
         which curricula are taught in the classroom
-    :param str classroom_start_date: the day the classroom starts
+    :param datetime classroom_start_date: the day the classroom starts
     :param str program_code: the program to which the classroom belongs
     """
 
@@ -67,8 +67,7 @@ class ApexClassroom(ApexDataObject):
     main_id = 'ImportClassroomId'
     _all_ps_teachers = _init_powerschool_teachers()
 
-    def __init__(self, import_org_id: Union[str, int],
-                 import_classroom_id: Union[str, int],
+    def __init__(self, import_org_id: int, import_classroom_id: int,
                  classroom_name: str, product_codes: [str],
                  import_user_id: str,
                  classroom_start_date: str, program_code: str):
@@ -78,7 +77,12 @@ class ApexClassroom(ApexDataObject):
         self.product_codes = product_codes
         if not self.product_codes:
             raise exceptions.NoProductCodesException(self.import_classroom_id)
-        self.classroom_start_date = classroom_start_date
+        try:
+            self.classroom_start_date = datetime.strptime(
+                classroom_start_date, adm_utils.PS_DATETIME_FORMAT
+            )
+        except ValueError:
+            raise exceptions.ApexDatetimeException(classroom_start_date)
         self.program_code = program_code
 
     @classmethod
@@ -420,6 +424,12 @@ class ApexClassroom(ApexDataObject):
                                 session=session)
 
         return new_classroom.put_to_apex(token=token, session=session)
+
+    def to_json(self) -> dict:
+        d = super().to_json()
+        dt_obj = self.classroom_start_date
+        d['ClassroomStartDate'] = dt_obj.strftime(adm_utils.PS_DATETIME_FORMAT)
+        return d
 
 
 def teacher_fuzzy_match(t1: str, org: Union[str, int] = None,

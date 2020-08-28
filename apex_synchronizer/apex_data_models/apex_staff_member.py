@@ -41,7 +41,7 @@ class ApexStaffMember(ApexUser):
         'last_name': 'last_name'
     }
 
-    def __init__(self, import_org_id: Union[int, str], first_name: str,
+    def __init__(self, import_org_id: int, first_name: str,
                  middle_name: str, last_name: str, email: str):
         email_lower = email.lower() if email else None
         super().__init__(
