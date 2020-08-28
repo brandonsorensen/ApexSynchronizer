@@ -42,7 +42,7 @@ class ApexObjectNotFoundException(ApexError):
                'be retrieved.'
 
 
-class ApexNoEnrollmentsError(object):
+class ApexNoEnrollmentsError(ApexError):
 
     """
     For use when attempting to fetch enrollments for a student who is
