@@ -1,6 +1,6 @@
 from datetime import datetime
 from requests import Response
-from typing import Collection, Dict, List, Optional, Union
+from typing import Collection, Callable, Dict, List, Optional, Union
 from urllib.parse import urljoin, urlparse
 import json
 import logging
@@ -297,6 +297,74 @@ class ApexClassroom(ApexDataObject):
             logger.debug('Failed to withdraw; received response\n'
                          + r.text)
         return r
+
+    def update_product_codes(self, new_codes: Union[List[str], str],
+                             token: TokenType = None,
+                             session: requests.Session = None) \
+            -> [requests.Response]:
+        """
+        Updates the product codes and submits the change to the Apex
+        API, returning the response from the PUT call.
+
+        :param new_codes: the new product codes to submit to Apex
+        :raises exceptions.ApexNoChangeSubmitted: when the codes are
+            the same
+        :raises ValueError: when new_codes is empty or does not contain
+            only strings
+        :return: the responses returned by the PUT and/or DELETE calls.
+        """
+
+        if isinstance(new_codes, str):
+            new_codes = [new_codes]
+        else:
+            if not new_codes:
+                raise ValueError('No new codes provided.')
+            if not all(isinstance(code, str) for code in new_codes):
+                raise ValueError('Argument "new_codes" contains an object that '
+                                 'is not of type `str`.')
+            new_codes = set(new_codes)
+        logger = logging.getLogger(__name__)
+        old_codes = set(self.product_codes)
+        if new_codes == old_codes:
+            logger.debug('Product codes will not be updated because the '
+                         'provided codes are the same as the current ones.')
+            raise exceptions.ApexNoChangeSubmitted()
+
+        responses = []
+
+        def commit_operation(code: str, operation: Callable):
+            self.product_codes = [code]
+            r = operation(token=token, session=session)
+            try:
+                r.raise_for_status()
+                responses.append(r)
+                logger.debug('Successfully withdrawn.')
+            except requests.exceptions.RequestException as e:
+                raise exceptions.ApexIncompleteOperationError(e, responses)
+            finally:
+                self.product_codes = old_codes
+
+        to_withdraw = old_codes - new_codes
+        if to_withdraw:
+            logger.debug(f'Withdrawing class "{self.import_classroom_id}" from '
+                         f'{to_withdraw} curricula.')
+
+        for code in to_withdraw:
+            logger.info(f'Withdrawing class "{self.import_classroom_id}" from '
+                        f'product code "{code}".')
+            commit_operation(code, self.delete_from_apex)
+
+        to_enroll = new_codes - old_codes
+        if to_enroll:
+            logger.debug(f'Enrolling class "{self.import_classroom_id}" in '
+                         f'{len(to_enroll)} curricula.')
+        for code in to_enroll:
+            logger.info(f'Enrolling class "{self.import_classroom_id}" in '
+                        f'product code "{code}".')
+            commit_operation(code, self.put_to_apex)
+
+        logger.info('Product codes successfully updated.')
+        return responses
 
     def get_reports(self, token: TokenType = None,
                     session: requests.Session = None) -> List[dict]:
