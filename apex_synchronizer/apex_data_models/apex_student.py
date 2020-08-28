@@ -209,7 +209,7 @@ class ApexStudent(ApexUser):
 
     @property
     def classroom_url(self) -> str:
-        url = urljoin(self.url + '/', self.import_user_id)
+        url = urljoin(self.url + '/', str(self.import_user_id))
         url = urljoin(url + '/', 'classrooms')
         return url
 

@@ -359,7 +359,7 @@ class ApexClassroom(ApexDataObject):
             classroom
         """
         agent = check_args(token, session)
-        url = urljoin(self.url + '/', self.import_classroom_id)
+        url = urljoin(self.url + '/', str(self.import_classroom_id))
         url = urljoin(url + '/', 'reports')
         if isinstance(agent, requests.Session):
             r = agent.get(url=url)

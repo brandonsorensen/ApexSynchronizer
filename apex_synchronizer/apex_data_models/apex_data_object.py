@@ -38,9 +38,9 @@ class ApexDataObject(ABC):
         self.import_user_id = import_user_id
         if not import_user_id:
             raise exceptions.NoUserIdException()
-        if int(import_org_id) not in SCHOOL_CODE_MAP.keys():
-            raise exceptions.ApexUnrecognizedOrganizationError(import_org_id)
         self.import_org_id = int(import_org_id)
+        if self.import_org_id not in SCHOOL_CODE_MAP.keys():
+            raise exceptions.ApexUnrecognizedOrganizationError(import_org_id)
 
     def __eq__(self, other: 'ApexDataObject'):
         return (isinstance(other, ApexDataObject)
@@ -226,10 +226,10 @@ class ApexDataObject(ABC):
         """
         agent = check_args(token, session)
         custom_args = {
-            'importUserId': self.import_user_id,
-            'orgId': self.import_org_id
+            'importUserId': str(self.import_user_id),
+            'orgId': str(self.import_org_id)
         }
-        url = urljoin(self.url + '/', self.import_user_id)
+        url = urljoin(self.url + '/', str(self.import_user_id))
         if isinstance(agent, requests.Session):
             agent.headers.update(custom_args)
             r = agent.delete(url=url)
