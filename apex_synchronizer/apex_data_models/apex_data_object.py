@@ -109,7 +109,7 @@ class ApexDataObject(ABC):
         return r
 
     @classmethod
-    def get_all(cls, token: TokenType, ids_only: bool = False,
+    def get_all(cls, token: TokenType = None, ids_only: bool = False,
                 archived: bool = False, session: requests.Session = None) \
             -> List[Union['ApexDataObject', int]]:
         """
@@ -255,11 +255,11 @@ class ApexDataObject(ABC):
             header = get_header(token)
         else:
             header = None
-        payload = self._get_put_payload()
+        payload = self.get_put_payload()
         r = agent.put(url=url, headers=header, data=json.dumps(payload))
         return r
 
-    def _get_put_payload(self) -> dict:
+    def get_put_payload(self) -> dict:
         """
         A helper method for getting the PUT payload. This exists to
         accommodate `ApexClassroom` object, who need one extra step

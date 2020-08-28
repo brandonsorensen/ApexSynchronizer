@@ -124,6 +124,11 @@ class ApexClassroom(ApexDataObject):
 
         return cls(**kwargs)
 
+    def get_put_payload(self):
+        payload = super().get_put_payload()
+        del payload['Role']
+        return payload
+
     @classmethod
     def get_all(cls, token: TokenType = None, ids_only: bool = False,
                 archived: bool = False,
@@ -351,8 +356,8 @@ class ApexClassroom(ApexDataObject):
         obj_type_component = urlparse(dtype.url).path.rsplit("/", 1)[-1]
         return urljoin(url + '/', obj_type_component)
 
-    def _get_put_payload(self) -> dict:
-        payload = super()._get_put_payload()
+    def get_put_payload(self) -> dict:
+        payload = super().get_put_payload()
         if 'ProgramCode' in payload.keys():
             del payload['ProgramCode']
         payload['IsPrimary'] = True
