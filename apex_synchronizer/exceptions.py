@@ -48,6 +48,17 @@ class ApexMalformedJsonException(ApexError):
         return 'Received bad JSON response: ' + str(self.obj)
 
 
+class ApexNoChangeSubmitted(ApexError):
+
+    """
+    To be raised when a method that returns a response, for whatever
+    reason, is not able to submit the request to Apex.
+    """
+
+    def __str__(self):
+        return 'No changes were submitted to the Apex server.'
+
+
 class ApexEmailException(ApexDataObjectException):
 
     def __str__(self):
