@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from enum import Enum
 from string import punctuation
 from typing import Union
@@ -20,6 +21,33 @@ APEX_EMAIL_REGEX = re.compile("^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9]"
 # How many seconds to wait for a batch to finish processing
 # before moving on
 MAX_BATCH_WAIT_TIME = 180
+
+
+@dataclass
+class School(object):
+
+    school_id: int
+    product_code: str
+    name: str
+    abbr: str
+
+
+SCHOOL_CODE_MAP = {
+    616: School(school_id=616, product_code='Z1707458',
+                name='Idaho Home Learning Academy High School',
+                abbr='ihla_hs'),
+    615: School(school_id=615, product_code='Z7250853',
+                name='Idaho Home Learning Academy Middle School',
+                abbr='ihla_ms'),
+
+    501: School(school_id=501, product_code='Z9065429',
+                name='Malad High School',
+                abbr='mhs'),
+
+    601: School(school_id=601, product_code='Z9065429',
+                name='Malad Middle School',
+                abbr='mms')
+}
 
 
 def make_userid(first_name: str, last_name: str):

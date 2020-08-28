@@ -12,7 +12,7 @@ import requests
 
 from . import utils as adm_utils
 from .page_walker import PageWalker
-from .utils import check_args
+from .utils import check_args, SCHOOL_CODE_MAP
 from .. import exceptions, utils
 from ..apex_session import ApexSession, TokenType
 from ..utils import get_header
@@ -38,6 +38,8 @@ class ApexDataObject(ABC):
         self.import_user_id = str(import_user_id)
         if not import_user_id:
             raise exceptions.NoUserIdException()
+        if int(import_org_id) not in SCHOOL_CODE_MAP.keys():
+            raise exceptions.ApexUnrecognizedOrganizationError(import_org_id)
         self.import_org_id = str(import_org_id)
 
     def __eq__(self, other: 'ApexDataObject'):
