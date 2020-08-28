@@ -470,7 +470,9 @@ class ApexDataObject(ABC):
         for key, value in self.to_dict().items():
             if value is None:
                 value = 'null'
-            json_obj[utils.snake_to_camel(key)] = str(value)
+            if isinstance(value, int):
+                value = str(value)
+            json_obj[utils.snake_to_camel(key)] = value
         json_obj['Role'] = self.role
         return json_obj
 
@@ -498,7 +500,7 @@ class ApexUser(ApexDataObject, ABC):
     """
 
     def __init__(self, import_user_id: Union[int, str],
-                 import_org_id: Union[int, str], first_name: str,
+                 import_org_id: int, first_name: str,
                  middle_name: str, last_name: str, email: str,
                  login_id: str):
         self.first_name = first_name.strip() if first_name else first_name
