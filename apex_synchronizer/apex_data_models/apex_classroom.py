@@ -597,7 +597,6 @@ def handle_400_response(r: Response, logger: logging.Logger = None):
         logger = logging.getLogger(__name__)
 
     errors = _parse_400_response(r, logger)
-    print(errors)
     return errors
 
 

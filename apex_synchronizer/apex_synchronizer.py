@@ -388,7 +388,8 @@ class ApexSynchronizer(object):
         except requests.exceptions.HTTPError:
             errors = adm.apex_classroom.handle_400_response(r, self.logger)
             n_posted = len(to_post) - len(errors)
-            self.logger.info(f'Received {len(errors)} errors.')
+            self.logger.info(f'Received {len(errors)} errors:\n'
+                             + str(errors))
             if n_posted:
                 self.logger.info(f'Successfully added {n_posted} classrooms.')
             else:

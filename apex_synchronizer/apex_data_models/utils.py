@@ -70,13 +70,15 @@ class PostErrors(Enum):
     NotAvailableOrder = 1
     UserDoesNotExist = 2
     DuplicateUser = 3
-    Unrecognized = 4
+    OutdatedProductCode = 4
+    Unrecognized = 5
 
     __post_error_map = {
         "User doesn't exist": UserDoesNotExist,
         'No available Order': NotAvailableOrder,
         'Duplicate user': DuplicateUser,
-        'User already exist': DuplicateUser
+        'User already exist': DuplicateUser,
+        'must be an array]': OutdatedProductCode
     }
 
     @classmethod
