@@ -252,7 +252,7 @@ class ApexDataObject(ABC):
         """
         agent = check_args(token, session)
         main_to_snake = utils.camel_to_snake(self.main_id)
-        url = urljoin(self.url + '/', getattr(self, main_to_snake))
+        url = urljoin(self.url + '/', str(getattr(self, main_to_snake)))
         if not isinstance(session, requests.Session):
             header = get_header(token)
         else:
