@@ -44,7 +44,7 @@ SCHOOL_CODE_MAP = {
                 name='Malad High School',
                 abbr='mhs'),
 
-    601: School(school_id=601, product_code='Z9065429',
+    601: School(school_id=601, product_code='Z1001973',
                 name='Malad Middle School',
                 abbr='mms')
 }
