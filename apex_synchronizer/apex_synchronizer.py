@@ -2,7 +2,7 @@ from collections import defaultdict, KeysView
 from dataclasses import dataclass
 from os import environ
 from pathlib import Path
-from typing import Collection, List
+from typing import Collection, List, Tuple
 import json
 import logging
 import pickle
@@ -86,10 +86,7 @@ class ApexSynchronizer(object):
                 self.logger.info(f'Executing routine: "{method_name}"')
                 method()
 
-    def init_enrollment(self):
-        if self._has_enrollment():
-            return
-
+    def init_enrollment(self) -> Tuple[ApexEnrollment, PSEnrollment]:
         use_serial = bool(int(environ.get('USE_PICKLE', False)))
         cache_apex = bool(int(environ.get('CACHE_APEX', False)))
         apex_path = PICKLE_DIR / 'apex_enroll.pickle'
@@ -176,33 +173,33 @@ class ApexSynchronizer(object):
                              f'for classroom with ID \"{c_id}\".')
             try:
                 apex_classroom = self.apex_enroll.get_classroom_for_id(c_id)
+                apex_roster = set(self.apex_enroll.get_roster(c_id))
             except KeyError:
                 self.logger.info(f'Classroom bearing ID \"{c_id}\" is not in '
                                  'Apex. It must be added before syncing '
                                  'enrollment. Skipping for now...')
                 continue
 
-            to_enroll = []
-            for ps_st in student_list:
-                try:
-                    to_enroll.append(self.apex_enroll.get_student_for_id(ps_st))
-                except KeyError:
+            student_list = set(student_list)
+            to_enroll = student_list - apex_roster
+            for ps_st in to_enroll:
+                if ps_st not in self.apex_enroll.roster:
+                    # TODO: Maybe the student should be added here?
                     self.logger.info(f'Student bearing ID \"{ps_st}\" is not in'
                                      ' Apex. He or she must be added before '
                                      'syncing enrollment. Skipping for now...')
                     continue
 
-            self.logger.info(f'Adding {len(to_enroll)} students to classroom '
-                             + str(c_id))
-            diff = len(student_list) - len(to_enroll)
-            if diff:
-                self.logger.debug(f'{diff} students will not be added.')
+            to_withdraw = apex_roster - student_list
 
             if len(to_enroll) == 0:
-                self.logger.info('Not eligible student to enroll.')
+                self.logger.info('No eligible student to enroll.')
                 continue
 
-            r = apex_classroom.enroll(to_enroll, session=self.session)
+            self.logger.info(f'Adding {len(to_enroll)} students to classroom '
+                             + str(c_id))
+
+            r = apex_classroom.enroll(list(to_enroll), session=self.session)
             n_errors = 0
             already_exist = 0
             try:
@@ -222,7 +219,8 @@ class ApexSynchronizer(object):
 
                         else:
                             self.logger.info('Could not add student. Received '
-                                             'the following error:\n' + str(user))
+                                             'the following error:\n'
+                                             + str(user))
                         n_errors += 1
                 else:
                     raise exceptions.ApexMalformedJsonException(to_json)
@@ -231,8 +229,6 @@ class ApexSynchronizer(object):
                 self.logger.debug(f'Received {n_errors} errors.')
 
             if already_exist:
-                # TODO: Should already detect already exist errors
-                # before putting
                 pct_already_exist = already_exist / n_errors
                 no_changes = pct_already_exist == 1
                 if no_changes:
@@ -242,53 +238,25 @@ class ApexSynchronizer(object):
                                       f'({pct_already_exist * 100}%) are \"already'
                                       ' exists\" errors.')
 
-        self._withdraw_students()
-        self.logger.info(f'Updated {n_entries_changed} enrollment records.')
-
-    def _withdraw_students(self):
-        """
-        Finds all classes in which a student is no longer enrolled and
-        withdraws them in Apex.
-        """
-        self.logger.info('Finding instances in which students are enrolled in '
-                         'a class in Apex but not PowerSchool.')
-        n_students = len(self.apex_enroll.roster)
-        for i, eduid in enumerate(self.apex_enroll.roster):
-            prog = f'{i + 1}/{n_students}:{eduid}:'
-            self.logger.info(f'{prog}Checking for classes from which '
-                             'to withdraw.')
-            apex_class_ids = set(self.apex_enroll.get_classrooms(eduid))
-            try:
-                ps_class_ids = set(self.ps_enroll.get_classrooms(eduid))
-            except KeyError:
-                self.logger.info(f'Student "{eduid}" does not exist in Apex '
-                                 'roster. Sync rosters and try again.')
-                continue
-
-            to_withdraw = apex_class_ids - ps_class_ids
-
-            if not to_withdraw:
-                self.logger.info(f'{prog}Student will not be withdrawn from '
-                                 f'any sections.')
-                continue
-
-            for c_id in to_withdraw:
-                try:
-                    classroom = self.apex_enroll.get_classroom_for_id(c_id)
-                    student = self.apex_enroll.get_student_for_id(eduid)
-                except KeyError as ke:
-                    # This should be impossible, but we'll catch it just in case
-                    raise exceptions.ApexError(e=ke)
-
-                r = classroom.withdraw(student, session=self.session)
+            if len(to_withdraw) > 0:
+                self.logger.info(f'Withdrawing {len(to_withdraw)} students from'
+                                 f' classroom "{c_id}".')
+            n_withdrawn = 0
+            for s in to_withdraw:
+                self.logger.debug(f'Withdrawing {s}.')
+                r = apex_classroom.withdraw(s, session=self.session)
                 try:
                     r.raise_for_status()
-                    self.logger.info(f'{prog}Successfully withdrawn from '
-                                     f'"{c_id}".')
-                except requests.HTTPError:
-                    self.logger.info(f'{prog}Could not withdraw student from '
-                                     f'"{c_id}". Received response:\n'
-                                     + str(r.text))
+                    self.logger.debug('Successfully withdrawn.')
+                    n_withdrawn += 1
+                except requests.exceptions.HTTPError:
+                    self.logger.debug('Could not withdraw. Received response\n'
+                                      + str(r.text))
+            if len(to_withdraw) > 0:
+                self.logger.info(f'Successfully withdrew {n_withdrawn}/'
+                                 f'{len(to_withdraw)} students from {c_id}.')
+                n_entries_changed += n_withdrawn
+        self.logger.info(f'Updated {n_entries_changed} enrollment records.')
 
     def enroll_students(self, student_ids: Collection[int]):
         apex_students = init_students_for_ids(student_ids)
