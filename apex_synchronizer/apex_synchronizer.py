@@ -199,7 +199,9 @@ class ApexSynchronizer(object):
             self.logger.info(f'Adding {len(to_enroll)} students to classroom '
                              + str(c_id))
 
-            r = apex_classroom.enroll(list(to_enroll), session=self.session)
+            apex_to_enroll = [self.apex_enroll.get_student_for_id(eduid)
+                              for eduid in to_enroll]
+            r = apex_classroom.enroll(apex_to_enroll, session=self.session)
             n_errors = 0
             already_exist = 0
             try:
