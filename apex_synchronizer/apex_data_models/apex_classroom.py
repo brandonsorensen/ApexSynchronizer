@@ -75,7 +75,13 @@ class ApexClassroom(ApexDataObject):
         try:
             self.import_classroom_id = int(import_classroom_id)
         except TypeError:
-            raise exceptions.NoUserIdException()
+            if import_classroom_id is None:
+                raise exceptions.NoUserIdException()
+            raise exceptions.InvalidIDException(import_classroom_id,
+                                                self.__class__)
+        if self.import_classroom_id < 0:
+            raise exceptions.InvalidIDException(import_classroom_id,
+                                                self.__class__)
         self.classroom_name = classroom_name
         self.product_codes = product_codes
         if not self.product_codes:

@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Union, Type
 
 from requests import Response
 from requests.exceptions import RequestException
@@ -181,6 +181,17 @@ class NoUserIdException(ApexError):
 
     def __str__(self):
         return 'Object does not have an ImportUserID.'
+
+
+class InvalidIDException(ApexError):
+
+    def __init__(self, apex_id: Union[str, int], obj_type: Type):
+        self.id_ = apex_id
+        self.obj_type = obj_type
+
+    def __str__(self):
+        return f'ID "{self.id_}" is invalid for data type ' \
+               f'{self.obj_type.__name__}'
 
 
 class NoProductCodesException(ApexDataObjectException):
