@@ -333,6 +333,11 @@ class ApexSynchronizer(object):
                                                        already_flat=True)
                 self.logger.info(f'{progress}:Classroom found.')
                 if apex_cr != ps_cr:
+                    if set(ps_cr.product_codes) <= set(apex_cr.product_codes):
+                        # when Apex contains more than just the PS code
+                        ps_cr.product_codes = apex_cr.product_codes
+                        if apex_cr == ps_cr:
+                            continue
                     self.logger.info('Updating record '
                                      + str(ps_cr.import_classroom_id))
                     r = ps_cr.put_to_apex(session=self.session)
