@@ -6,7 +6,7 @@ import logging
 
 import requests
 
-from .apex_data_models import ApexStudent, ApexClassroom
+from .apex_data_models import ApexStudent, ApexClassroom, SCHOOL_CODE_MAP
 from .apex_session import ApexSession
 from .ps_agent import fetch_enrollment, fetch_students
 from .utils import flatten_ps_json
@@ -130,6 +130,16 @@ class PSEnrollment(BaseEnrollment):
             eduid = int(entry['eduid'])
             org_id = int(entry['school_id'])
             sec_id = int(entry['section_id'])
+            if org_id not in SCHOOL_CODE_MAP.keys():
+                self.logger.debug(f'Section "{sec_id}" will not be added '
+                                  'as it belongs to unrecognized org '
+                                  f'"{org_id}".')
+                continue
+            if sec_id < 0:
+                self.logger.debug(f'Section "{sec_id}" will not be added '
+                                  'because it contains a negative section '
+                                  f'ID: "{sec_id}".')
+                continue
 
             student = PSStudent(eduid, org_id)
             enroll_entry = EnrollmentEntry(student, sec_id)
