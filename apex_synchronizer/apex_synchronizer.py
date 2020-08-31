@@ -352,9 +352,6 @@ class ApexSynchronizer(object):
                                      + str(ps_cr.import_classroom_id))
                     r = ps_cr.put_to_apex(session=self.session)
                     self.logger.info('Received response: ' + str(r.status_code))
-                    if (apex_cr.import_user_id == 'naylmary@sd351.k12.id.us'
-                        or ps_cr.import_user_id == 'naylmary@sd351.k12.id.us'):
-                        breakpoint()
                     apex_cr.update(ps_cr, session=self.session)
                     self.apex_enroll.update_classroom(ps_cr)
                     updated += 1
