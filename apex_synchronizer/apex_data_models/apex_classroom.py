@@ -71,8 +71,11 @@ class ApexClassroom(ApexDataObject):
                  classroom_name: str, product_codes: [str],
                  import_user_id: str,
                  classroom_start_date: str, program_code: str):
-        super().__init__(import_user_id.lower(), import_org_id)
-        self.import_classroom_id = import_classroom_id
+        super().__init__(import_user_id.lower().strip(), import_org_id)
+        try:
+            self.import_classroom_id = int(import_classroom_id)
+        except TypeError:
+            raise exceptions.NoUserIdException()
         self.classroom_name = classroom_name
         self.product_codes = product_codes
         if not self.product_codes:
