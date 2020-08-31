@@ -1,6 +1,6 @@
 from datetime import datetime
 from requests import Response
-from typing import Collection, Callable, Dict, List, Optional, Union
+from typing import Collection, Dict, List, Optional, Union
 from urllib.parse import urljoin, urlparse
 import json
 import logging
@@ -405,7 +405,7 @@ class ApexClassroom(ApexDataObject):
         :return: the URL path from enrolling or withdrawing a student
                  from this class
         """
-        url = urljoin(self.url + '/', self.import_classroom_id)
+        url = urljoin(self.url + '/', str(self.import_classroom_id))
         # Get the final component in the object's url
         obj_type_component = urlparse(dtype.url).path.rsplit("/", 1)[-1]
         return urljoin(url + '/', obj_type_component)

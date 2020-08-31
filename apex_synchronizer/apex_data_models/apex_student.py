@@ -185,19 +185,22 @@ class ApexStudent(ApexUser):
         r = requests.put(url=url, headers=header, params=params)
         return r
 
-    def enroll(self, classroom_id: str, token: TokenType = None,
+    def enroll(self, classroom: Union[ApexClassroom, int],
+               token: TokenType = None,
                session: requests.Session = None) -> Response:
         """
         Enrolls this :class:`ApexStudent` object into the class indexed
         by `classroom_id`.
 
         :param token: an Apex access token
-        :param classroom_id: the ID of the relevant classroom
+        :param classroom: an ApexClassroom object or classroom ID of
+            the relevant classroom
         :param session: an existing `requests.Session` object
         :return: the response of the PUT call
         """
-        classroom = ApexClassroom.get(classroom_id, token=token,
-                                      session=session)
+        if isinstance(classroom, int):
+            classroom = ApexClassroom.get(classroom, token=token,
+                                          session=session)
         return classroom.enroll(self, token=token, session=session)
 
     def withdraw(self, classroom_id: str, token: TokenType = None,
