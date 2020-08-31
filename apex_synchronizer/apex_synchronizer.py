@@ -246,7 +246,14 @@ class ApexSynchronizer(object):
             n_withdrawn = 0
             for s in to_withdraw:
                 self.logger.debug(f'Withdrawing {s}.')
-                r = apex_classroom.withdraw(s, session=self.session)
+                try:
+                    as_apex = self.apex_enroll.get_student_for_id(s)
+                except KeyError:
+                    # This should be impossible, but I'll still catch it
+                    self.logger.debug('Cannot withdraw student who is not '
+                                      'already enrolled in Apex: ' + str(s))
+                    continue
+                r = apex_classroom.withdraw(as_apex, session=self.session)
                 try:
                     r.raise_for_status()
                     self.logger.debug('Successfully withdrawn.')
