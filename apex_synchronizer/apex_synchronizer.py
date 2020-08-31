@@ -181,17 +181,25 @@ class ApexSynchronizer(object):
                 continue
 
             student_list = set(student_list)
+            if student_list == apex_roster:
+                self.logger.info('Classroom enrollment in sync.')
+                continue
+
             to_enroll = student_list - apex_roster
+            to_withdraw = apex_roster - student_list
+            ineligible = set()
             for ps_st in to_enroll:
                 if ps_st not in self.apex_enroll.roster:
                     # TODO: Maybe the student should be added here?
-                    self.logger.info(f'Student bearing ID \"{ps_st}\" is not in'
-                                     ' Apex. He or she must be added before '
-                                     'syncing enrollment. Skipping for now...')
+                    self.logger.debug(f'Student bearing ID "{ps_st}" is not in'
+                                      ' Apex. He or she must be added before '
+                                      'syncing enrollment. Skipping for now...')
+                    ineligible.add(ps_st)
                     continue
-
-            to_withdraw = apex_roster - student_list
-
+            if len(ineligible) > 0:
+                to_enroll -= ineligible
+                self.logger.debug('The following students will not be enrolled:'
+                                  f' {ineligible}')
             if len(to_enroll) == 0:
                 self.logger.info('No eligible student to enroll.')
                 continue
