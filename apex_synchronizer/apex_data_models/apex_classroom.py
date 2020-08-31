@@ -184,6 +184,7 @@ class ApexClassroom(ApexDataObject):
         classroom.
 
         :param token: Apex access token
+        :param session: an existing Apex session
         :param objs: one or more student or staff members; if passed as
             a list, that list must be homogeneous, i.e. not contain
             multiple types
@@ -198,7 +199,7 @@ class ApexClassroom(ApexDataObject):
             assert len(objs) > 0
             dtype = type(objs[0])
             # Ensures the list is homogeneous
-            assert all(isinstance(x, dtype) for x in objsj)
+            assert all(isinstance(x, dtype) for x in objs)
 
         if not isinstance(session, requests.Session):
             header = get_header(token)
