@@ -373,10 +373,13 @@ class ApexClassroom(ApexDataObject):
 
         try:
             r.raise_for_status()
+            if r.status_code == 204:
+                return [{}]
+            return r.json()
         except requests.exceptions.HTTPError:
-            raise exceptions.ApexObjectNotFoundException
-
-        return r.json()
+            raise exceptions.ApexObjectNotFoundException(
+                self.import_classroom_id
+            )
 
     def _get_data_object_class_url(self, dtype: ApexUser) -> str:
         """
