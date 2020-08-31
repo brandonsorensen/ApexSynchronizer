@@ -198,7 +198,7 @@ class ApexClassroom(ApexDataObject):
             assert len(objs) > 0
             dtype = type(objs[0])
             # Ensures the list is homogeneous
-            assert all(isinstance(x, dtype) for x in objs)
+            assert all(isinstance(x, dtype) for x in objsj)
 
         if not isinstance(session, requests.Session):
             header = get_header(token)
@@ -213,8 +213,8 @@ class ApexClassroom(ApexDataObject):
             logger.debug('Creating payload for obj with ID '
                          f'\"{apex_obj.import_user_id}\".')
             payload_entry = {
-                'ImportUserId': apex_obj.import_user_id,
-                'ImportOrgId': apex_obj.import_org_id
+                'ImportUserId': str(apex_obj.import_user_id),
+                'ImportOrgId': str(apex_obj.import_org_id)
             }
             if isinstance(apex_obj, ApexStaffMember):
                 payload_entry['IsPrimary'] = True
