@@ -1,6 +1,5 @@
 from collections import defaultdict, KeysView
 from dataclasses import dataclass
-from operator import itemgetter
 from os import environ
 from pathlib import Path
 from typing import Collection, List, Tuple
@@ -158,12 +157,12 @@ class ApexSynchronizer(object):
             return
 
         try:
-            to_post = itemgetter(*post_ids)(self.ps_staff)
+            to_post = [self.ps_staff[id_] for id_ in post_ids]
         except KeyError:
             self.logger.exception('Internal logic error. Unrecognized key.')
             return
         try:
-            self.logger.info('Posting staff members.')
+            self.logger.info(f'Posting {len(to_post)} staff member(s).')
             r = ApexStaffMember.post_batch(to_post, session=self.session)
             errors = ApexStaffMember.parse_batch(r)
             self.logger.info('Received the following errors:\n'
