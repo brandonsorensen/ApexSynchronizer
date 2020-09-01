@@ -31,12 +31,10 @@ class ApexSession(requests.Session):
         an access token.
         """
         super().__init__()
-        self._access_token = ApexAccessToken.get_new_token()
         self.logger = logging.getLogger(__name__)
-        self.logger.info('Session opened.')
-        self.headers.update(
-            apex_synchronizer.utils.get_header(self._access_token)
-        )
+        self.logger.debug('Session opened.')
+        self._access_token = None
+        self.update_token()
 
     def __del__(self):
         self.close()
@@ -44,10 +42,16 @@ class ApexSession(requests.Session):
     @property
     def access_token(self) -> 'ApexAccessToken':
         """Automatically renews the access token when it expires."""
-        if self._access_token.expiration < datetime.now():
-            self.logger.debug('Old token expired. Generating new one.')
-            self._access_token = ApexAccessToken.get_new_token()
+        if self._access_token.expired():
+            self.update_token()
         return self._access_token
+
+    def update_token(self):
+        self.logger.debug('Old token expired. Generating new one.')
+        self._access_token = ApexAccessToken.get_new_token()
+        self.headers.update(
+            apex_synchronizer.utils.get_header(self._access_token)
+        )
 
 
 class ApexAccessToken(object):
@@ -59,7 +63,7 @@ class ApexAccessToken(object):
     - CONSUMER_KEY
     - SECRET_KEY
 
-    :param datetime expiration: the time at which the token expires
+    :param datetime expires_in: the time at which the token expires
     """
     # token will expire this many seconds before real expiration
     _PADDING = 10
@@ -71,6 +75,9 @@ class ApexAccessToken(object):
         expires_in = int(as_json['expire_in']) - self._PADDING
         # subtracting `PADDING` seconds to give some leeway
         self.expiration = datetime.now() + timedelta(seconds=expires_in)
+
+    def expired(self):
+        return self.expiration < datetime.now()
         
     @classmethod
     def get_new_token(cls):
