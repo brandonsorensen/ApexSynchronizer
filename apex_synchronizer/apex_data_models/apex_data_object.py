@@ -419,9 +419,8 @@ class ApexDataObject(ABC):
                                        session=session)
                     all_objs.append(apex_obj)
             except exceptions.ApexObjectNotFoundException:
-                main_id = utils.snake_to_camel(cls.main_id)
                 error_msg = f'Could not retrieve object of type {cls.__name__} \
-                            bearing ImportID {obj[main_id]}. Skipping object'
+                            bearing ImportID {obj[cls.main_id]}. Skipping object'
                 logger.info(error_msg)
             except exceptions.ApexMalformedEmailException as e:
                 logger.info(e)
