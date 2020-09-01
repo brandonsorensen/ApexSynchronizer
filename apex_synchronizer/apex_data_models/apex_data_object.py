@@ -397,6 +397,14 @@ class ApexDataObject(ABC):
                     except KeyError:
                         pass
                 iuid = obj[cls.main_id]
+                if issubclass(cls, ApexNumericId):
+                    try:
+                        iuid = int(iuid)
+                    except TypeError:
+                        logger.debug(f'Object with ID "{iuid}" cannot be '
+                                     'created because its ID is invalid.')
+                        continue
+
                 if not iuid:
                     logger.info('Object has no ImportUserId. Skipping...')
                     continue
