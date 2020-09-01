@@ -400,7 +400,7 @@ class ApexDataObject(ABC):
         return kwargs, json_obj
 
     @classmethod
-    def _parse_response_page(cls, json_objs: List[dict], page_number: int,
+    def _parse_response_page(cls, json_objs: Collection[dict], page_number: int,
                              all_objs: List[Union['ApexDataObject', int]],
                              archived: bool = False, ids_only: bool = False,
                              token: TokenType = None,
