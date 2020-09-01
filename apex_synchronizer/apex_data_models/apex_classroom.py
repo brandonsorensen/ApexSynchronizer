@@ -141,10 +141,8 @@ class ApexClassroom(ApexDataObject):
         return cls(**kwargs)
 
     @classmethod
-    def _get_all(cls, token: TokenType = None, ids_only: bool = False,
-                 archived: bool = False,
-                 session: requests.Session = None) \
-            -> List[Union['ApexClassroom', int]]:
+    def _get_all(cls, token: TokenType, ids_only: bool, archived: bool,
+                 session: requests.Session) -> List[Union['ApexClassroom', int]]:
         """
         Get all objects. Must be overloaded because Apex does not
         support a global GET request for objects in the same. Loops
