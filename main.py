@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from logging.config import dictConfig
 from typing import Union
 import logging
