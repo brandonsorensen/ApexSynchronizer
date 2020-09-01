@@ -542,12 +542,13 @@ class ApexNumericId(ApexDataObject, ABC):
         super().__init__(import_user_id=int(import_user_id),
                          import_org_id=int(import_org_id))
 
+    @classmethod
     def _parse_response_page(cls, json_objs: List[dict], page_number: int,
                              all_objs: List[Union['ApexDataObject', int]],
                              archived: bool = False, ids_only: bool = False,
                              token: TokenType = None,
                              session: requests.Session = None):
-        super(ApexDataObject)._parse_response_page(
+        super()._parse_response_page(
             json_objs=json_objs, page_number=page_number, all_objs=all_objs,
             archived=archived, ids_only=ids_only, token=token, session=session
         )
