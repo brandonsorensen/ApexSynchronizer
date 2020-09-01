@@ -51,14 +51,12 @@ class ApexStudent(ApexNumericId, ApexUser):
         if int(import_org_id) == 615:
             import_org_id = 616
         super(ApexUser).__init__(
-            import_user_id=import_user_id,
+            import_user_id=int(import_user_id),
             import_org_id=import_org_id, first_name=first_name,
             middle_name=middle_name, last_name=last_name,
             email=email,
             login_id=make_userid(first_name, last_name)
         )
-        super(ApexNumericId).__init__(import_user_id=import_user_id,
-                                      import_org_id=import_org_id)
         self.grade_level = grade_level
         self.login_pw = import_user_id
 

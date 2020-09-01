@@ -538,10 +538,6 @@ class ApexDataObject(ABC):
 
 class ApexNumericId(ApexDataObject, ABC):
 
-    def __init__(self, import_user_id: int, import_org_id: int):
-        super().__init__(import_user_id=int(import_user_id),
-                         import_org_id=int(import_org_id))
-
     @classmethod
     def _parse_response_page(cls, json_objs: List[dict], page_number: int,
                              all_objs: List[Union['ApexDataObject', int]],
