@@ -5,7 +5,7 @@ from urllib.parse import urljoin
 
 from requests import Response
 
-from .apex_data_object import ApexUser
+from .apex_data_object import ApexNumericId, ApexUser
 from .apex_classroom import ApexClassroom
 from .utils import (BASE_URL, make_userid, check_args)
 from .. import exceptions
@@ -13,7 +13,7 @@ from ..apex_session import TokenType
 from ..utils import get_header
 
 
-class ApexStudent(ApexUser):
+class ApexStudent(ApexNumericId, ApexUser):
 
     """
     Represents a student in the Apex database.
@@ -50,11 +50,15 @@ class ApexStudent(ApexUser):
         # We don't like middle schoolers going to middle school
         if int(import_org_id) == 615:
             import_org_id = 616
-        super().__init__(import_user_id=int(import_user_id),
-                         import_org_id=import_org_id, first_name=first_name,
-                         middle_name=middle_name, last_name=last_name,
-                         email=email,
-                         login_id=make_userid(first_name, last_name))
+        super(ApexUser).__init__(
+            import_user_id=import_user_id,
+            import_org_id=import_org_id, first_name=first_name,
+            middle_name=middle_name, last_name=last_name,
+            email=email,
+            login_id=make_userid(first_name, last_name)
+        )
+        super(ApexNumericId).__init__(import_user_id=import_user_id,
+                                      import_org_id=import_org_id)
         self.grade_level = grade_level
         self.login_pw = import_user_id
 

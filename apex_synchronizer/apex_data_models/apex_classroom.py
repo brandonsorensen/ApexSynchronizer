@@ -71,7 +71,8 @@ class ApexClassroom(ApexDataObject):
                  classroom_name: str, product_codes: [str],
                  import_user_id: str,
                  classroom_start_date: str, program_code: str):
-        super().__init__(import_user_id.lower().strip(), import_org_id)
+        super().__init__(import_user_id=import_user_id.lower().strip(),
+                         import_org_id=import_org_id)
         try:
             self.import_classroom_id = int(import_classroom_id)
         except TypeError:
@@ -633,6 +634,9 @@ def _parse_400_response(r: Response, logger: logging.Logger = None) \
     if logger is None:
         logger = logging.getLogger(__name__)
 
+    if r.status_code == 401:
+        raise exceptions.ApexAuthenticationError()
+
     as_json = r.json()
 
     if type(as_json) is list:
@@ -644,8 +648,8 @@ def _parse_400_response(r: Response, logger: logging.Logger = None) \
 
     try:
         errors = as_json['classroomEntries']
-    except KeyError:
-        raise exceptions.ApexError
+    except KeyError as ke:
+        raise exceptions.ApexError from ke
 
     ret_val = {}
     e: dict

@@ -19,7 +19,6 @@ class ApexStaffMember(ApexUser):
     :param str middle_name: the staff member's middle name
     :param str last_name: the staff member's last/surname
     :param str email: the staff member's school email address (optional)
-    :param str login_id: the staff member's login ID
     """
 
     url = urljoin(BASE_URL, 'staff')
@@ -44,6 +43,8 @@ class ApexStaffMember(ApexUser):
     def __init__(self, import_org_id: int, first_name: str,
                  middle_name: str, last_name: str, email: str):
         email_lower = email.lower().strip() if email else None
+        if middle_name == 'null':
+            middle_name = None
         super().__init__(
             import_user_id=email_lower, import_org_id=import_org_id,
             first_name=first_name, middle_name=middle_name,
@@ -87,11 +88,3 @@ class ApexStaffMember(ApexUser):
     def get_classrooms(self, token) -> List['ApexClassroom']:
         # TODO
         pass
-
-    def to_json(self) -> dict:
-        json_obj = super().to_json()
-        if json_obj['Email'] == 'null':
-            json_obj['Email'] = 'dummy@malad.us'
-        return json_obj
-
-

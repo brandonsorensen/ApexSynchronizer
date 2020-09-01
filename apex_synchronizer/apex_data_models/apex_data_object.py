@@ -403,7 +403,7 @@ class ApexDataObject(ABC):
 
                 if ids_only:
                     logger.info(f'{progress}:Adding ImportUserId {iuid}.')
-                    all_objs.append(int(iuid))
+                    all_objs.append(iuid)
                 else:
                     logger.info(f'{progress}:Creating {cls.__name__} '
                                 f'with ImportUserId {iuid}')
@@ -491,6 +491,25 @@ class ApexDataObject(ABC):
         return hash((self.import_user_id,
                      self.import_org_id,
                      self.__class__.__name__))
+
+
+class ApexNumericId(ApexDataObject, ABC):
+
+    def __init__(self, import_user_id: int, import_org_id: int):
+        super().__init__(import_user_id=int(import_user_id),
+                         import_org_id=int(import_org_id))
+
+    def _parse_response_page(cls, json_objs: List[dict], page_number: int,
+                             all_objs: List[Union['ApexDataObject', int]],
+                             archived: bool = False, ids_only: bool = False,
+                             token: TokenType = None,
+                             session: requests.Session = None):
+        super(ApexDataObject)._parse_response_page(
+            json_objs=json_objs, page_number=page_number, all_objs=all_objs,
+            archived=archived, ids_only=ids_only, token=token, session=session
+        )
+        if ids_only:
+            all_objs[:] = [int(id_) for id_ in all_objs]
 
 
 class ApexUser(ApexDataObject, ABC):
