@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Collection, List, Tuple
 import json
 import logging
+import os
 import pickle
 
 import requests
@@ -68,6 +69,7 @@ class ApexSynchronizer(object):
         self.logger = logging.getLogger(__name__)
         self.batch_jobs = []
         self.ps_staff = {}
+        self.apex_staff = set()
         self.apex_enroll, self.ps_enroll = self.init_enrollment()
 
     def run_schedule(self, s: ApexSchedule):
@@ -89,7 +91,10 @@ class ApexSynchronizer(object):
     def init_enrollment(self) -> Tuple[ApexEnrollment, PSEnrollment]:
         use_serial = bool(int(environ.get('USE_PICKLE', False)))
         cache_apex = bool(int(environ.get('CACHE_APEX', False)))
+        if not os.path.exists(PICKLE_DIR):
+            os.makedirs(PICKLE_DIR, exist_ok=True)
         apex_path = PICKLE_DIR / 'apex_enroll.pickle'
+
         if use_serial:
             apex_enroll = pickle.load(open(apex_path, 'rb'))
         else:
