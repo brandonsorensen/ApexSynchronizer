@@ -152,14 +152,18 @@ class ApexSynchronizer(object):
 
     def sync_staff(self):
         self.init_staff()
-        self.logger.info('Posting staff members.')
         post_ids = self.ps_staff.keys() - self.apex_staff
+        if len(post_ids) == 0:
+            self.logger.info('Staff list in sync.')
+            return
+
         try:
             to_post = itemgetter(*post_ids)(self.ps_staff)
         except KeyError:
             self.logger.exception('Internal logic error. Unrecognized key.')
             return
         try:
+            self.logger.info('Posting staff members.')
             r = ApexStaffMember.post_batch(to_post, session=self.session)
             errors = ApexStaffMember.parse_batch(r)
             self.logger.info('Received the following errors:\n'
