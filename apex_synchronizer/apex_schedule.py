@@ -16,10 +16,10 @@ class ApexSchedule(object):
     """
 
     _DEFAULT_SCHEDULE = {
-        'sync_classrooms': True,
         'sync_rosters': True,
-        'sync_classroom_enrollment': True,
-        'sync_staff': False
+        'sync_staff': True,
+        'sync_classrooms': True,
+        'sync_classroom_enrollment': True
     }
 
     def __init__(self, sync_classrooms, sync_rosters, sync_staff,
