@@ -38,7 +38,11 @@ class ApexDataObject(ABC):
         self.import_user_id = import_user_id
         if not import_user_id:
             raise exceptions.NoUserIdException()
-        self.import_org_id = int(import_org_id)
+        try:
+            self.import_org_id = int(import_org_id)
+        except ValueError as ve:
+            raise exceptions.ApexUnrecognizedOrganizationError(import_org_id) \
+                from ve
         if self.import_org_id not in SCHOOL_CODE_MAP.keys():
             raise exceptions.ApexUnrecognizedOrganizationError(import_org_id)
 
