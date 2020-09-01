@@ -489,14 +489,21 @@ def put_duplicates(json_obj: dict, apex_students: List[ApexStudent],
 
     duplicates = [user['Index'] for user in json_obj['studentUsers']
                   if 'user already exist' in user['Message'].lower()]
+    n_success = 0
     for student_idx in duplicates:
         student = apex_students[student_idx]
         logger.info(f'Putting student with EDUID {student.import_user_id}.')
         r = student.put_to_apex(token=token, session=session)
         try:
             r.raise_for_status()
+            logger.debug('PUT operation successful.')
+            n_success += 1
         except requests.exceptions.HTTPError as e:
-            logger.info('PUT failed with response ' + str(e))
+            logger.debug('PUT failed with response ' + str(e))
+
+    if len(duplicates) > 0:
+        logger.info(f'Successfully PUT {n_success}/{len(duplicates)} '
+                    f'students.')
 
 
 def repost_students(json_obj: dict, apex_students: List[ApexStudent],
