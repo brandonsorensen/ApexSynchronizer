@@ -118,9 +118,41 @@ class ApexDataObject(ABC):
         return r
 
     @classmethod
-    def get_all(cls, token: TokenType = None, ids_only: bool = False,
-                archived: bool = False, session: requests.Session = None) \
-            -> List[Union['ApexDataObject', int]]:
+    def get_all(cls, token: TokenType = None, archived: bool = False,
+                session: requests.Session = None) -> List['ApexDataObject']:
+        """
+        Gets all objects of type `cls` in the Apex database.
+
+        :param token: Apex access token
+        :param session: an existing Apex session
+        :param bool ids_only: Whether to only return IDs
+        :param archived: whether or not to return archived objects
+        :return: a list containing all objects of this type in the Apex
+            database
+        """
+        return cls._get_all(token=token, archived=archived, session=session,
+                            ids_only=False)
+
+    @classmethod
+    def get_all_ids(cls, token: TokenType = None, archived: bool = False,
+                    session: requests.Session = None) -> List[Union[int, str]]:
+        """
+        Gets all objects of type `cls` in the Apex database.
+
+        :param token: Apex access token
+        :param session: an existing Apex session
+        :param bool ids_only: Whether to only return IDs
+        :param archived: whether or not to return archived objects
+        :return: a list containing all objects of this type in the Apex
+            database
+        """
+        return cls._get_all(token=token, archived=archived, session=session,
+                            ids_only=True)
+
+    @classmethod
+    def _get_all(cls, token: TokenType, archived: bool,
+                 session: requests.Session, ids_only: bool) \
+            -> List[Union['ApexDataObject', str, int]]:
         """
         Gets all objects of type `cls` in the Apex database.
 

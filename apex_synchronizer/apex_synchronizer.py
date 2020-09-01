@@ -67,7 +67,7 @@ class ApexSynchronizer(object):
         self.session = ApexSession()
         self.logger = logging.getLogger(__name__)
         self.batch_jobs = []
-        self.staff = {}
+        self.ps_staff = {}
         self.apex_enroll, self.ps_enroll = self.init_enrollment()
 
     def run_schedule(self, s: ApexSchedule):
@@ -105,17 +105,19 @@ class ApexSynchronizer(object):
         return apex_enroll, ps_enroll
 
     def init_staff(self):
-        self.staff = {}
+        self.logger.debug('Fetching current ps_staff from Apex.')
+        self.apex_staff = set(ApexStaffMember.get_all_ids(session=self.session))
+        self.ps_staff = {}
         self.logger.info('Fetching staff from PowerSchool.')
         for sm in fetch_staff():
             try:
                 apex_sm = ApexStaffMember.from_powerschool(sm)
                 if int(apex_sm.import_org_id) in (501, 616):
-                    self.staff[apex_sm.import_user_id] = apex_sm
+                    self.ps_staff[apex_sm.import_user_id] = apex_sm
             except exceptions.ApexEmailException as e:
-                self.logger.info(e)
-        self.logger.info(f'Successfully retrieved {len(self.staff)} '
-                         'staff members from PowerSchool.')
+                self.logger.debug(e)
+        self.logger.info(f'Successfully retrieved {len(self.ps_staff)} '
+                         'ps_staff members from PowerSchool.')
 
     def sync_rosters(self):
         self.logger.info('Beginning roster synchronization.')
@@ -150,9 +152,9 @@ class ApexSynchronizer(object):
     def sync_staff(self):
         self.init_staff()
         self.logger.info('Posting staff members.')
+        to_post = list(self.ps_staff.keys() - self.apex_staff)
         try:
-            r = ApexStaffMember.post_batch(list(self.staff.values()),
-                                           session=self.session)
+            r = ApexStaffMember.post_batch(to_post, session=self.session)
             errors = ApexStaffMember.parse_batch(r)
             self.logger.info('Received the following errors:\n'
                              + str({id_: error.name for id_, error

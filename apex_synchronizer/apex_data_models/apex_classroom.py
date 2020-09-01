@@ -37,7 +37,7 @@ def _init_powerschool_teachers() -> List[ApexStaffMember]:
 class ApexClassroom(ApexDataObject):
 
     """
-    Represents a staff member (likely a teacher) in the Apex database.
+    Represents a classroom in the Apex data base.
 
     :param Union[int, str] import_classroom_id:
                             identifier for the database, common to
@@ -141,9 +141,10 @@ class ApexClassroom(ApexDataObject):
         return cls(**kwargs)
 
     @classmethod
-    def get_all(cls, token: TokenType = None, ids_only: bool = False,
-                archived: bool = False,
-                session: requests.Session = None) -> List[Union['ApexClassroom', int]]:
+    def _get_all(cls, token: TokenType = None, ids_only: bool = False,
+                 archived: bool = False,
+                 session: requests.Session = None) \
+            -> List[Union['ApexClassroom', int]]:
         """
         Get all objects. Must be overloaded because Apex does not
         support a global GET request for objects in the same. Loops
