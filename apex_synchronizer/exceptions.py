@@ -85,6 +85,11 @@ class ApexIncompleteOperationError(ApexError):
 class ApexMalformedJsonException(ApexError):
 
     def __init__(self, json_obj):
+        try:
+            if int(json_obj['statusCode']) == 401:
+                raise ApexAuthenticationError(msg=json_obj['message'])
+        except (KeyError, TypeError):
+            pass
         self.obj = json_obj
 
     def __str__(self):

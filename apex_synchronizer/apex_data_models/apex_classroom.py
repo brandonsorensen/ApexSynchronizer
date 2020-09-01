@@ -563,11 +563,14 @@ def _get_classroom_for_eduid(url: str, token: TokenType = None,
         try:
             page_response.raise_for_status()
         except requests.exceptions.HTTPError:
+            if page_response.status_code == 401:
+                raise exceptions.ApexAuthenticationError()
             try:
                 message = page_response.json()['message']
-            except KeyError:
+            except KeyError as ke:
                 logger.debug(f'Received unknown response:\n{page_response.json()}')
-                raise exceptions.ApexMalformedJsonException(page_response)
+                raise exceptions.ApexMalformedJsonException(page_response) \
+                    from ke
 
             if message == 'Results not found.':
                 eduid = url.split('/')[-2]

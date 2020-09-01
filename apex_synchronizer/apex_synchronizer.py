@@ -464,9 +464,6 @@ def post_students(apex_students: List[ApexStudent], token: TokenType = None,
         r.raise_for_status()
         logger.debug('Received status code ' + str(r.status_code))
     except requests.exceptions.HTTPError:
-        logger.exception('Failed to POST students. Received response:\n'
-                         + str(r.text))
-
         as_json = r.json()
         if type(as_json) is dict:
             logger.info('Found duplicates.')
@@ -490,7 +487,8 @@ def put_duplicates(json_obj: dict, apex_students: List[ApexStudent],
     if not json_obj['HasError']:
         return
 
-    duplicates = [user['Index'] for user in json_obj['studentUsers']]
+    duplicates = [user['Index'] for user in json_obj['studentUsers']
+                  if 'user already exist' in user['Message'].lower()]
     for student_idx in duplicates:
         student = apex_students[student_idx]
         logger.info(f'Putting student with EDUID {student.import_user_id}.')
