@@ -5,7 +5,7 @@ import logging
 import os
 import json
 
-from apex_synchronizer import ApexSynchronizer, ApexSchedule
+from apex_synchronizer import ApexSynchronizer, ApexSchedule, exceptions
 
 
 def setup_logging(config_file: str = None, log_dir: str = None,
@@ -36,6 +36,7 @@ def main():
     logging_config = setup_logging(log_dir=os.environ.get('LOGDIR'))
     dictConfig(logging_config)
 
+    logger = logging.getLogger(__name__)
     schedule_path = os.environ.get('SCHEDULE_PATH', 'apex_schedule.json')
     try:
         schedule = ApexSchedule.from_json(schedule_path)
@@ -43,7 +44,10 @@ def main():
         schedule = ApexSchedule.default()
 
     sync_agent = ApexSynchronizer()
-    sync_agent.run_schedule(schedule)
+    try:
+        sync_agent.run_schedule(schedule)
+    except exceptions.ApexError:
+        logger.exception('Could not finish sync.')
 
 
 if __name__ == '__main__':
