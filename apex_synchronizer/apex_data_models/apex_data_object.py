@@ -457,10 +457,10 @@ class ApexDataObject(ABC):
             except exceptions.ApexObjectNotFoundException:
                 error_msg = f'Could not retrieve object of type {cls.__name__} \
                             bearing ImportID {obj[cls.main_id]}. Skipping object'
-                logger.info(error_msg)
-            except exceptions.ApexMalformedEmailException as e:
-                logger.info(e)
-            except exceptions.ApexIncompleteDataException as e:
+                logger.debug(error_msg)
+            except (exceptions.ApexIncompleteDataException,
+                    exceptions.ApexMalformedEmailException,
+                    exceptions.ApexUnrecognizedOrganizationError) as e:
                 logger.debug(e)
             except exceptions.ApexError:
                 logger.exception('Received Apex error:')
