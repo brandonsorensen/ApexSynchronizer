@@ -1,8 +1,12 @@
 from typing import List, Union
 from urllib.parse import urljoin
 
+from requests import Session
+import requests
+
 from .apex_data_object import ApexUser
-from .utils import BASE_URL
+from .utils import BASE_URL, TokenType
+from .. import exceptions
 
 
 class ApexStaffMember(ApexUser):
@@ -55,7 +59,9 @@ class ApexStaffMember(ApexUser):
         # TODO
         pass
 
-    def get_with_orgs(self, token) -> List['ApexStaffMember']:
+    @classmethod
+    def get_all_orgs(cls, import_id: str, token: TokenType = None,
+                      session: Session = None) -> List['ApexStaffMember']:
         """
         Exactly the same as the `get` method with the difference that
         if a staff member belongs to multiple organizations, this
@@ -63,10 +69,31 @@ class ApexStaffMember(ApexUser):
         organization.
 
         :param token: Apex access token
+        :param session: an existing Apex session
+        :param import_id: the ImportId of the object
         :return:
         """
-        # TODO
-        pass
+        r = cls._get_response(str(import_id), token=token,
+                              session=session)
+        try:
+            r.raise_for_status()
+        except requests.exceptions.HTTPError:
+            if r.status_code == 401:
+                raise exceptions.ApexNotAuthorizedError()
+            raise exceptions.ApexObjectNotFoundException(import_id)
+        except requests.exceptions.ConnectionError:
+            raise exceptions.ApexConnectionException()
+
+        try:
+            kwargs, json_obj = cls._init_kwargs_from_get(r)
+            objs = []
+            for org in json_obj['Organizations']:
+                kwargs['import_org_id'] = org['ImportOrgId']
+                objs.append(cls(**kwargs))
+        except KeyError:
+            raise exceptions.ApexIncompleteDataException()
+
+        return objs
 
     @classmethod
     def from_powerschool(cls, json_obj, already_flat: bool = False) \
