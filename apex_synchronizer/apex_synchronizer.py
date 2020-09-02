@@ -150,12 +150,16 @@ class ApexSynchronizer(object):
                              f'for classroom with ID \"{c_id}\".')
             try:
                 apex_classroom = self.apex_enroll.get_classroom_for_id(c_id)
-                apex_roster = set(self.apex_enroll.get_roster(c_id))
             except KeyError:
                 self.logger.info(f'Classroom bearing ID \"{c_id}\" is not in '
                                  'Apex. It must be added before syncing '
                                  'enrollment. Skipping for now...')
                 continue
+
+            try:
+                apex_roster = set(self.apex_enroll.get_roster(c_id))
+            except KeyError:
+                apex_roster = set()
 
             student_list = set(student_list)
             if student_list == apex_roster:

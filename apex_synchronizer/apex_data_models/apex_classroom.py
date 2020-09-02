@@ -8,7 +8,7 @@ import logging
 import requests
 
 from . import utils as adm_utils
-from .apex_data_object import ApexDataObject, ApexUser
+from .apex_data_object import ApexDataObject, ApexNumericId, ApexUser
 from .apex_staff_member import ApexStaffMember
 from .page_walker import PageWalker
 from .utils import check_args
@@ -34,7 +34,7 @@ def _init_powerschool_teachers() -> List[ApexStaffMember]:
     return teachers
 
 
-class ApexClassroom(ApexDataObject):
+class ApexClassroom(ApexNumericId, ApexDataObject):
 
     """
     Represents a classroom in the Apex data base.
