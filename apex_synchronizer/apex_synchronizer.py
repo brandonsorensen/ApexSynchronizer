@@ -70,79 +70,40 @@ class ApexSynchronizer(object):
         self.batch_jobs = []
         self.ps_staff = {}
         self.apex_staff = set()
-        self.apex_enroll, self.ps_enroll = self.init_enrollment()
+        self.apex_enroll, self.ps_enroll = self._init_enrollment()
 
-    def run_schedule(self, s: ApexSchedule):
+    @property
+    def apex_roster(self) -> KeysView:
         """
-        Run all the routines specified in the :class:`ApexSchedule`
-        object.
-
-        :param s: an ApexSchedule object
+        Avoids creating an ApexEnrollment object if it doesn't
+        have to.
         """
-        pretty_string = json.dumps(s.to_dict(), indent=2)
-        self.logger.info('Received the following ApexSchedule\n'
-                         + pretty_string)
-        for method_name, execute in s.to_dict().items():
-            if execute:
-                method = getattr(self, method_name)
-                self.logger.info(f'Executing routine: "{method_name}"')
-                method()
+        return self.apex_enroll.roster
 
-    def init_enrollment(self) -> Tuple[ApexEnrollment, PSEnrollment]:
-        use_serial = bool(int(environ.get('USE_PICKLE', False)))
-        cache_apex = bool(int(environ.get('CACHE_APEX', False)))
-        if not os.path.exists(PICKLE_DIR):
-            os.makedirs(PICKLE_DIR, exist_ok=True)
-        apex_path = PICKLE_DIR / 'apex_enroll.pickle'
-
-        if use_serial:
-            apex_enroll = pickle.load(open(apex_path, 'rb'))
-        else:
-            apex_enroll = ApexEnrollment(session=self.session)
-            self.logger.info('Retrieved enrollment info from Apex.')
-        ps_enroll = PSEnrollment()
-        self.logger.info('Retrieved enrollment info from PowerSchool.')
-
-        if cache_apex:
-            self.logger.debug('Caching Apex roster to ' + str(apex_path))
-            pickle.dump(apex_enroll, open(apex_path, 'wb+'))
-
-        return apex_enroll, ps_enroll
-
-    def init_staff(self):
-        self.logger.debug('Fetching current ps_staff from Apex.')
-        self.apex_staff = set(ApexStaffMember.get_all_ids(session=self.session))
-        self.ps_staff = {}
-        self.logger.info('Fetching staff from PowerSchool.')
-        for sm in fetch_staff():
-            try:
-                apex_sm = ApexStaffMember.from_powerschool(sm)
-                if int(apex_sm.import_org_id) in (501, 616):
-                    self.ps_staff[apex_sm.import_user_id] = apex_sm
-            except exceptions.ApexEmailException as e:
-                self.logger.debug(e)
-        self.logger.info(f'Successfully retrieved {len(self.ps_staff)} '
-                         'ps_staff members from PowerSchool.')
+    @property
+    def ps_roster(self) -> KeysView:
+        """Exists only to mirror the `apex_roster` method."""
+        return self.ps_enroll.roster
 
     def sync_rosters(self):
         self.logger.info('Beginning roster synchronization.')
         self.logger.info('Comparing enrollment information.')
         to_enroll = self.ps_roster - self.apex_roster
         to_withdraw = self.apex_roster - self.ps_roster
-        to_update = self.find_conflicts()
+        to_update = self._find_conflicts()
         if len(to_enroll) == len(to_withdraw) == len(to_update) == 0:
             self.logger.info('Rosters already in sync')
             return
 
         if len(to_enroll) > 0:
-            self.enroll_students(set(to_enroll))
+            self._enroll_students(set(to_enroll))
         else:
             self.logger.info('PowerSchool roster agrees with Apex roster.')
 
         if len(to_update) > 0:
             for student in to_update:
                 r = student.put_to_apex(session=self.session)
-                self.logger.info('Recieved response from PUT call:\n'
+                self.logger.info('Received response from PUT call:\n'
                                  + str(r.text))
         else:
             self.logger.info('All records match one another. None to update.')
@@ -155,7 +116,7 @@ class ApexSynchronizer(object):
             self.logger.info('Apex roster agrees with PowerSchool')
 
     def sync_staff(self):
-        self.init_staff()
+        self._init_staff()
         post_ids = self.ps_staff.keys() - self.apex_staff
         if len(post_ids) == 0:
             self.logger.info('Staff list in sync.')
@@ -291,30 +252,6 @@ class ApexSynchronizer(object):
                 n_entries_changed += n_withdrawn
         self.logger.info(f'Updated {n_entries_changed} enrollment records.')
 
-    def enroll_students(self, student_ids: Collection[int]):
-        apex_students = init_students_for_ids(student_ids)
-        if len(apex_students) > 0:
-            post_students(apex_students, session=self.session)
-
-    def _has_enrollment(self):
-        try:
-            self.apex_enroll is not None and self.ps_enroll is not None
-        except AttributeError:
-            return False
-
-    @property
-    def apex_roster(self) -> KeysView:
-        """
-        Avoids creating an ApexEnrollment object if it doesn't
-        have to.
-        """
-        return self.apex_enroll.roster
-
-    @property
-    def ps_roster(self) -> KeysView:
-        """Exists only to mirror the `apex_roster` method."""
-        return self.ps_enroll.roster
-
     def sync_classrooms(self):
         """
         Ensures that all relevant classrooms that are present in
@@ -398,7 +335,28 @@ class ApexSynchronizer(object):
             else:
                 self.logger.info('No classrooms were added to Apex.')
 
-    def find_conflicts(self) -> List[ApexStudent]:
+    def run_schedule(self, s: ApexSchedule):
+        """
+        Run all the routines specified in the :class:`ApexSchedule`
+        object.
+
+        :param s: an ApexSchedule object
+        """
+        pretty_string = json.dumps(s.to_dict(), indent=2)
+        self.logger.info('Received the following ApexSchedule\n'
+                         + pretty_string)
+        for method_name, execute in s.to_dict().items():
+            if execute:
+                method = getattr(self, method_name)
+                self.logger.info(f'Executing routine: "{method_name}"')
+                method()
+
+    def _enroll_students(self, student_ids: Collection[int]):
+        apex_students = init_students_for_ids(student_ids)
+        if len(apex_students) > 0:
+            post_students(apex_students, session=self.session)
+
+    def _find_conflicts(self) -> List[ApexStudent]:
         """
         Finds all students who need to be updated.
         :return: a list of student with updated information that can be
@@ -424,6 +382,48 @@ class ApexSynchronizer(object):
                 to_update.append(st.apex)
 
         return to_update
+
+    def _init_enrollment(self) -> Tuple[ApexEnrollment, PSEnrollment]:
+        use_serial = bool(int(environ.get('USE_PICKLE', False)))
+        cache_apex = bool(int(environ.get('CACHE_APEX', False)))
+        if not os.path.exists(PICKLE_DIR):
+            os.makedirs(PICKLE_DIR, exist_ok=True)
+        apex_path = PICKLE_DIR / 'apex_enroll.pickle'
+
+        if use_serial:
+            apex_enroll = pickle.load(open(apex_path, 'rb'))
+        else:
+            apex_enroll = ApexEnrollment(session=self.session)
+            self.logger.info('Retrieved enrollment info from Apex.')
+        ps_enroll = PSEnrollment()
+        self.logger.info('Retrieved enrollment info from PowerSchool.')
+
+        if cache_apex:
+            self.logger.debug('Caching Apex roster to ' + str(apex_path))
+            pickle.dump(apex_enroll, open(apex_path, 'wb+'))
+
+        return apex_enroll, ps_enroll
+
+    def _init_staff(self):
+        self.logger.debug('Fetching current ps_staff from Apex.')
+        self.apex_staff = set(ApexStaffMember.get_all_ids(session=self.session))
+        self.ps_staff = {}
+        self.logger.info('Fetching staff from PowerSchool.')
+        for sm in fetch_staff():
+            try:
+                apex_sm = ApexStaffMember.from_powerschool(sm)
+                if int(apex_sm.import_org_id) in (501, 616):
+                    self.ps_staff[apex_sm.import_user_id] = apex_sm
+            except exceptions.ApexEmailException as e:
+                self.logger.debug(e)
+        self.logger.info(f'Successfully retrieved {len(self.ps_staff)} '
+                         'ps_staff members from PowerSchool.')
+
+    def _has_enrollment(self):
+        try:
+            self.apex_enroll is not None and self.ps_enroll is not None
+        except AttributeError:
+            return False
 
 
 def init_students_for_ids(student_ids: Collection[int]) -> List[ApexStudent]:
@@ -470,29 +470,6 @@ def init_students_for_ids(student_ids: Collection[int]) -> List[ApexStudent]:
     return apex_students
 
 
-def post_students(apex_students: List[ApexStudent], token: TokenType = None,
-                  session: requests.Session = None):
-    """Posts a list of ApexStudents to the Apex API."""
-    logger = logging.getLogger(__name__)
-    logger.info(f'Posting {len(apex_students)} students.')
-    r = ApexStudent.post_batch(apex_students, token=token, session=session)
-    try:
-        r.raise_for_status()
-        logger.debug('Received status code ' + str(r.status_code))
-    except requests.exceptions.HTTPError:
-        as_json = r.json()
-        if type(as_json) is dict:
-            logger.info('Found duplicates.')
-            put_duplicates(as_json, apex_students, token=token,
-                           session=session)
-        elif type(as_json) is list:
-            logger.info('Removing invalid entries.')
-            repost_students(as_json, apex_students, token=token,
-                            session=session)
-        else:
-            logger.exception('Response text:\n' + r.text)
-
-
 def put_duplicates(json_obj: dict, apex_students: List[ApexStudent],
                    token: TokenType = None, session: requests.Session = None):
     """
@@ -520,6 +497,29 @@ def put_duplicates(json_obj: dict, apex_students: List[ApexStudent],
     if len(duplicates) > 0:
         logger.info(f'Successfully PUT {n_success}/{len(duplicates)} '
                     f'students.')
+
+
+def post_students(apex_students: List[ApexStudent], token: TokenType = None,
+                  session: requests.Session = None):
+    """Posts a list of ApexStudents to the Apex API."""
+    logger = logging.getLogger(__name__)
+    logger.info(f'Posting {len(apex_students)} students.')
+    r = ApexStudent.post_batch(apex_students, token=token, session=session)
+    try:
+        r.raise_for_status()
+        logger.debug('Received status code ' + str(r.status_code))
+    except requests.exceptions.HTTPError:
+        as_json = r.json()
+        if type(as_json) is dict:
+            logger.info('Found duplicates.')
+            put_duplicates(as_json, apex_students, token=token,
+                           session=session)
+        elif type(as_json) is list:
+            logger.info('Removing invalid entries.')
+            repost_students(as_json, apex_students, token=token,
+                            session=session)
+        else:
+            logger.exception('Response text:\n' + r.text)
 
 
 def repost_students(json_obj: dict, apex_students: List[ApexStudent],
