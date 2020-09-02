@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plugin xmlns="http://plugin.powerschool.pearson.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="http://plugin.powerschool.pearson.com plugin.xsd"
-        name="Apex Learning" version="0.943" description="Apex Access Plugin">
+        name="Apex Learning" version="0.945" description="Apex Access Plugin">
   <oauth/>
   <publisher name="Brandon">
     <contact email="sorensen.12@gmail.com"/>
@@ -45,6 +45,7 @@
     <field table="teachers" field="Email_Addr" access="ViewOnly"/>
     <field table="teachers" field="TeacherLoginPW" access="ViewOnly"/>
     <field table="teachers" field="SchoolID" access="ViewOnly"/>
+    <field table="teachers" field="Status" access="ViewOnly"/>
     <field table="terms" field="FirstDay" access="ViewOnly"/>
     <field table="terms" field="LastDay" access="ViewOnly"/>
     <field table="terms" field="id" access="ViewOnly"/>
