@@ -21,17 +21,7 @@ class ApexStaffMember(ApexUser):
     :param str email: the staff member's school email address (optional)
     """
 
-    url = urljoin(BASE_URL, 'staff')
-    role = 'T'
-    role_set = {'M', 'T', 'TC', 'SC'}
     post_heading = 'staffUsers'
-    """
-    m = mentor
-    t = teacher
-    tc = technical coordinator
-    sc = site_coordinator
-    """
-
     ps2apex_field_map = {
         'school_id': 'import_org_id',
         'email': 'email',
@@ -39,6 +29,15 @@ class ApexStaffMember(ApexUser):
         'middle_name': 'middle_name',
         'last_name': 'last_name'
     }
+    url = urljoin(BASE_URL, 'staff')
+    role = 'T'
+    role_set = {'M', 'T', 'TC', 'SC'}
+    """
+    m = mentor
+    t = teacher
+    tc = technical coordinator
+    sc = site_coordinator
+    """
 
     def __init__(self, import_org_id: int, first_name: str,
                  middle_name: str, last_name: str, email: str):
@@ -52,18 +51,9 @@ class ApexStaffMember(ApexUser):
             login_id=email_lower.split('@')[0] if email else None
         )
 
-    @classmethod
-    def from_powerschool(cls, json_obj, already_flat: bool = False) \
-            -> 'ApexStaffMember':
-        kwargs = cls._init_kwargs_from_ps(json_obj=json_obj,
-                                          already_flat=already_flat)
-        try:
-            # In case of old version of PowerSchool query
-            del kwargs['login_id']
-        except KeyError:
-            pass
-
-        return cls(**kwargs)
+    def get_classrooms(self, token) -> List['ApexClassroom']:
+        # TODO
+        pass
 
     def get_with_orgs(self, token) -> List['ApexStaffMember']:
         """
@@ -79,12 +69,23 @@ class ApexStaffMember(ApexUser):
         pass
 
     @classmethod
+    def from_powerschool(cls, json_obj, already_flat: bool = False) \
+            -> 'ApexStaffMember':
+        kwargs = cls._init_kwargs_from_ps(json_obj=json_obj,
+                                          already_flat=already_flat)
+        try:
+            # In case of old version of PowerSchool query
+            del kwargs['login_id']
+        except KeyError:
+            pass
+
+        return cls(**kwargs)
+
+    @classmethod
     def _parse_get_response(cls, r) -> 'ApexStaffMember':
         kwargs, json_obj = cls._init_kwargs_from_get(r)
         orgs = json_obj['Organizations']
         kwargs['import_org_id'] = orgs[0]['ImportOrgId']
         return cls(**kwargs)
 
-    def get_classrooms(self, token) -> List['ApexClassroom']:
-        # TODO
-        pass
+

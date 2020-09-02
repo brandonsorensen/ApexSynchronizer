@@ -210,7 +210,9 @@ class ApexEnrollment(BaseEnrollment):
             self._all_students = ApexStudent.get_all(token=access_token,
                                                      session=session)
         else:
-            self._all_students = student_ids
+            self._all_students = ApexStudent.get_collection(student_ids,
+                                                            token=access_token,
+                                                            session=session)
             self.logger.info('Retrieved Apex student information')
         self.logger.debug('Creating ApexStudent index')
         self._apex_index = {int(student.import_user_id): student

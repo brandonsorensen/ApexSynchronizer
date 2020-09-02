@@ -95,95 +95,33 @@ class ApexClassroom(ApexDataObject):
             raise exceptions.ApexDatetimeException(classroom_start_date)
         self.program_code = program_code
 
-    @classmethod
-    def from_powerschool(cls, json_obj: dict, already_flat: bool = False) \
-            -> 'ApexClassroom':
-        kwargs = cls._init_kwargs_from_ps(json_obj, already_flat)
-        kwargs['classroom_name'] = (kwargs['course_name']
-                                    + ' - '
-                                    + kwargs['section_number'])
-        del kwargs['course_name']
-        del kwargs['section_number']
-
-        kwargs['program_code'] = course2program_code[int(kwargs['import_org_id'])]
-        if kwargs['product_codes'] is None:
-            product_codes = []
-        else:
-            product_codes = [kwargs['product_codes']]
-
-        kwargs['product_codes'] = product_codes
-        ps_dt = datetime.strptime(kwargs['classroom_start_date'],
-                                  adm_utils.PS_OUTPUT_FORMAT)
-        apex_dt = ps_dt.strftime(adm_utils.PS_DATETIME_FORMAT)
-        kwargs['classroom_start_date'] = apex_dt
-
-        return cls(**kwargs)
-
-    @classmethod
-    def _parse_get_response(cls, r: Response) -> 'ApexClassroom':
-        kwargs, json_obj = cls._init_kwargs_from_get(r)
-
-        org_id = int(kwargs['import_org_id'])
-        kwargs['program_code'] = course2program_code[org_id]
-        kwargs['classroom_name'] = json_obj['ClassroomName']
-        date = datetime.strptime(kwargs['classroom_start_date'],
-                                 adm_utils.APEX_DATETIME_FORMAT)
-        kwargs['classroom_start_date'] = date.strftime(
-            adm_utils.PS_DATETIME_FORMAT
-        )
-        if not json_obj['PrimaryTeacher']:
-            raise exceptions.ApexNoTeacherException(json_obj)
-        teacher = teacher_fuzzy_match(json_obj['PrimaryTeacher'],
-                                      org=org_id,
-                                      teachers=cls._all_ps_teachers)
-        kwargs['import_user_id'] = teacher.import_user_id
-
-        return cls(**kwargs)
-
-    @classmethod
-    def _get_all(cls, token: TokenType, ids_only: bool, archived: bool,
-                 session: requests.Session) -> List[Union['ApexClassroom', int]]:
+    def change_teacher(self, new_teacher: Union['ApexStaffMember', str],
+                       token: TokenType = None,
+                       session: requests.Session = None):
         """
-        Get all objects. Must be overloaded because Apex does not
-        support a global GET request for objects in the same. Loops
-        through all PowerSchool objects and keeps the ones that exist.
+        Withdraws the current teachers and enrolls a new one as a
+        primary teacher.
 
-        Note: Because the Apex API does not provide a GET operation
-        that returns all classrooms, fetching only IDs does not yield
-        any performance boost. All classrooms must stll be fetched
-        individually.
-
-        :param token: Apex access token
-        :param session: an existing requests.Session object
-        :param bool ids_only: Whether or not to return only IDs
-        :param bool archived: Whether or not to returned archived
-            results
-        :return:
+        :param new_teacher: the new teacher
+        :param token: an Apex access token
+        :param session: an existing Apex session
         """
         logger = logging.getLogger(__name__)
+        if type(new_teacher) is str:
+            new_teacher = ApexStaffMember.get(new_teacher, token=token,
+                                              session=session)
+        logger.info(f'Changing teachers from {self.import_user_id} '
+                    f'to {new_teacher.import_user_id}.')
+        current_teacher = ApexStaffMember.get(self.import_user_id,
+                                              token=token, session=session)
 
-        ret_val = []
+        r = self.withdraw(current_teacher, token=token, session=session)
+        try:
+            r.raise_for_status()
+        except requests.HTTPError:
+            return
 
-        for i, (section, progress) in enumerate(walk_ps_sections(archived)):
-            try:
-                section_id = section['section_id']
-                apex_obj = cls.get(section_id, token=token, session=session)
-                ret_val.append(int(apex_obj.import_classroom_id) if ids_only
-                               else apex_obj)
-                logger.info(f'{progress}:Created ApexClassroom for '
-                            f'SectionID {section_id}')
-            except KeyError:
-                raise exceptions.ApexMalformedJsonException(section)
-            except exceptions.ApexIncompleteDataException as e:
-                logger.info(f'{progress}:{e}')
-            except exceptions.ApexObjectNotFoundException:
-                msg = (f'{progress}:PowerSchool section indexed by '
-                       f'{section["section_id"]} could not be found in Apex. '
-                       'Skipping classroom.')
-                logger.info(msg)
-
-        logger.info(f'Returning {len(ret_val)} ApexClassroom objects.')
-        return ret_val
+        self.enroll(new_teacher, token=token, session=session)
 
     def enroll(self, objs: Union[Sequence[ApexUser], ApexUser],
                token: TokenType = None,
@@ -241,33 +179,108 @@ class ApexClassroom(ApexDataObject):
                          + r.text)
         return r
 
-    def change_teacher(self, new_teacher: Union['ApexStaffMember', str],
-                       token: TokenType = None,
-                       session: requests.Session = None):
+    def get_reports(self, token: TokenType = None,
+                    session: requests.Session = None) -> List[dict]:
         """
-        Withdraws the current teachers and enrolls a new one as a
-        primary teacher.
+        Returns summary-level gradebook information for each student
+        that is enrolled in the classroom. If a 200 response is returned
+        the JSON is returned from this method as is without any
+        validation. The documentation on what can be expected in this
+        JSON object can be found on Apex's website.
 
-        :param new_teacher: the new teacher
+        Either an access token or an existing session `may` be passed,
+        but at least one `must` be passed. If both a token and a session
+        are given, the session takes priority.
+
         :param token: an Apex access token
         :param session: an existing Apex session
+        :return: gradebook info for each student enrolled in the
+            classroom
         """
-        logger = logging.getLogger(__name__)
-        if type(new_teacher) is str:
-            new_teacher = ApexStaffMember.get(new_teacher, token=token,
-                                              session=session)
-        logger.info(f'Changing teachers from {self.import_user_id} '
-                    f'to {new_teacher.import_user_id}.')
-        current_teacher = ApexStaffMember.get(self.import_user_id,
-                                              token=token, session=session)
+        agent = check_args(token, session)
+        url = urljoin(self.url + '/', str(self.import_classroom_id))
+        url = urljoin(url + '/', 'reports')
+        if isinstance(agent, requests.Session):
+            r = agent.get(url=url)
+        else:
+            r = agent.get(url=url, headers=get_header(token))
 
-        r = self.withdraw(current_teacher, token=token, session=session)
         try:
             r.raise_for_status()
-        except requests.HTTPError:
+            if r.status_code == 204:
+                return [{}]
+            return r.json()
+        except requests.exceptions.HTTPError:
+            raise exceptions.ApexObjectNotFoundException(
+                self.import_classroom_id
+            )
+
+    def to_json(self) -> dict:
+        d = super().to_json()
+        dt_obj = self.classroom_start_date
+        d['ClassroomStartDate'] = dt_obj.strftime(adm_utils.PS_DATETIME_FORMAT)
+        return d
+
+    def update(self, new_classroom: 'ApexClassroom',
+               token: TokenType = None,
+               session: requests.Session = None) -> Optional[requests.Response]:
+        """
+
+        :param new_classroom:
+        :param token:
+        :param session:
+        :return:
+        """
+        if self == new_classroom:
             return
 
-        self.enroll(new_teacher, token=token, session=session)
+        if self.import_classroom_id != new_classroom.import_classroom_id:
+            raise ValueError('`new_classroom` object contains a different'
+                             'classroom ID.')
+
+        if self.import_user_id != new_classroom.import_user_id:
+            self.change_teacher(new_classroom.import_user_id, token=token,
+                                session=session)
+
+        return new_classroom.put_to_apex(token=token, session=session)
+
+    def update_product_codes(self, new_codes: Union[List[str], str],
+                             token: TokenType = None,
+                             session: requests.Session = None) \
+            -> requests.Response:
+        """
+        Updates the product codes and submits the change to the Apex
+        API, returning the response from the PUT call.
+
+        :param new_codes: the new product codes to submit to Apex
+        :param token: an Apex access token
+        :param session: an existing Apex session
+        :raises exceptions.ApexNoChangeSubmitted: when the codes are
+            the same
+        :raises ValueError: when new_codes is empty or does not contain
+            only strings
+        :return: the responses returned by the PUT and/or DELETE calls.
+        """
+
+        if isinstance(new_codes, str):
+            new_codes = [new_codes]
+        else:
+            if not new_codes:
+                raise ValueError('No new codes provided.')
+            if not all(isinstance(code, str) for code in new_codes):
+                raise ValueError('Argument "new_codes" contains an object that '
+                                 'is not of type `str`.')
+            new_codes = set(new_codes)
+        logger = logging.getLogger(__name__)
+        old_codes = set(self.product_codes)
+        if new_codes == old_codes:
+            logger.debug('Product codes will not be updated because the '
+                         'provided codes are the same as the current ones.')
+            raise exceptions.ApexNoChangeSubmitted()
+
+        self.product_codes = new_codes
+        r = self.put_to_apex(token=token, session=session)
+        return r
 
     def withdraw(self, obj: Union[ApexUser, int, str],
                  obj_type: str = None,
@@ -316,79 +329,29 @@ class ApexClassroom(ApexDataObject):
                          + r.text)
         return r
 
-    def update_product_codes(self, new_codes: Union[List[str], str],
-                             token: TokenType = None,
-                             session: requests.Session = None) \
-            -> requests.Response:
-        """
-        Updates the product codes and submits the change to the Apex
-        API, returning the response from the PUT call.
+    @classmethod
+    def from_powerschool(cls, json_obj: dict, already_flat: bool = False) \
+            -> 'ApexClassroom':
+        kwargs = cls._init_kwargs_from_ps(json_obj, already_flat)
+        kwargs['classroom_name'] = (kwargs['course_name']
+                                    + ' - '
+                                    + kwargs['section_number'])
+        del kwargs['course_name']
+        del kwargs['section_number']
 
-        :param new_codes: the new product codes to submit to Apex
-        :param token: an Apex access token
-        :param session: an existing Apex session
-        :raises exceptions.ApexNoChangeSubmitted: when the codes are
-            the same
-        :raises ValueError: when new_codes is empty or does not contain
-            only strings
-        :return: the responses returned by the PUT and/or DELETE calls.
-        """
-
-        if isinstance(new_codes, str):
-            new_codes = [new_codes]
+        kwargs['program_code'] = course2program_code[int(kwargs['import_org_id'])]
+        if kwargs['product_codes'] is None:
+            product_codes = []
         else:
-            if not new_codes:
-                raise ValueError('No new codes provided.')
-            if not all(isinstance(code, str) for code in new_codes):
-                raise ValueError('Argument "new_codes" contains an object that '
-                                 'is not of type `str`.')
-            new_codes = set(new_codes)
-        logger = logging.getLogger(__name__)
-        old_codes = set(self.product_codes)
-        if new_codes == old_codes:
-            logger.debug('Product codes will not be updated because the '
-                         'provided codes are the same as the current ones.')
-            raise exceptions.ApexNoChangeSubmitted()
+            product_codes = [kwargs['product_codes']]
 
-        self.product_codes = new_codes
-        r = self.put_to_apex(token=token, session=session)
-        return r
+        kwargs['product_codes'] = product_codes
+        ps_dt = datetime.strptime(kwargs['classroom_start_date'],
+                                  adm_utils.PS_OUTPUT_FORMAT)
+        apex_dt = ps_dt.strftime(adm_utils.PS_DATETIME_FORMAT)
+        kwargs['classroom_start_date'] = apex_dt
 
-    def get_reports(self, token: TokenType = None,
-                    session: requests.Session = None) -> List[dict]:
-        """
-        Returns summary-level gradebook information for each student
-        that is enrolled in the classroom. If a 200 response is returned
-        the JSON is returned from this method as is without any
-        validation. The documentation on what can be expected in this
-        JSON object can be found on Apex's website.
-
-        Either an access token or an existing session `may` be passed,
-        but at least one `must` be passed. If both a token and a session
-        are given, the session takes priority.
-
-        :param token: an Apex access token
-        :param session: an existing Apex session
-        :return: gradebook info for each student enrolled in the
-            classroom
-        """
-        agent = check_args(token, session)
-        url = urljoin(self.url + '/', str(self.import_classroom_id))
-        url = urljoin(url + '/', 'reports')
-        if isinstance(agent, requests.Session):
-            r = agent.get(url=url)
-        else:
-            r = agent.get(url=url, headers=get_header(token))
-
-        try:
-            r.raise_for_status()
-            if r.status_code == 204:
-                return [{}]
-            return r.json()
-        except requests.exceptions.HTTPError:
-            raise exceptions.ApexObjectNotFoundException(
-                self.import_classroom_id
-            )
+        return cls(**kwargs)
 
     def _get_data_object_class_url(self, dtype: ApexUser) -> str:
         """
@@ -410,8 +373,8 @@ class ApexClassroom(ApexDataObject):
         obj_type_component = urlparse(dtype.url).path.rsplit("/", 1)[-1]
         return urljoin(url + '/', obj_type_component)
 
-    def get_put_payload(self) -> dict:
-        payload = super().get_put_payload()
+    def _get_put_payload(self) -> dict:
+        payload = super()._get_put_payload()
         if 'ProgramCode' in payload.keys():
             del payload['ProgramCode']
         if 'Role' in payload.keys():
@@ -419,34 +382,118 @@ class ApexClassroom(ApexDataObject):
         payload['IsPrimary'] = True
         return payload
 
-    def update(self, new_classroom: 'ApexClassroom',
-               token: TokenType = None,
-               session: requests.Session = None) -> Optional[requests.Response]:
+    @classmethod
+    def _get_all(cls, token: TokenType, ids_only: bool, archived: bool,
+                 session: requests.Session) -> List[Union['ApexClassroom', int]]:
         """
+        Get all objects. Must be overloaded because Apex does not
+        support a global GET request for objects in the same. Loops
+        through all PowerSchool objects and keeps the ones that exist.
 
-        :param new_classroom:
-        :param token:
-        :param session:
+        Note: Because the Apex API does not provide a GET operation
+        that returns all classrooms, fetching only IDs does not yield
+        any performance boost. All classrooms must stll be fetched
+        individually.
+
+        :param token: Apex access token
+        :param session: an existing requests.Session object
+        :param bool ids_only: Whether or not to return only IDs
+        :param bool archived: Whether or not to returned archived
+            results
         :return:
         """
-        if self == new_classroom:
-            return
+        logger = logging.getLogger(__name__)
 
-        if self.import_classroom_id != new_classroom.import_classroom_id:
-            raise ValueError('`new_classroom` object contains a different'
-                             'classroom ID.')
+        ret_val = []
 
-        if self.import_user_id != new_classroom.import_user_id:
-            self.change_teacher(new_classroom.import_user_id, token=token,
-                                session=session)
+        for i, (section, progress) in enumerate(walk_ps_sections(archived)):
+            try:
+                section_id = section['section_id']
+                apex_obj = cls.get(section_id, token=token, session=session)
+                ret_val.append(int(apex_obj.import_classroom_id) if ids_only
+                               else apex_obj)
+                logger.info(f'{progress}:Created ApexClassroom for '
+                            f'SectionID {section_id}')
+            except KeyError:
+                raise exceptions.ApexMalformedJsonException(section)
+            except exceptions.ApexIncompleteDataException as e:
+                logger.info(f'{progress}:{e}')
+            except exceptions.ApexObjectNotFoundException:
+                msg = (f'{progress}:PowerSchool section indexed by '
+                       f'{section["section_id"]} could not be found in Apex. '
+                       'Skipping classroom.')
+                logger.info(msg)
 
-        return new_classroom.put_to_apex(token=token, session=session)
+        logger.info(f'Returning {len(ret_val)} ApexClassroom objects.')
+        return ret_val
 
-    def to_json(self) -> dict:
-        d = super().to_json()
-        dt_obj = self.classroom_start_date
-        d['ClassroomStartDate'] = dt_obj.strftime(adm_utils.PS_DATETIME_FORMAT)
-        return d
+    @classmethod
+    def _parse_get_response(cls, r: Response) -> 'ApexClassroom':
+        kwargs, json_obj = cls._init_kwargs_from_get(r)
+
+        org_id = int(kwargs['import_org_id'])
+        kwargs['program_code'] = course2program_code[org_id]
+        kwargs['classroom_name'] = json_obj['ClassroomName']
+        date = datetime.strptime(kwargs['classroom_start_date'],
+                                 adm_utils.APEX_DATETIME_FORMAT)
+        kwargs['classroom_start_date'] = date.strftime(
+            adm_utils.PS_DATETIME_FORMAT
+        )
+        if not json_obj['PrimaryTeacher']:
+            raise exceptions.ApexNoTeacherException(json_obj)
+        teacher = teacher_fuzzy_match(json_obj['PrimaryTeacher'],
+                                      org=org_id,
+                                      teachers=cls._all_ps_teachers)
+        kwargs['import_user_id'] = teacher.import_user_id
+
+        return cls(**kwargs)
+
+
+def get_classrooms_for_eduids(eduids: Collection[int], token: TokenType = None,
+                              session: requests.Session = None,
+                              ids_only: bool = False,
+                              return_empty: bool = False) \
+        -> Dict[int, List[Union[int, ApexClassroom]]]:
+    logger = logging.getLogger(__name__)
+    base_url = urljoin(adm_utils.BASE_URL, '/students/')
+
+    def url_for_eduid(eduid_: int) -> str:
+        url_ = urljoin(base_url, str(eduid_))
+        return urljoin(url_ + '/', 'classrooms')
+
+    classrooms = {}
+    logger.info(f'Getting classrooms for {len(eduids)} students.')
+    for i, eduid in enumerate(eduids):
+        logger.info(f'{i + 1}/{len(eduids)} students')
+
+        url = url_for_eduid(eduid)
+        try:
+            eduid_classrooms = _get_classroom_for_eduid(url, token=token,
+                                                        session=session,
+                                                        ids_only=ids_only)
+        except exceptions.ApexObjectNotFoundException:
+            logger.info('Could not find student or student is not enrolled in '
+                        'any Apex classes: ' + str(eduid))
+            eduid_classrooms = []
+        except exceptions.ApexNoEnrollmentsError as e:
+            logger.info(str(e))
+            eduid_classrooms = []
+        except exceptions.ApexError:
+            logger.exception('Received generic Apex error:\n')
+            eduid_classrooms = []
+
+        if eduid_classrooms or (not eduid_classrooms and return_empty):
+            classrooms[int(eduid)] = eduid_classrooms
+
+    return classrooms
+
+
+def handle_400_response(r: Response, logger: logging.Logger = None):
+    if logger is None:
+        logger = logging.getLogger(__name__)
+
+    errors = _parse_400_response(r, logger)
+    return errors
 
 
 def teacher_fuzzy_match(t1: str, org: Union[str, int] = None,
@@ -509,43 +556,23 @@ def teacher_fuzzy_match(t1: str, org: Union[str, int] = None,
     return teachers[argmax]
 
 
-def get_classrooms_for_eduids(eduids: Collection[Union[str, int]],
-                              token: TokenType = None,
-                              session: requests.Session = None,
-                              ids_only: bool = False,
-                              return_empty: bool = False) \
-        -> Dict[int, List[Union[int, ApexClassroom]]]:
+def walk_ps_sections(archived: bool):
     logger = logging.getLogger(__name__)
-    base_url = urljoin(adm_utils.BASE_URL, '/students/')
 
-    def url_for_eduid(eduid_: Union[str, int]) -> str:
-        url_ = urljoin(base_url, str(eduid_))
-        return urljoin(url_ + '/', 'classrooms')
+    ps_classrooms = fetch_classrooms()
+    n_classrooms = len(ps_classrooms)
+    logger.info(f'Successfully retrieved {n_classrooms} sections'
+                'from PowerSchool.')
 
-    classrooms = {}
-    logger.info(f'Getting classrooms for {len(eduids)} students.')
-    for i, eduid in enumerate(eduids):
-        logger.info(f'{i + 1}/{len(eduids)} students')
-        url = url_for_eduid(eduid)
+    for i, section in enumerate(map(utils.flatten_ps_json, ps_classrooms)):
         try:
-            eduid_classrooms = _get_classroom_for_eduid(url, token=token,
-                                                        session=session,
-                                                        ids_only=ids_only)
-        except exceptions.ApexObjectNotFoundException:
-            logger.info('Could not find student or student is not enrolled in '
-                        'any Apex classes: ' + str(eduid))
-            eduid_classrooms = []
-        except exceptions.ApexNoEnrollmentsError as e:
-            logger.info(str(e))
-            eduid_classrooms = []
-        except exceptions.ApexError:
-            logger.exception('Received generic Apex error:\n')
-            eduid_classrooms = []
+            if not archived and section['RoleStatus'] == 'Archived':
+                continue
+        except KeyError:
+            logger.debug('JSON object does not contain "RoleStatus"')
 
-        if eduid_classrooms or (not eduid_classrooms and return_empty):
-            classrooms[int(eduid)] = eduid_classrooms
-
-    return classrooms
+        progress = f'section {i + 1}/{n_classrooms}'
+        yield section, progress
 
 
 def _get_classroom_for_eduid(url: str, token: TokenType = None,
@@ -591,33 +618,6 @@ def _get_classroom_for_eduid(url: str, token: TokenType = None,
                                            ids_only=ids_only)
 
     return ret_val
-
-
-def walk_ps_sections(archived: bool):
-    logger = logging.getLogger(__name__)
-
-    ps_classrooms = fetch_classrooms()
-    n_classrooms = len(ps_classrooms)
-    logger.info(f'Successfully retrieved {n_classrooms} sections'
-                'from PowerSchool.')
-
-    for i, section in enumerate(map(utils.flatten_ps_json, ps_classrooms)):
-        try:
-            if not archived and section['RoleStatus'] == 'Archived':
-                continue
-        except KeyError:
-            logger.debug('JSON object does not contain "RoleStatus"')
-
-        progress = f'section {i + 1}/{n_classrooms}'
-        yield section, progress
-
-
-def handle_400_response(r: Response, logger: logging.Logger = None):
-    if logger is None:
-        logger = logging.getLogger(__name__)
-
-    errors = _parse_400_response(r, logger)
-    return errors
 
 
 def _parse_400_response(r: Response, logger: logging.Logger = None) \

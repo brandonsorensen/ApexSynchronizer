@@ -60,66 +60,29 @@ class ApexStudent(ApexNumericId, ApexUser):
         self.grade_level = grade_level
         self.login_pw = import_user_id
 
-    @classmethod
-    def _parse_get_response(cls, r: Response):
-        kwargs, json_obj = cls._init_kwargs_from_get(r)
-        # Just returns the first organization in the list
-        # Students should only be assigned to a single org
-        kwargs['import_org_id'] = json_obj['Organizations'][0]['ImportOrgId']
+    @property
+    def classroom_url(self) -> str:
+        url = urljoin(self.url + '/', str(self.import_user_id))
+        url = urljoin(url + '/', 'classrooms')
+        return url
 
-        return cls(**kwargs)
-
-    @classmethod
-    def from_powerschool(cls, json_obj: dict, already_flat: bool = False) \
-            -> 'ApexStudent':
-        try:
-            kwargs = cls._init_kwargs_from_ps(json_obj=json_obj,
-                                              already_flat=already_flat)
-        except KeyError as e:
-            if e.args[0].lower() == 'email':
-                try:
-                    eduid = json_obj['tables']['students']['eduid']
-                except KeyError:
-                    raise exceptions.ApexMalformedJsonException(json_obj)
-
-                raise exceptions.ApexNoEmailException(eduid)
-            raise e
-
-        if kwargs['import_user_id'] is None:
-            kwargs['import_user_id'] = '10'
-
-        return cls(**kwargs)
-
-    def get_enrollments(self, active_only: bool = True, token: TokenType = None,
-                        session: requests.Session = None) \
-            -> Optional[List['ApexClassroom']]:
+    def enroll(self, classroom: Union[ApexClassroom, int],
+               token: TokenType = None,
+               session: requests.Session = None) -> Response:
         """
-        Gets all classes in which this :class:`ApexStudent` is enrolled.
+        Enrolls this :class:`ApexStudent` object into the class indexed
+        by `classroom_id`.
 
         :param token: an Apex access token
-        :param bool active_only: whether or not to only retrieve active
-            enrollments
-        :param session: an existing Apex session
-        :return: a list of ApexClassroom objects
+        :param classroom: an ApexClassroom object or classroom ID of
+            the relevant classroom
+        :param session: an existing `requests.Session` object
+        :return: the response of the PUT call
         """
-        classroom_ids = self.get_enrollment_ids(active_only=active_only,
-                                                token=token, session=session)
-        ret_val = []
-        n_classrooms = len(classroom_ids)
-        logger = logging.getLogger(__name__)
-
-        for i, c_id in enumerate(classroom_ids):
-            progress = f'Classroom {i + 1}/{n_classrooms}:id {c_id}:'
-            logger.info(f'{progress}:retrieving classroom info from Apex.')
-            try:
-                ret_val.append(ApexClassroom.get(c_id, session=session))
-            except exceptions.ApexObjectNotFoundException:
-                logger.info(f'Could not retrieve classroom {c_id}. Skipping..')
-            except exceptions.ApexConnectionException:
-                logger.exception('Could not connect to Apex endpoint.')
-                return
-
-        return ret_val
+        if isinstance(classroom, int):
+            classroom = ApexClassroom.get(classroom, token=token,
+                                          session=session)
+        return classroom.enroll(self, token=token, session=session)
 
     def get_enrollment_ids(self, active_only=True, token: TokenType = None,
                            session: requests.Session = None) -> List[int]:
@@ -160,6 +123,37 @@ class ApexStudent(ApexNumericId, ApexUser):
         except KeyError:
             raise exceptions.ApexMalformedJsonException(r.json())
 
+    def get_enrollments(self, active_only: bool = True, token: TokenType = None,
+                        session: requests.Session = None) \
+            -> Optional[List['ApexClassroom']]:
+        """
+        Gets all classes in which this :class:`ApexStudent` is enrolled.
+
+        :param token: an Apex access token
+        :param bool active_only: whether or not to only retrieve active
+            enrollments
+        :param session: an existing Apex session
+        :return: a list of ApexClassroom objects
+        """
+        classroom_ids = self.get_enrollment_ids(active_only=active_only,
+                                                token=token, session=session)
+        ret_val = []
+        n_classrooms = len(classroom_ids)
+        logger = logging.getLogger(__name__)
+
+        for i, c_id in enumerate(classroom_ids):
+            progress = f'Classroom {i + 1}/{n_classrooms}:id {c_id}:'
+            logger.info(f'{progress}:retrieving classroom info from Apex.')
+            try:
+                ret_val.append(ApexClassroom.get(c_id, session=session))
+            except exceptions.ApexObjectNotFoundException:
+                logger.info(f'Could not retrieve classroom {c_id}. Skipping..')
+            except exceptions.ApexConnectionException:
+                logger.exception('Could not connect to Apex endpoint.')
+                return
+
+        return ret_val
+
     def transfer(self, old_classroom_id: str, new_classroom_id: str,
                  new_org_id: str = None, token: TokenType = None,
                  session: requests.Session = None) -> Response:
@@ -187,36 +181,12 @@ class ApexStudent(ApexNumericId, ApexUser):
         r = requests.put(url=url, headers=header, params=params)
         return r
 
-    def enroll(self, classroom: Union[ApexClassroom, int],
-               token: TokenType = None,
-               session: requests.Session = None) -> Response:
-        """
-        Enrolls this :class:`ApexStudent` object into the class indexed
-        by `classroom_id`.
-
-        :param token: an Apex access token
-        :param classroom: an ApexClassroom object or classroom ID of
-            the relevant classroom
-        :param session: an existing `requests.Session` object
-        :return: the response of the PUT call
-        """
-        if isinstance(classroom, int):
-            classroom = ApexClassroom.get(classroom, token=token,
-                                          session=session)
-        return classroom.enroll(self, token=token, session=session)
-
     def withdraw(self, classroom_id: str, token: TokenType = None,
                  session: requests.Session = None) -> Response:
         classroom = ApexClassroom.get(classroom_id, token=token,
                                       session=session)
         return classroom.withdraw(self.import_user_id, token=token,
                                   session=session)
-
-    @property
-    def classroom_url(self) -> str:
-        url = urljoin(self.url + '/', str(self.import_user_id))
-        url = urljoin(url + '/', 'classrooms')
-        return url
 
     @classmethod
     def delete_batch(cls, students: Collection[Union['ApexStudent', int]],
@@ -233,6 +203,27 @@ class ApexStudent(ApexNumericId, ApexUser):
             return cls._delete_id_batch(students, token=token, session=session)
 
         return _delete_student_batch(students, token=token, session=session)
+
+    @classmethod
+    def from_powerschool(cls, json_obj: dict, already_flat: bool = False) \
+            -> 'ApexStudent':
+        try:
+            kwargs = cls._init_kwargs_from_ps(json_obj=json_obj,
+                                              already_flat=already_flat)
+        except KeyError as e:
+            if e.args[0].lower() == 'email':
+                try:
+                    eduid = json_obj['tables']['students']['eduid']
+                except KeyError:
+                    raise exceptions.ApexMalformedJsonException(json_obj)
+
+                raise exceptions.ApexNoEmailException(eduid)
+            raise e
+
+        if kwargs['import_user_id'] is None:
+            kwargs['import_user_id'] = '10'
+
+        return cls(**kwargs)
 
     @classmethod
     def _delete_id_batch(cls, eduids: Collection[int], token: TokenType,
@@ -252,6 +243,15 @@ class ApexStudent(ApexNumericId, ApexUser):
             responses.append(r)
 
         return responses
+
+    @classmethod
+    def _parse_get_response(cls, r: Response):
+        kwargs, json_obj = cls._init_kwargs_from_get(r)
+        # Just returns the first organization in the list
+        # Students should only be assigned to a single org
+        kwargs['import_org_id'] = json_obj['Organizations'][0]['ImportOrgId']
+
+        return cls(**kwargs)
 
 
 def _delete_student_batch(students: Collection[ApexStudent],
