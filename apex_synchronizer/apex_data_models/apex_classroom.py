@@ -1,6 +1,6 @@
 from datetime import datetime
 from requests import Response
-from typing import Collection, Dict, List, Optional, Union
+from typing import Collection, Dict, List, Optional, Sequence, Union
 from urllib.parse import urljoin, urlparse
 import json
 import logging
@@ -185,7 +185,7 @@ class ApexClassroom(ApexDataObject):
         logger.info(f'Returning {len(ret_val)} ApexClassroom objects.')
         return ret_val
 
-    def enroll(self, objs: Union[List[ApexUser], ApexUser],
+    def enroll(self, objs: Union[Sequence[ApexUser], ApexUser],
                token: TokenType = None,
                session: requests.Session = None) -> Response:
         """
