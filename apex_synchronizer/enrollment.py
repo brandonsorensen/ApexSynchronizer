@@ -37,9 +37,12 @@ class BaseEnrollment(ABC):
         """
         if type(eduid) is ApexStudent:
             eduid = eduid.import_user_id
-        return self.student2classrooms[int(eduid)]
+        try:
+            return self.student2classrooms[int(eduid)]
+        except KeyError:
+            return set()
 
-    def get_roster(self, section_id: Union[int, str, ApexClassroom]) -> Set[int]:
+    def get_roster(self, section_id: Union[int, ApexClassroom]) -> Set[int]:
         """
         Returns the roster of a given classroom, indexed by its section
         ID. Section IDs may be given as integers or numeric strings.
@@ -51,7 +54,10 @@ class BaseEnrollment(ABC):
         """
         if type(section_id) is ApexClassroom:
             section_id = section_id.import_classroom_id
-        return self.classroom2students[int(section_id)]
+        try:
+            return self.classroom2students[int(section_id)]
+        except KeyError:
+            return set()
 
     @property
     @abstractmethod

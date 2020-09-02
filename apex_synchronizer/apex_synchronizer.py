@@ -156,10 +156,7 @@ class ApexSynchronizer(object):
                                  'enrollment. Skipping for now...')
                 continue
 
-            try:
-                apex_roster = set(self.apex_enroll.get_roster(c_id))
-            except KeyError:
-                apex_roster = set()
+            apex_roster = self.apex_enroll.get_roster(c_id)
 
             student_list = set(student_list)
             if student_list == apex_roster:
