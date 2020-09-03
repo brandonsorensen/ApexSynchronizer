@@ -492,8 +492,12 @@ def handle_400_response(r: Response, logger: logging.Logger = None):
     if logger is None:
         logger = logging.getLogger(__name__)
 
-    errors = _parse_400_response(r, logger)
-    return errors
+    try:
+        errors = _parse_400_response(r, logger)
+        return errors
+    except exceptions.ApexMalformedJsonException:
+        self.exception('Could not parse errors.')
+        return []
 
 
 def teacher_fuzzy_match(t1: str, org: Union[str, int] = None,
