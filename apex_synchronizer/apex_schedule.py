@@ -24,9 +24,9 @@ class ApexSchedule(object):
 
     def __init__(self, sync_classrooms, sync_rosters, sync_staff,
                  sync_classroom_enrollment):
-        self.sync_classrooms = sync_classrooms
         self.sync_rosters = sync_rosters
         self.sync_staff = sync_staff
+        self.sync_classrooms = sync_classrooms
         self.sync_classroom_enrollment = sync_classroom_enrollment
 
     def __getitem__(self, item):
