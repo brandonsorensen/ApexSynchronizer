@@ -496,7 +496,7 @@ def handle_400_response(r: Response, logger: logging.Logger = None):
         errors = _parse_400_response(r, logger)
         return errors
     except exceptions.ApexMalformedJsonException:
-        self.exception('Could not parse errors.')
+        logger.exception('Could not parse errors.')
         return []
 
 
