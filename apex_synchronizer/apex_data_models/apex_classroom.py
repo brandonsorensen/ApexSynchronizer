@@ -648,7 +648,7 @@ def _parse_400_response(r: Response, logger: logging.Logger = None) \
     try:
         errors = as_json['classroomEntries']
     except KeyError as ke:
-        raise exceptions.ApexError from ke
+        raise exceptions.ApexMalformedJsonException(as_json) from ke
 
     ret_val = {}
     e: dict
