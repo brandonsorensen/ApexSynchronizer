@@ -1,5 +1,6 @@
 from collections import defaultdict, KeysView
 from dataclasses import dataclass
+from datetime import datetime
 from os import environ
 from pathlib import Path
 from typing import Collection, List, Tuple, Set
@@ -281,11 +282,24 @@ class ApexSynchronizer(object):
         pretty_string = json.dumps(s.to_dict(), indent=2)
         self.logger.info('Received the following ApexSchedule\n'
                          + pretty_string)
+        method_status = {}
+        f = open('last_sync_info.txt', 'w+')
+        f.write('time: ' + str(datetime.now()) + '\n')
+        f.write('schedule:\n' + pretty_string + '\n')
+
         for method_name, execute in s.to_dict().items():
             if execute:
+                method_status[method_name] = 'started'
                 method = getattr(self, method_name)
                 self.logger.info(f'Executing routine: "{method_name}"')
-                method()
+                try:
+                    method()
+                    method_status[method_name] = 'success'
+                except exceptions.ApexError:
+                    method_status[method_name] = 'failed'
+
+        f.write('status:\n' + str(method_status))
+        f.close()
 
     def _enroll_students(self, student_ids: Collection[int]):
         apex_students = init_students_for_ids(student_ids)
