@@ -232,6 +232,22 @@ class ApexNoTeacherException(ApexIncompleteDataException):
     msg = 'A JSON object returned from Apex is missing a primary teacher'
 
 
+class ApexEnrollmentException(ApexError):
+
+    def __str__(self):
+        return 'An error occurred when interfacing with an ApexEnrollment ' \
+               'object.'
+
+
+class ApexNoEnrollmentRecord(ApexEnrollmentException):
+
+    def __init__(self, id_: Union[str, int]):
+        self.id_ = id_
+
+    def __str__(self):
+        return f'No enrollment records for object with ID {self.id_}.'
+
+
 class DuplicateUserException(ApexDataObjectException):
 
     def __init__(self, obj):

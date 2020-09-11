@@ -6,6 +6,7 @@ import logging
 
 import requests
 
+from . import exceptions
 from .apex_data_models import ApexStudent, ApexClassroom, SCHOOL_CODE_MAP
 from .apex_session import ApexSession
 from .ps_agent import fetch_enrollment, fetch_students
@@ -258,6 +259,69 @@ class ApexEnrollment(BaseEnrollment):
     def student2classrooms(self) -> dict:
         return self._student2classrooms
 
+    def add_classroom(self, c: ApexClassroom):
+        c_id = c.import_classroom_id
+        if c_id not in self.classroom2students.keys():
+            self.update_classroom(c)
+            self._classroom2students[c_id] = []
+            self.logger.debug(f'Successfully added classroom "{c_id}".')
+        else:
+            self.logger.debug(f'Classroom {c_id} not added because it already '
+                              'exists.')
+
+    def add_student(self, s: ApexStudent):
+        s_id = s.import_user_id
+        if s_id not in self.student2classrooms.keys():
+            self.update_student(s)
+            self._student2classrooms[s_id] = []
+            self.logger.debug(f'Successfully added student "{s_id}" to '
+                              'enrollment.')
+
+    def add_to_classroom(self, s: ApexStudent,
+                         c: Union[ApexClassroom, Iterable[ApexClassroom]],
+                         must_exist: bool = False):
+        """
+        Adds a student to one or more classrooms.
+
+        :param s: the student to add
+        :param c: a classroom or collection of classrooms
+        :param must_exist: if true, will raise an error when one of the
+            classrooms is not already in the enrollment records;
+            otherwise, adds such classrooms
+        """
+        classrooms = [c] if isinstance(c, ApexClassroom) else c
+
+        s_id = s.import_user_id
+        if not must_exist:
+            self.add_student(s)
+
+        for classroom in classrooms:
+            if not must_exist:
+                self.add_classroom(classroom)
+            c_id = classroom.import_classroom_id
+            try:
+                self._classroom2students[c_id].append(s_id)
+                self._student2classrooms[s_id].append(c_id)
+                self.logger.debug(f'Successfully enrolled student "{s_id}" to '
+                                  f'to classroom "{c_id}" in local enrollment '
+                                  'context.')
+            except KeyError as ke:
+                raise exceptions.ApexNoEnrollmentRecord(ke.args[0]) from ke
+
+    def disenroll(self, s: ApexStudent):
+        """Removes student from all enrollments."""
+        s_id = s.import_user_id
+        if s_id not in self.student2classrooms.keys():
+            raise exceptions.ApexNoEnrollmentRecord(s.import_user_id)
+
+        for c_id in self.student2classrooms[s_id]:
+            classroom = self.get_classroom_for_id(c_id)
+            self.withdraw_student(s, classroom)
+
+        del self._student2classrooms[s_id]
+        del self._apex_index[s_id]
+        self.logger.debug(f'Successfully disenrolled student "{s_id}".')
+
     def get_student(self, eduid: Union[str, int]):
         return self._apex_index[int(eduid)]
 
@@ -272,6 +336,21 @@ class ApexEnrollment(BaseEnrollment):
 
     def update_student(self, s: ApexStudent):
         self._apex_index[int(s.import_user_id)] = s
+
+    def withdraw_student(self, s: ApexStudent, c: ApexClassroom):
+        """Withdraws student from a given classroom."""
+        s_id = s.import_user_id
+        c_id = c.import_classroom_id
+        try:
+            self._student2classrooms[s_id].remove(c_id)
+        except KeyError:
+            pass
+        try:
+            self._classroom2students[c_id].remove(s_id)
+        except KeyError:
+            pass
+        self.logger.debug(f'Student "{s_id}" successfully withdrawn from '
+                          'local enrollment context.')
 
     @property
     def classrooms(self) -> Set:

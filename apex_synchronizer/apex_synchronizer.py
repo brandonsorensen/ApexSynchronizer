@@ -304,7 +304,7 @@ class ApexSynchronizer(object):
     def _enroll_students(self, student_ids: Collection[int]):
         apex_students = init_students_for_ids(student_ids)
         if len(apex_students) > 0:
-            post_students(apex_students, session=self.session)
+            self._post_students(apex_students)
 
     def _find_ineligible_enrollments(self, enrollments: Collection[int]) \
             -> Set[int]:
@@ -391,17 +391,26 @@ class ApexSynchronizer(object):
 
     def _add_enrollments(self, to_enroll: Collection[ApexStudent],
                          classroom: ApexClassroom) -> int:
+        id2student = {s.import_user_id: s for s in to_enroll}
         r = classroom.enroll(list(to_enroll), session=self.session)
         n_errors = 0
         already_exist = 0
         try:
             r.raise_for_status()
+            for student in to_enroll:
+                self.apex_enroll.add_to_classroom(s=student, c=classroom,
+                                                  must_exist=False)
         except requests.HTTPError:
             to_json = r.json()
             msg = 'enrollment already exists'
             if 'studentUsers' in to_json.keys():
                 for user in to_json['studentUsers']:
-                    if int(user['Code']) == 200:
+                    s_id = int(user['Code'])
+                    if s_id == 200:
+                        student = id2student[s_id]
+                        self.apex_enroll.add_to_classroom(s=student,
+                                                          c=classroom,
+                                                          must_exist=False)
                         continue
                     if user['Message'].lower().startswith(msg):
                         user_id = user['ImportUserId']
@@ -433,6 +442,83 @@ class ApexSynchronizer(object):
 
         return n_updates
 
+    def _put_duplicates(self, json_obj: dict, apex_students: List[ApexStudent]):
+        """
+        A helper function for `post_students`. PUTs students that already
+        exist in Apex.
+        """
+        if not json_obj['HasError']:
+            return
+
+        duplicates = [user['Index'] for user in json_obj['studentUsers']
+                      if 'user already exist' in user['Message'].lower()]
+        n_success = 0
+        for student_idx in duplicates:
+            student = apex_students[student_idx]
+            self.logger.info('Putting student with EDUID '
+                             f'{student.import_user_id}.')
+            r = student.put_to_apex(session=self.session)
+            try:
+                r.raise_for_status()
+                self.logger.debug('PUT operation successful.')
+                self.apex_enroll.update_student(student)
+                n_success += 1
+            except requests.exceptions.HTTPError as e:
+                self.logger.debug('PUT failed with response ' + str(e))
+
+        if len(duplicates) > 0:
+            self.logger.info(f'Successfully PUT {n_success}/{len(duplicates)} '
+                             'students.')
+
+    def _post_students(self, apex_students: List[ApexStudent]):
+        """Posts a list of ApexStudents to the Apex API."""
+        self.logger.info(f'Posting {len(apex_students)} students.')
+        r = ApexStudent.post_batch(apex_students, session=self.session)
+        try:
+            r.raise_for_status()
+            self.logger.debug('Received status code ' + str(r.status_code))
+            for s in apex_students:
+                self.apex_enroll.add_student(s)
+        except requests.exceptions.HTTPError:
+            as_json = r.json()
+            if type(as_json) is dict:
+                self.logger.info('Found duplicates.')
+                self._put_duplicates(as_json, apex_students)
+            elif type(as_json) is list:
+                self.logger.info('Removing invalid entries.')
+                self._repost_students(as_json, apex_students)
+            else:
+                self.logger.exception('Response text:\n' + r.text)
+
+    def _repost_students(self, json_obj: dict,
+                         apex_students: List[ApexStudent]):
+        """
+        Helper function for `post_students`. Removes invalid entries and
+        attempts to POST again.
+        """
+        to_retry = []
+        for entry in json_obj:
+            if entry['ValidationError']:
+                self.logger.info(f'Student with EDUID {entry["ImportUserId"]} '
+                                 'did not pass validation.')
+            else:
+                to_retry.append(apex_students[entry['Index']])
+
+        if to_retry:
+            self.logger.info(f'Attempting to POST remaining {len(to_retry)} '
+                             'students.')
+            r = ApexStudent.post_batch(to_retry, session=self.session)
+            try:
+                r.raise_for_status()
+                self.logger.info('Successfully POSTed remaining students.')
+                for s in to_retry:
+                    self.apex_enroll.add_student(s)
+            except requests.exceptions.HTTPError:
+                self.logger.exception(f'Failed to post {len(to_retry)} '
+                                      'students. Received response:\n' + r.text)
+        else:
+            self.logger.info('No entries passed validation.')
+
     def _withdraw_enrollments(self, classroom: ApexClassroom,
                               to_withdraw: Collection[int]) -> int:
         """
@@ -463,6 +549,7 @@ class ApexSynchronizer(object):
             try:
                 r.raise_for_status()
                 self.logger.debug('Successfully withdrawn.')
+                self.apex_enroll.withdraw_student(s=as_apex, c=classroom)
                 n_withdrawn += 1
             except requests.exceptions.HTTPError:
                 self.logger.debug('Could not withdraw. Received response\n'
@@ -515,85 +602,3 @@ def init_students_for_ids(student_ids: Collection[int]) -> List[ApexStudent]:
                 logger.info(e)
 
     return apex_students
-
-
-def put_duplicates(json_obj: dict, apex_students: List[ApexStudent],
-                   token: TokenType = None, session: requests.Session = None):
-    """
-    A helper function for `post_students`. PUTs students that already
-    exist in Apex.
-    """
-    logger = logging.getLogger(__name__)
-    if not json_obj['HasError']:
-        return
-
-    duplicates = [user['Index'] for user in json_obj['studentUsers']
-                  if 'user already exist' in user['Message'].lower()]
-    n_success = 0
-    for student_idx in duplicates:
-        student = apex_students[student_idx]
-        logger.info(f'Putting student with EDUID {student.import_user_id}.')
-        r = student.put_to_apex(token=token, session=session)
-        try:
-            r.raise_for_status()
-            logger.debug('PUT operation successful.')
-            n_success += 1
-        except requests.exceptions.HTTPError as e:
-            logger.debug('PUT failed with response ' + str(e))
-
-    if len(duplicates) > 0:
-        logger.info(f'Successfully PUT {n_success}/{len(duplicates)} '
-                    f'students.')
-
-
-def post_students(apex_students: List[ApexStudent], token: TokenType = None,
-                  session: requests.Session = None):
-    """Posts a list of ApexStudents to the Apex API."""
-    logger = logging.getLogger(__name__)
-    logger.info(f'Posting {len(apex_students)} students.')
-    r = ApexStudent.post_batch(apex_students, token=token, session=session)
-    try:
-        r.raise_for_status()
-        logger.debug('Received status code ' + str(r.status_code))
-    except requests.exceptions.HTTPError:
-        as_json = r.json()
-        if type(as_json) is dict:
-            logger.info('Found duplicates.')
-            put_duplicates(as_json, apex_students, token=token,
-                           session=session)
-        elif type(as_json) is list:
-            logger.info('Removing invalid entries.')
-            repost_students(as_json, apex_students, token=token,
-                            session=session)
-        else:
-            logger.exception('Response text:\n' + r.text)
-
-
-def repost_students(json_obj: dict, apex_students: List[ApexStudent],
-                    token: TokenType = None, session: requests.Session = None):
-    """
-    Helper function for `post_students`. Removes invalid entries and
-    attempts to POST again.
-    """
-    logger = logging.getLogger(__name__)
-    to_retry = []
-    for entry in json_obj:
-        if entry['ValidationError']:
-            logger.info(f'Student with EDUID {entry["ImportUserId"]} '
-                        'did not pass validation.')
-        else:
-            to_retry.append(apex_students[entry['Index']])
-
-    if to_retry:
-        logger.info(f'Attempting to POST remaining {len(to_retry)} '
-                    'students.')
-        r = ApexStudent.post_batch(to_retry, token=token, session=session)
-        try:
-            r.raise_for_status()
-            logger.info('Successfully POSTed remaining students.')
-        except requests.exceptions.HTTPError:
-            logger.exception(f'Failed to post {len(to_retry)} students.'
-                             f'Received response:\n' + r.text)
-    else:
-        logger.info('No entries passed validation.')
-
