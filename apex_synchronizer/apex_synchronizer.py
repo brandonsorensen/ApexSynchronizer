@@ -157,7 +157,7 @@ class ApexSynchronizer(object):
                                  'enrollment. Skipping for now...')
                 continue
 
-            apex_roster = self.apex_enroll.get_roster(c_id)
+            apex_roster = set(self.apex_enroll.get_roster(c_id))
 
             student_list = set(student_list)
             if student_list == apex_roster:
