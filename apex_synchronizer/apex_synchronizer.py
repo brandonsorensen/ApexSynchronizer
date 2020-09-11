@@ -15,7 +15,7 @@ from . import adm, exceptions
 from .apex_data_models import ApexStudent, ApexClassroom, ApexStaffMember
 from .apex_data_models.apex_classroom import walk_ps_sections
 from .apex_schedule import ApexSchedule
-from .apex_session import ApexSession, TokenType
+from .apex_session import ApexSession
 from .enrollment import ApexEnrollment, PSEnrollment, PSStudent
 from .exceptions import ApexNoEmailException, ApexMalformedEmailException
 from .ps_agent import fetch_students, fetch_staff
