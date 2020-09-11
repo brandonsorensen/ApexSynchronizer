@@ -298,7 +298,7 @@ class ApexSynchronizer(object):
                 except exceptions.ApexError:
                     method_status[method_name] = 'failed'
 
-        f.write('status:\n' + str(method_status))
+        f.write('status:\n' + json.dumps(method_status, indent=2) + '\n')
         f.close()
 
     def _enroll_students(self, student_ids: Collection[int]):
