@@ -49,9 +49,8 @@ class ApexStaffMember(ApexUser):
         if middle_name == 'null':
             middle_name = None
         super().__init__(
-            import_user_id=email_lower, import_org_id=import_org_id,
-            first_name=first_name, middle_name=middle_name,
-            last_name=last_name, email=email,
+            import_org_id=import_org_id, first_name=first_name,
+            middle_name=middle_name, last_name=last_name, email=email,
             login_id=email_lower.split('@')[0] if email else None
         )
 

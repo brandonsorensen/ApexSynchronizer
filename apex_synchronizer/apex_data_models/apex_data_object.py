@@ -592,20 +592,17 @@ class ApexUser(ApexDataObject, ABC):
     semantic purpose.
     """
 
-    def __init__(self, import_user_id: Union[int, str],
-                 import_org_id: int, first_name: str,
+    def __init__(self, import_org_id: int, first_name: str,
                  middle_name: str, last_name: str, email: str,
                  login_id: str):
         self.first_name = first_name.strip() if first_name else first_name
         self.middle_name = middle_name.strip() if middle_name else middle_name
         self.last_name = last_name.strip() if last_name else last_name
+
         if not email:
             raise exceptions.ApexNoEmailException(self.first_last)
         email = email.strip()
-        try:
-            super().__init__(import_user_id, import_org_id)
-        except exceptions.NoUserIdException:
-            raise exceptions.ApexNoEmailException(self.first_last)
+        super().__init__(email.lower(), import_org_id)
 
         if not re.match(adm_utils.APEX_EMAIL_REGEX, email):
             raise exceptions.ApexMalformedEmailException(self.import_user_id,

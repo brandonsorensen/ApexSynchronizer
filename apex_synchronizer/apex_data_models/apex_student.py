@@ -34,7 +34,7 @@ class ApexStudent(ApexNumericId, ApexUser):
     post_heading = 'studentUsers'
 
     ps2apex_field_map = {
-        'eduid': 'import_user_id',
+        'eduid': 'eduid',
         'school_id': 'import_org_id',
         'first_name': 'first_name',
         'middle_name': 'middle_name',
@@ -44,21 +44,19 @@ class ApexStudent(ApexNumericId, ApexUser):
     }
     max_batch_size = 2000
 
-    def __init__(self, import_user_id: int, import_org_id: int, first_name: str,
+    def __init__(self, import_org_id: int, first_name: str,
                  middle_name: str, last_name: str, email: str,
-                 grade_level: int):
+                 grade_level: int, eduid: int = None):
         # We don't like middle schoolers going to middle school
         if int(import_org_id) == 615:
             import_org_id = 616
         super().__init__(
-            import_user_id=int(import_user_id),
             import_org_id=import_org_id, first_name=first_name,
             middle_name=middle_name, last_name=last_name,
-            email=email,
-            login_id=make_userid(first_name, last_name)
+            email=email, login_id=make_userid(first_name, last_name)
         )
-        self.grade_level = grade_level
-        self.login_pw = import_user_id
+        self.grade_level = int(grade_level)
+        self.login_pw = int(eduid) if eduid else None
 
     @property
     def classroom_url(self) -> str:
@@ -162,6 +160,7 @@ class ApexStudent(ApexNumericId, ApexUser):
         classroom to another
 
         :param token: Apex access token
+        :param session: existing Apex session
         :param old_classroom_id: id of current classroom
         :param new_classroom_id: id of the classroom to which the
             student will be transferred
