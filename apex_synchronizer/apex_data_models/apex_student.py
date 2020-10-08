@@ -219,9 +219,6 @@ class ApexStudent(ApexNumericId, ApexUser):
                 raise exceptions.ApexNoEmailException(eduid)
             raise e
 
-        if kwargs['import_user_id'] is None:
-            kwargs['import_user_id'] = '10'
-
         return cls(**kwargs)
 
     @classmethod
