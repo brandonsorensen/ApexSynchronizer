@@ -157,7 +157,7 @@ class PSEnrollment(BaseEnrollment):
 
             self.student2classrooms[email].add(sec_id)
             self._all_students.add(student)
-            self.classroom2students[sec_id].add(eduid)
+            self.classroom2students[sec_id].add(email)
 
         self._student2classrooms = dict(self.student2classrooms)
         self._classroom2students = dict(self.classroom2students)

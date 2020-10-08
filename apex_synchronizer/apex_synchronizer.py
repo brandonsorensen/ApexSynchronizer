@@ -167,6 +167,7 @@ class ApexSynchronizer(object):
             to_enroll = student_list - apex_roster
             ineligible = self._find_ineligible_enrollments(to_enroll)
             if len(ineligible) > 0:
+                breakpoint()
                 to_enroll -= ineligible
                 self.logger.debug('The following students will not be enrolled:'
                                   f' {ineligible}')
