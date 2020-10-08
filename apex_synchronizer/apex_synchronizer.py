@@ -44,8 +44,8 @@ class StudentTuple(object):
         if self.powerschool.import_org_id == 615:
             self.powerschool.import_org_id += 1
         return (
-            int(self.apex.import_user_id) == self.powerschool.import_user_id
-            and int(self.apex.import_org_id) == self.powerschool.import_org_id
+            self.apex.import_user_id == self.powerschool.import_user_id
+            and self.apex.import_org_id == self.powerschool.import_org_id
         )
 
     def update_apex(self):
@@ -177,8 +177,8 @@ class ApexSynchronizer(object):
             self.logger.info(f'Adding {len(to_enroll)} students to classroom '
                              + str(c_id))
 
-            apex_to_enroll = [self.apex_enroll.get_student_for_id(eduid)
-                              for eduid in to_enroll]
+            apex_to_enroll = [self.apex_enroll.get_student_for_id(id_)
+                              for id_ in to_enroll]
             n_updates = self._add_enrollments(to_enroll=apex_to_enroll,
                                               classroom=apex_classroom)
             n_entries_changed += n_updates
@@ -455,7 +455,7 @@ class ApexSynchronizer(object):
         n_success = 0
         for student_idx in duplicates:
             student = apex_students[student_idx]
-            self.logger.info('Putting student with EDUID '
+            self.logger.info('Putting student with ID '
                              f'{student.import_user_id}.')
             r = student.put_to_apex(session=self.session)
             try:
@@ -499,7 +499,7 @@ class ApexSynchronizer(object):
         to_retry = []
         for entry in json_obj:
             if entry['ValidationError']:
-                self.logger.info(f'Student with EDUID {entry["ImportUserId"]} '
+                self.logger.info(f'Student with ID {entry["ImportUserId"]} '
                                  'did not pass validation.')
             else:
                 to_retry.append(apex_students[entry['Index']])
@@ -522,7 +522,7 @@ class ApexSynchronizer(object):
     def _withdraw_enrollments(self, classroom: ApexClassroom,
                               to_withdraw: Collection[int]) -> int:
         """
-        Withdraws students, whose EDUIDs are given by `to_withdraw`
+        Withdraws students, whose IDs are given by `to_withdraw`
         from a a specified classroom. Returns a count of successful
         withdrawals.
 

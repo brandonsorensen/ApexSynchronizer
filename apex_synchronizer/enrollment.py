@@ -26,7 +26,7 @@ class BaseEnrollment(ABC):
         self.logger = logging.getLogger(logger_name)
         self._all_students = set()
 
-    def get_classrooms(self, eduid: Union[int, str, ApexStudent]) -> Set[int]:
+    def get_classrooms(self, eduid: Union[str, ApexStudent]) -> Set[int]:
         """
         Returns all classrooms in which a given student is enrolled.
         Students are indexed by their EDUIDs, which may be given as an
@@ -39,18 +39,18 @@ class BaseEnrollment(ABC):
         if type(eduid) is ApexStudent:
             eduid = eduid.import_user_id
         try:
-            return self.student2classrooms[int(eduid)]
+            return self.student2classrooms[eduid]
         except KeyError:
             return set()
 
-    def get_roster(self, section_id: Union[int, ApexClassroom]) -> Set[int]:
+    def get_roster(self, section_id: Union[int, ApexClassroom]) -> Set[str]:
         """
         Returns the roster of a given classroom, indexed by its section
         ID. Section IDs may be given as integers or numeric strings.
 
         :param Union[int, str] section_id: the section ID of the
             classroom
-        :return: the EDUIDs of all students in the classroom
+        :return: the IDs of all students in the classroom
         :rtype: set[int]
         """
         if type(section_id) is ApexClassroom:
@@ -96,7 +96,7 @@ class BaseEnrollment(ABC):
 
 @dataclass
 class PSStudent(object):
-    import_user_id: int
+    import_user_id: str
     import_org_id: int
 
     def __hash__(self):
@@ -137,6 +137,7 @@ class PSEnrollment(BaseEnrollment):
             eduid = int(entry['eduid'])
             org_id = int(entry['school_id'])
             sec_id = int(entry['section_id'])
+            email = entry['email']
             if org_id not in SCHOOL_CODE_MAP.keys():
                 self.logger.debug(f'Section "{sec_id}" will not be added '
                                   'as it belongs to unrecognized org '
@@ -148,13 +149,13 @@ class PSEnrollment(BaseEnrollment):
                                   f'ID: "{sec_id}".')
                 continue
 
-            student = PSStudent(eduid, org_id)
+            student = PSStudent(email, org_id)
             enroll_entry = EnrollmentEntry(student, sec_id)
             self._all_entries.add(enroll_entry)
 
             self.logger.debug(f'student {i}:eduid={eduid},section_id={sec_id}')
 
-            self.student2classrooms[eduid].add(sec_id)
+            self.student2classrooms[email].add(sec_id)
             self._all_students.add(student)
             self.classroom2students[sec_id].add(eduid)
 
@@ -166,18 +167,18 @@ class PSEnrollment(BaseEnrollment):
         Parses a JSON object returned by the `fetch_students` function.
         """
         for entry in json_obj:
-            eduid = entry['eduid']
+            email = entry['email']
             org_id = entry['school_id']
-            if not all((eduid, org_id)):
-                self.logger.debug('The following JSON object has no EDUID. '
+            if not all((email, org_id)):
+                self.logger.debug('The following JSON object has no ID. '
                                   'Skipping.\n' + str(entry))
                 continue
-            eduid, org_id = int(eduid), int(org_id)
+            org_id = int(org_id)
             grade_level = int(entry['grade_level'])
             if org_id == 615 and grade_level not in range(7, 9):
                 continue
-            student = PSStudent(eduid, org_id)
-            if eduid and eduid not in self._student2classrooms.keys():
+            student = PSStudent(email, org_id)
+            if email and email not in self._student2classrooms.keys():
                 self._student2classrooms[student.import_user_id] = set()
 
     @property
@@ -222,7 +223,7 @@ class ApexEnrollment(BaseEnrollment):
                                                             session=session)
             self.logger.info('Retrieved Apex student information')
         self.logger.debug('Creating ApexStudent index')
-        self._apex_index = {int(student.import_user_id): student
+        self._apex_index = {student.import_user_id: student
                             for student in self._all_students}
         self.logger.info('Getting all Apex classrooms.')
         self._classroom_index = {int(c.import_classroom_id): c
@@ -322,20 +323,17 @@ class ApexEnrollment(BaseEnrollment):
         del self._apex_index[s_id]
         self.logger.debug(f'Successfully disenrolled student "{s_id}".')
 
-    def get_student(self, eduid: Union[str, int]):
-        return self._apex_index[int(eduid)]
-
     def get_classroom_for_id(self, c_id: int) -> ApexClassroom:
         return self._classroom_index[int(c_id)]
 
-    def get_student_for_id(self, user_id: int) -> ApexStudent:
-        return self._apex_index[int(user_id)]
+    def get_student_for_id(self, user_id: str) -> ApexStudent:
+        return self._apex_index[user_id]
 
     def update_classroom(self, c: ApexClassroom):
         self._classroom_index[int(c.import_classroom_id)] = c
 
     def update_student(self, s: ApexStudent):
-        self._apex_index[int(s.import_user_id)] = s
+        self._apex_index[s.import_user_id] = s
 
     def withdraw_student(self, s: ApexStudent, c: ApexClassroom):
         """Withdraws student from a given classroom."""
