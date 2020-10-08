@@ -55,7 +55,8 @@ class ApexStudent(ApexUser):
             middle_name=middle_name, last_name=last_name,
             email=email, login_id=make_userid(first_name, last_name)
         )
-        self.grade_level = int(grade_level)
+        self.grade_level = int(grade_level) if grade_level \
+                           else grade_level
         self.login_pw = int(eduid) if eduid else None
 
     @property
