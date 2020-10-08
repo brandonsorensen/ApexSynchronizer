@@ -13,7 +13,7 @@ from ..apex_session import TokenType
 from ..utils import get_header
 
 
-class ApexStudent(ApexNumericId, ApexUser):
+class ApexStudent(ApexUser):
 
     """
     Represents a student in the Apex database.
