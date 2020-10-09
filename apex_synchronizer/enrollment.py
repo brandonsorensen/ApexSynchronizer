@@ -324,7 +324,10 @@ class ApexEnrollment(BaseEnrollment):
         self.logger.debug(f'Successfully disenrolled student "{s_id}".')
 
     def get_classroom_for_id(self, c_id: int) -> ApexClassroom:
-        return self._classroom_index[int(c_id)]
+        try:
+            return self._classroom_index[int(c_id)]
+        except ValueError:
+            raise KeyError(c_id)
 
     def get_student_for_id(self, user_id: str) -> ApexStudent:
         return self._apex_index[user_id]
