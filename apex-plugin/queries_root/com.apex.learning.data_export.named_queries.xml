@@ -119,17 +119,20 @@
 			<![CDATA[
 				SELECT students.State_StudentNumber,
 					   students.SchoolID,
-					   u_def_ext_students.studentemail
+					   u_def_ext_students.studentemail,
 					   cc.sectionid
 				FROM   cc
 					   INNER JOIN students
 							   ON cc.studentid = students.id
+					   INNER JOIN u_def_ext_students
+							   ON students.dcid = u_def_ext_students.studentsdcid
 					   INNER JOIN courses
 					   		   ON cc.course_number = courses.course_number
 				WHERE  cc.schoolid = 616
 					   AND students.enroll_status = 0
 					   AND courses.course_name LIKE '%(APEX)'
-				GROUP  BY students.State_StudentNumber, students.SchoolID, cc.sectionid
+				GROUP  BY students.State_StudentNumber, students.SchoolID,
+						  u_def_ext_students.studentemail, cc.sectionid
 				ORDER  BY students.State_StudentNumber
 			]]>
         </sql>
