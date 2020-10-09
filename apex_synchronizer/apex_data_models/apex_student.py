@@ -189,7 +189,7 @@ class ApexStudent(ApexUser):
                                   session=session)
 
     @classmethod
-    def delete_batch(cls, students: Collection[Union['ApexStudent', int]],
+    def delete_batch(cls, students: Collection[Union['ApexStudent', str]],
                      token: TokenType = None,
                      session: requests.Session = None) \
             -> List[requests.Response]:
@@ -199,7 +199,7 @@ class ApexStudent(ApexUser):
         if not all(isinstance(s, dtype) for s in students):
             raise ValueError('Collection is not homogeneous – it contains'
                              ' mixed types.')
-        if issubclass(dtype, int):
+        if issubclass(dtype, str):
             return cls._delete_id_batch(students, token=token, session=session)
 
         return _delete_student_batch(students, token=token, session=session)
@@ -223,16 +223,16 @@ class ApexStudent(ApexUser):
         return cls(**kwargs)
 
     @classmethod
-    def _delete_id_batch(cls, eduids: Collection[int], token: TokenType,
+    def _delete_id_batch(cls, eduids: Collection[str], token: TokenType,
                          session: requests.Session) -> List[requests.Response]:
         logger = logging.getLogger(__name__)
         responses = []
 
-        for i, eduid in enumerate(eduids):
+        for i, id_ in enumerate(eduids):
             progress = f':{i + 1}/{len(eduids)}:'
-            logger.info(f'{progress}Removing student {eduid} from Apex.')
+            logger.info(f'{progress}Removing student {id_} from Apex.')
             agent = check_args(token, session)
-            url = urljoin(cls.url + '/', str(eduid))
+            url = urljoin(cls.url + '/', str(id_))
             r = agent.delete(url=url)
 
             logger.debug(f'Received status from delete request: '

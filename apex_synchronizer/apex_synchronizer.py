@@ -521,7 +521,7 @@ class ApexSynchronizer(object):
             self.logger.info('No entries passed validation.')
 
     def _withdraw_enrollments(self, classroom: ApexClassroom,
-                              to_withdraw: Collection[int]) -> int:
+                              to_withdraw: Collection[str]) -> int:
         """
         Withdraws students, whose IDs are given by `to_withdraw`
         from a a specified classroom. Returns a count of successful
