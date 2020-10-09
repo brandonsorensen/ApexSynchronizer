@@ -13,7 +13,7 @@ from ..apex_session import TokenType
 from ..utils import get_header
 
 
-class ApexStudent(ApexNumericId, ApexUser):
+class ApexStudent(ApexUser):
 
     """
     Represents a student in the Apex database.
@@ -55,7 +55,8 @@ class ApexStudent(ApexNumericId, ApexUser):
             middle_name=middle_name, last_name=last_name,
             email=email, login_id=make_userid(first_name, last_name)
         )
-        self.grade_level = int(grade_level)
+        self.grade_level = int(grade_level) if grade_level \
+                           else grade_level
         self.login_pw = int(eduid) if eduid else None
 
     @property

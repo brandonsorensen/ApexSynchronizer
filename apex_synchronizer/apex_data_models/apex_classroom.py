@@ -483,7 +483,7 @@ def get_classrooms_for_eduids(eduids: Collection[int], token: TokenType = None,
             eduid_classrooms = []
 
         if eduid_classrooms or (not eduid_classrooms and return_empty):
-            classrooms[int(eduid)] = eduid_classrooms
+            classrooms[eduid] = eduid_classrooms
 
     return classrooms
 
