@@ -105,29 +105,34 @@
 			]]>
         </sql>
     </query>
-    <query name="com.apex.learning.school.enrollment" coreTable="" flattened="false">
+    <query name="com.apex.learning.school.enrollment" coreTable="STUDENTS" flattened="false">
         <description>Gets sections to update Apex Learning classrooms.</description>
         <args>
         </args>
         <columns>
 			<column column="STUDENTS.STATE_STUDENTNUMBER">EDUID</column>
 			<column column="STUDENTS.SCHOOLID">SCHOOL_ID</column>
+			<column column="U_DEF_EXT_STUDENTS.STUDENTEMAIL">EMAIL</column>
 			<column column="CC.SECTIONID">SECTION_ID</column>
  		</columns>
         <sql>
 			<![CDATA[
 				SELECT students.State_StudentNumber,
 					   students.SchoolID,
+					   u_def_ext_students.studentemail,
 					   cc.sectionid
 				FROM   cc
 					   INNER JOIN students
 							   ON cc.studentid = students.id
+					   INNER JOIN u_def_ext_students
+							   ON students.dcid = u_def_ext_students.studentsdcid
 					   INNER JOIN courses
 					   		   ON cc.course_number = courses.course_number
 				WHERE  cc.schoolid = 616
 					   AND students.enroll_status = 0
 					   AND courses.course_name LIKE '%(APEX)'
-				GROUP  BY students.State_StudentNumber, students.SchoolID, cc.sectionid
+				GROUP  BY students.State_StudentNumber, students.SchoolID,
+						  u_def_ext_students.studentemail, cc.sectionid
 				ORDER  BY students.State_StudentNumber
 			]]>
         </sql>
