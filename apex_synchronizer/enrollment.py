@@ -203,7 +203,7 @@ class PSEnrollment(BaseEnrollment):
                 continue
             org_id = int(org_id)
             grade_level = int(entry['grade_level'])
-            if org_id == 615 and grade_level not in range(7, 9):
+            if org_id == 615 and grade_level not in range(5, 9):
                 continue
             student = PSStudent(email, org_id)
             if email and email not in self._student2classrooms.keys():
