@@ -313,7 +313,7 @@ class ApexSynchronizer(object):
             else:
                 self.logger.info('No classrooms were added to Apex.')
 
-        self._operations = dict(class_ops)
+        self._operations['sync_classrooms'] = dict(class_ops)
 
     def run_schedule(self, s: ApexSchedule):
         """
