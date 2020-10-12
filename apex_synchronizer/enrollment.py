@@ -21,10 +21,31 @@ class BaseEnrollment(ABC):
     both Apex and PowerSchool can adhere.
     """
 
-    def __init__(self):
+    def __init__(self, exclude=None):
+        """
+        :param Union[str, IO] exclude: a list, path to a file containing,
+            or file object containing a list of students IDs to exempt
+            from the syncing process
+        """
         logger_name = '.'.join([__name__, self.__class__.__name__])
         self.logger = logging.getLogger(logger_name)
         self._all_students = set()
+        if exclude is None:
+            self.exclude = []
+        elif isinstance(str, exclude):
+            try:
+                self.exclude = [l.strip() for l in open(exclude, 'r')]
+            except FileNotFoundError:
+                self.logger(f'Could not find file \"{exclude}\".')
+                self.exclude = []
+        else:
+            try:
+                ex_iter = exclude.readlines()
+            except AttributeError:
+                ex_iter = iter(exclude)
+
+            self.exclude = [l.strip() for l in ex_iter]
+        self.exclude = set(self.exclude)
 
     def get_classrooms(self, eduid: Union[str, ApexStudent]) -> Set[int]:
         """
@@ -114,8 +135,8 @@ class EnrollmentEntry(object):
 
 class PSEnrollment(BaseEnrollment):
 
-    def __init__(self, ps_json=None):
-        super().__init__()
+    def __init__(self, ps_json=None, exclude=None):
+        super().__init__(exclude=exclude)
         if ps_json is None:
             self.logger.debug('Fetching enrollment')
             ps_json = fetch_enrollment()
@@ -138,6 +159,10 @@ class PSEnrollment(BaseEnrollment):
             org_id = int(entry['school_id'])
             sec_id = int(entry['section_id'])
             email = entry['email']
+            if email in self.exclude:
+                self.debug(f'Student with ID \"{email}\" in exclude list.')
+                continue
+
             if org_id not in SCHOOL_CODE_MAP.keys():
                 self.logger.debug(f'Section "{sec_id}" will not be added '
                                   'as it belongs to unrecognized org '
@@ -168,6 +193,9 @@ class PSEnrollment(BaseEnrollment):
         """
         for entry in json_obj:
             email = entry['email']
+            if email in self.exclude:
+                self.debug(f'Student with ID \"{email}\" in exclude list.')
+                continue
             org_id = entry['school_id']
             if not all((email, org_id)):
                 self.logger.debug('The following JSON object has no ID. '
@@ -199,7 +227,8 @@ class ApexEnrollment(BaseEnrollment):
 
     def __init__(self, access_token: TokenType = None,
                  session: requests.session = None,
-                 student_ids: List[int] = None):
+                 student_ids: List[int] = None,
+                 exclude=None):
         """
 
         :param access_token: An Apex access token
@@ -208,7 +237,7 @@ class ApexEnrollment(BaseEnrollment):
             which class enrollments should be obtained. If None,
             gets all students in the Apex.
         """
-        super().__init__()
+        super().__init__(exclude=exclude)
 
         if not any([session, access_token]):
             session = ApexSession()
@@ -224,7 +253,8 @@ class ApexEnrollment(BaseEnrollment):
             self.logger.info('Retrieved Apex student information')
         self.logger.debug('Creating ApexStudent index')
         self._apex_index = {student.import_user_id: student
-                            for student in self._all_students}
+                            for student in self._all_students
+                            if student.import_user_id not in self.exclude}
         self.logger.info('Getting all Apex classrooms.')
         self._classroom_index = {int(c.import_classroom_id): c
                                  for c in ApexClassroom.get_all(session=session)}

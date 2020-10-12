@@ -64,7 +64,7 @@ class ApexSynchronizer(object):
     :ivar logging.Logger logger: a module-wide logger
     """
 
-    def __init__(self):
+    def __init__(self, exclude=None):
         """Opens a session with the Apex API and initializes a logger."""
         self.session = ApexSession()
         self._dry_run = bool(int(environ.get('APEX_DRY_RUN', False)))
@@ -74,7 +74,7 @@ class ApexSynchronizer(object):
         self.batch_jobs = []
         self.ps_staff = {}
         self.apex_staff = set()
-        self.apex_enroll, self.ps_enroll = self._init_enrollment()
+        self.apex_enroll, self.ps_enroll = self._init_enrollment(exclude)
 
     def __del__(self):
         if not self._dry_run:
@@ -380,7 +380,8 @@ class ApexSynchronizer(object):
 
         return to_update
 
-    def _init_enrollment(self) -> Tuple[ApexEnrollment, PSEnrollment]:
+    def _init_enrollment(self, exclude) -> \
+            Tuple[ApexEnrollment, PSEnrollment]:
         use_serial = bool(int(environ.get('USE_PICKLE', False)))
         cache_apex = bool(int(environ.get('CACHE_APEX', False)))
         if not os.path.exists(PICKLE_DIR):
@@ -390,9 +391,10 @@ class ApexSynchronizer(object):
         if use_serial:
             apex_enroll = pickle.load(open(apex_path, 'rb'))
         else:
-            apex_enroll = ApexEnrollment(session=self.session)
+            apex_enroll = ApexEnrollment(session=self.session,
+                                         exclude=exclude)
             self.logger.info('Retrieved enrollment info from Apex.')
-        ps_enroll = PSEnrollment()
+        ps_enroll = PSEnrollment(exclude=exclude)
         self.logger.info('Retrieved enrollment info from PowerSchool.')
 
         if cache_apex:
