@@ -202,7 +202,7 @@ class ApexSynchronizer(object):
 
             apex_to_enroll = [self.apex_enroll.get_student_for_id(id_)
                               for id_ in to_enroll]
-            if self_dry_run:
+            if self._dry_run:
                 op = {'to_enroll': list(to_enroll)}
                 self._operations['sync_classroom_enrollment'] = op
                 n_updates = 0
@@ -230,6 +230,7 @@ class ApexSynchronizer(object):
         total = 0
         updated = 0
         to_post = []
+        class_ops = defaultdict(list)
         for i, (section, progress) in enumerate(walk_ps_sections(archived=False)):
             try:
                 """
@@ -263,10 +264,14 @@ class ApexSynchronizer(object):
                             continue
                     self.logger.info('Updating record '
                                      + str(ps_cr.import_classroom_id))
-                    r = ps_cr.put_to_apex(session=self.session)
-                    self.logger.info('Received response: ' + str(r.status_code))
-                    apex_cr.update(ps_cr, session=self.session)
-                    self.apex_enroll.update_classroom(ps_cr)
+                    if self._dry_run:
+                        class_ops['to_update'].append(ps_cr.import_classroom_id)
+                    else:
+                        r = ps_cr.put_to_apex(session=self.session)
+                        self.logger.info('Received response: '
+                                         + str(r.status_code))
+                        apex_cr.update(ps_cr, session=self.session)
+                        self.apex_enroll.update_classroom(ps_cr)
                     updated += 1
             except KeyError:
                 raise exceptions.ApexMalformedJsonException(section)
@@ -288,6 +293,9 @@ class ApexSynchronizer(object):
             finally:
                 total += 1
 
+        if self._dry_run:
+            class_ops['to_post'] = to_post
+
         self.logger.info(f'Updated {updated} classrooms.')
         self.logger.info(f'Posting {len(to_post)} classrooms.')
         r = ApexClassroom.post_batch(to_post, session=self.session)
@@ -304,6 +312,8 @@ class ApexSynchronizer(object):
                 self.logger.info(f'Successfully added {n_posted} classrooms.')
             else:
                 self.logger.info('No classrooms were added to Apex.')
+
+        self._operations = dict(class_ops)
 
     def run_schedule(self, s: ApexSchedule):
         """
