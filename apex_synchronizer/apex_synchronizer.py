@@ -67,11 +67,21 @@ class ApexSynchronizer(object):
     def __init__(self):
         """Opens a session with the Apex API and initializes a logger."""
         self.session = ApexSession()
+        self._dry_run = bool(int(environ.get('APEX_DRY_RUN', False)))
+        if self._dry_run:
+            self._operations = {}
         self.logger = logging.getLogger(__name__)
         self.batch_jobs = []
         self.ps_staff = {}
         self.apex_staff = set()
         self.apex_enroll, self.ps_enroll = self._init_enrollment()
+
+    def __del__(self):
+        if not self._dry_run:
+            return
+
+        with open('dry_run_info.json', 'w+') as f:
+            json.dump(self._operations, f)
 
     @property
     def apex_roster(self) -> KeysView:
@@ -94,6 +104,14 @@ class ApexSynchronizer(object):
         to_update = self._find_conflicts()
         if len(to_enroll) == len(to_withdraw) == len(to_update) == 0:
             self.logger.info('Rosters already in sync')
+            return
+
+        if self._dry_run:
+            self._operations['sync_roster'] = {
+                'to_enroll': list(to_enroll),
+                'to_withdraw': list(to_withdraw),
+                'to_update': list(to_update)
+            }
             return
 
         if len(to_enroll) > 0:
@@ -122,6 +140,11 @@ class ApexSynchronizer(object):
         if len(post_ids) == 0:
             self.logger.info('Staff list in sync.')
             return
+
+        if self._dry_run:
+            self._operations['sync_staff'] = {
+                'to_post': list(post_ids)
+            }
 
         try:
             to_post = [self.ps_staff[id_] for id_ in post_ids]
@@ -167,7 +190,6 @@ class ApexSynchronizer(object):
             to_enroll = student_list - apex_roster
             ineligible = self._find_ineligible_enrollments(to_enroll)
             if len(ineligible) > 0:
-                breakpoint()
                 to_enroll -= ineligible
                 self.logger.debug('The following students will not be enrolled:'
                                   f' {ineligible}')
@@ -180,13 +202,23 @@ class ApexSynchronizer(object):
 
             apex_to_enroll = [self.apex_enroll.get_student_for_id(id_)
                               for id_ in to_enroll]
-            n_updates = self._add_enrollments(to_enroll=apex_to_enroll,
-                                              classroom=apex_classroom)
+            if self_dry_run:
+                op = {'to_enroll': list(to_enroll)}
+                self._operations['sync_classroom_enrollment'] = op
+                n_updates = 0
+            else:
+                n_updates = self._add_enrollments(to_enroll=apex_to_enroll,
+                                                  classroom=apex_classroom)
             n_entries_changed += n_updates
 
             to_withdraw = apex_roster - student_list
-            n_withdrawn = self._withdraw_enrollments(classroom=apex_classroom,
-                                                     to_withdraw=to_withdraw)
+            if to_withdraw and self._dry_run:
+                op = self._operations['sync_classroom_enrollment']
+                op['to_withdraw'] = list(to_withdraw)
+                n_withdrawn = 0
+            else:
+                n_withdrawn = self._withdraw_enrollments(classroom=apex_classroom,
+                                                         to_withdraw=to_withdraw)
             n_entries_changed += n_withdrawn
         self.logger.info(f'Updated {n_entries_changed} enrollment records.')
 
