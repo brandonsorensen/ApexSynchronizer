@@ -19,7 +19,7 @@ from urllib.parse import urljoin
 import requests
 
 from .exceptions import PSEmptyQueryException, PSNoConnectionError
-from .utils import get_header
+from .utils import get_header, flatten_ps_json
 
 
 course2program_code = {
@@ -97,6 +97,18 @@ fetch_classrooms = PowerQuery('classrooms')
 fetch_enrollment = PowerQuery('enrollment')
 fetch_staff = PowerQuery('teachers')
 fetch_students = PowerQuery('students')
+
+
+def get_eduid_map():
+    students = fetch_students()
+    student2eduid = {}
+    for student in map(flatten_ps_json, students):
+        try:
+            student2eduid[student['email']] = int(student['eduid'])
+        except (TypeError, ValueError):
+            pass
+
+    return student2eduid
 
 
 def get_ps_token() -> str:
