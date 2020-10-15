@@ -77,7 +77,10 @@ class ApexSynchronizer(object):
         self.apex_enroll, self.ps_enroll = self._init_enrollment(exclude)
 
     def __del__(self):
-        if not self._dry_run:
+        try:
+            if not self._dry_run:
+                return
+        except AttributeError:
             return
 
         with open('dry_run_info.json', 'w+') as f:
