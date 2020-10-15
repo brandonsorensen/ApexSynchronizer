@@ -40,13 +40,15 @@ class ApexStudent(ApexUser):
         'middle_name': 'middle_name',
         'last_name': 'last_name',
         'grade_level': 'grade_level',
-        'email': 'email'
+        'email': 'email',
+        'coach_email': 'coach_emails'
     }
     max_batch_size = 2000
 
     def __init__(self, import_org_id: int, first_name: str,
                  middle_name: str, last_name: str, email: str,
-                 grade_level: int, eduid: int = None):
+                 grade_level: int, eduid: int = None, 
+                 coach_emails: List[str] = None):
         # We don't like middle schoolers going to middle school
         if int(import_org_id) == 615:
             import_org_id = 616
@@ -55,8 +57,12 @@ class ApexStudent(ApexUser):
             middle_name=middle_name, last_name=last_name,
             email=email, login_id=make_userid(first_name, last_name)
         )
-        self.grade_level = int(grade_level) if grade_level \
-                           else grade_level
+        self.grade_level = (int(grade_level) if grade_level
+                            else grade_level)
+        if coach_emails is None:
+            self.coach_emails = []
+        else:
+            self.coach_emails = coach_emails
         self.login_pw = int(eduid) if eduid else None
 
     @property
@@ -220,7 +226,14 @@ class ApexStudent(ApexUser):
                 raise exceptions.ApexNoEmailException(eduid)
             raise e
 
+        kwargs['coach_emails'] = kwargs['coach_emails'].split()
+
         return cls(**kwargs)
+
+    def to_json(self) -> dict:
+        d = super().to_json()
+        d['CoachEmails'] = ','.join(d['CoachEmails'])
+        return d
 
     @classmethod
     def _delete_id_batch(cls, eduids: Collection[str], token: TokenType,
