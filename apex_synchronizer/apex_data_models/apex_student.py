@@ -63,7 +63,10 @@ class ApexStudent(ApexUser):
             self.coach_emails = []
         else:
             self.coach_emails = coach_emails
-        self.login_pw = int(eduid) if eduid else None
+        try:
+            self.login_pw = int(eduid)
+        except (ValueError, TypeError):
+            self.login_pw = eduid
 
     def __eq__(self, other):
         if isinstance(other, ApexStudent):
@@ -78,6 +81,13 @@ class ApexStudent(ApexUser):
             return this_json == other_json
 
         return False
+
+    def __hash__(self):
+        return hash((
+            self.import_user_id,
+            self.import_org_id,
+            self.grade_level,
+        ))
 
     @property
     def classroom_url(self) -> str:
