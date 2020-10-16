@@ -36,7 +36,7 @@ class BaseEnrollment(ABC):
             try:
                 self.exclude = [l.strip() for l in open(exclude, 'r')]
             except FileNotFoundError:
-                self.logger(f'Could not find file \"{exclude}\".')
+                self.logger.debug(f'Could not find file \"{exclude}\".')
                 self.exclude = []
         else:
             try:
@@ -160,7 +160,8 @@ class PSEnrollment(BaseEnrollment):
             sec_id = int(entry['section_id'])
             email = entry['email']
             if email in self.exclude:
-                self.debug(f'Student with ID \"{email}\" in exclude list.')
+                self.logger.debug(f'Student with ID \"{email}\" in '
+                                  f'exclude list.')
                 continue
 
             if org_id not in SCHOOL_CODE_MAP.keys():
@@ -194,7 +195,8 @@ class PSEnrollment(BaseEnrollment):
         for entry in json_obj:
             email = entry['email']
             if email in self.exclude:
-                self.debug(f'Student with ID \"{email}\" in exclude list.')
+                self.logger.debug(f'Student with ID \"{email}\" in '
+                                  'exclude list.')
                 continue
             org_id = entry['school_id']
             if not all((email, org_id)):
