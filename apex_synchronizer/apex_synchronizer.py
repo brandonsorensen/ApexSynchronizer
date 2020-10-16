@@ -112,7 +112,7 @@ class ApexSynchronizer(object):
             self._operations['sync_roster'] = {
                 'to_enroll': list(to_enroll),
                 'to_withdraw': list(to_withdraw),
-                'to_update': [s.to_json() for s in to_update]
+                'to_update': [s.import_user_id for s in to_update]
             }
             return
 
