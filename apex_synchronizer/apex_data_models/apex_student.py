@@ -65,6 +65,20 @@ class ApexStudent(ApexUser):
             self.coach_emails = coach_emails
         self.login_pw = int(eduid) if eduid else None
 
+    def __eq__(self, other):
+        if isinstance(other, ApexStudent):
+            this_json = self.to_json()
+            other_json = other.to_json()
+
+            for obj in this_json, other_json:
+                # We don't want the password in the comparison
+                if 'LoginPw' in obj:
+                    del obj['LoginPw']
+
+            return this_json == other_json
+
+        return False
+
     @property
     def classroom_url(self) -> str:
         url = urljoin(self.url + '/', str(self.import_user_id))
@@ -226,7 +240,8 @@ class ApexStudent(ApexUser):
                 raise exceptions.ApexNoEmailException(eduid)
             raise e
 
-        kwargs['coach_emails'] = kwargs['coach_emails'].split()
+        if kwargs['coach_emails'] is not None:
+            kwargs['coach_emails'] = kwargs['coach_emails'].split()
 
         return cls(**kwargs)
 

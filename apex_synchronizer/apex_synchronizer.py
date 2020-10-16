@@ -30,7 +30,7 @@ class StudentTuple(object):
     a PowerSchool student JSON-object.
     """
     apex: ApexStudent = None
-    powerschool: PSStudent = None
+    powerschool: ApexStudent = None
 
     def __iter__(self):
         return iter((self.apex, self.powerschool))
@@ -44,8 +44,7 @@ class StudentTuple(object):
         if self.powerschool.import_org_id == 615:
             self.powerschool.import_org_id += 1
         return (
-            self.apex.import_user_id == self.powerschool.import_user_id
-            and self.apex.import_org_id == self.powerschool.import_org_id
+            self.apex == self.powerschool
         )
 
     def update_apex(self):
@@ -113,7 +112,7 @@ class ApexSynchronizer(object):
             self._operations['sync_roster'] = {
                 'to_enroll': list(to_enroll),
                 'to_withdraw': list(to_withdraw),
-                'to_update': list(to_update)
+                'to_update': [s.to_json() for s in to_update]
             }
             return
 
