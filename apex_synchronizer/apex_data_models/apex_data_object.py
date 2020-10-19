@@ -218,8 +218,8 @@ class ApexDataObject(ABC):
 
         try:
             return cls._parse_get_response(r)
-        except KeyError:
-            raise exceptions.ApexIncompleteDataException()
+        except KeyError as ke:
+            raise exceptions.ApexIncompleteDataException() from ke
 
     @classmethod
     def get_all(cls, token: TokenType = None, archived: bool = False,

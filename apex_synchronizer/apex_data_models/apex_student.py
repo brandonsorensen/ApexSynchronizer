@@ -251,7 +251,7 @@ class ApexStudent(ApexUser):
             raise e
 
         if kwargs['coach_emails'] is not None:
-            kwargs['coach_emails'] = kwargs['coach_emails'].split()
+            kwargs['coach_emails'] = kwargs['coach_emails'].split(',')
 
         return cls(**kwargs)
 
