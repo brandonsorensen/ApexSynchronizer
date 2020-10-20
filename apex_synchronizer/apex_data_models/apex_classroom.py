@@ -19,22 +19,36 @@ from ..utils import get_header, levenshtein_distance
 import apex_synchronizer.apex_data_models as adm
 
 
-def _init_powerschool_teachers() -> List[ApexStaffMember]:
-    """Creates `ApexStaffMember` objects from all PowerSchool teachers."""
-    logger = logging.getLogger(__name__)
-    teachers = []
-    for t in fetch_staff():
-        try:
-            teachers.append(ApexStaffMember.from_powerschool(t))
-        except exceptions.ApexDataObjectException:
-            logger.debug('Could not create teacher from the following JSON:\n'
-                         + str(t))
+class ApexClassroomMeta(type):
 
-    assert len(teachers) > 0
-    return teachers
+    @property
+    def all_ps_teachers(cls):
+        """
+        Avoids making the call to PowerSchool until it is necessary.
+        Credit: https://stackoverflow.com/questions/15226721/python-class-member-lazy-initialization
+        """
+        if getattr(cls, '_all_ps_teachers', None) is None:
+            cls._all_ps_teachers = cls._init_powerschool_teachers()
+        return cls._all_ps_teachers
+
+    @staticmethod
+    def _init_powerschool_teachers() -> List[ApexStaffMember]:
+        """Creates `ApexStaffMember` objects from all PowerSchool teachers."""
+        logger = logging.getLogger(__name__)
+        teachers = []
+        for t in fetch_staff():
+            try:
+                teachers.append(ApexStaffMember.from_powerschool(t))
+            except exceptions.ApexDataObjectException:
+                logger.debug('Could not create teacher from the following '
+                             'JSON:\n' + str(t))
+
+        assert len(teachers) > 0
+        return teachers
 
 
-class ApexClassroom(ApexNumericId, ApexDataObject):
+class ApexClassroom(ApexNumericId, ApexDataObject,
+                    metaclass=ApexClassroomMeta):
 
     """
     Represents a classroom in the Apex data base.
@@ -65,7 +79,6 @@ class ApexClassroom(ApexNumericId, ApexDataObject):
     }
     post_heading = 'classroomEntries'
     main_id = 'ImportClassroomId'
-    _all_ps_teachers = _init_powerschool_teachers()
 
     def __init__(self, import_org_id: int, import_classroom_id: int,
                  classroom_name: str, product_codes: [str],
@@ -443,7 +456,7 @@ class ApexClassroom(ApexNumericId, ApexDataObject):
             raise exceptions.ApexNoTeacherException(json_obj)
         teacher = teacher_fuzzy_match(json_obj['PrimaryTeacher'],
                                       org=org_id,
-                                      teachers=cls._all_ps_teachers)
+                                      teachers=cls.all_ps_teachers)
         kwargs['import_user_id'] = teacher.import_user_id
 
         return cls(**kwargs)
