@@ -1,3 +1,4 @@
+from abc import ABCMeta
 from datetime import datetime
 from requests import Response
 from typing import Collection, Dict, List, Optional, Sequence, Union
@@ -19,7 +20,7 @@ from ..utils import get_header, levenshtein_distance
 import apex_synchronizer.apex_data_models as adm
 
 
-class ApexClassroomMeta(type):
+class ApexClassroomMeta(ABCMeta):
 
     @property
     def all_ps_teachers(cls):
