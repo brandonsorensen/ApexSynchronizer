@@ -608,8 +608,14 @@ class ApexUser(ApexDataObject, ABC):
                  login_id: str):
         self.first_name = first_name.strip() if first_name else first_name
         self.middle_name = middle_name.strip() if middle_name else middle_name
-        if self.middle_name.lower() == 'null':
+        if middle_name:
+            if middle_name.lower() in 'null':
+                self.middle_name = None
+            else:
+                self.middle_name = middle_name.strip()
+        else:
             self.middle_name = None
+
         self.last_name = last_name.strip() if last_name else last_name
 
         if not email:
