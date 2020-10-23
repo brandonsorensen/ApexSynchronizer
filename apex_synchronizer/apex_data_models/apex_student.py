@@ -43,6 +43,8 @@ class ApexStudent(ApexUser):
     }
     max_batch_size = 2000
 
+    _coach_schools = (615, 616)
+
     def __init__(self, import_org_id: int, first_name: str,
                  middle_name: str, last_name: str, email: str,
                  grade_level: int, eduid: int = None, 
@@ -57,7 +59,8 @@ class ApexStudent(ApexUser):
         )
         self.grade_level = (int(grade_level) if grade_level
                             else grade_level)
-        if coach_emails is None:
+        if (coach_emails is None
+                or self.import_org_id not in self._coach_schools):
             self.coach_emails = []
         else:
             self.coach_emails = coach_emails
