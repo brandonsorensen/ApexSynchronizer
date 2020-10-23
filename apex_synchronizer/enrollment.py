@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict, KeysView
 from dataclasses import dataclass
-from typing import Iterable, List, Set, Union
+from typing import Dict, TextIO, Iterable, List, Set, Union
 import logging
 
 import requests
@@ -21,16 +21,16 @@ class BaseEnrollment(ABC):
     both Apex and PowerSchool can adhere.
     """
 
-    def __init__(self, exclude=None):
+    def __init__(self, exclude: Union[str, TextIO, Iterable] = None):
         """
-        :param Union[str, IO] exclude: a list, path to a file containing,
-            or file object containing a list of students IDs to exempt
-            from the syncing process
+        :param Union[str, TextIO, Iterable] exclude: a list, path to a
+            file containing, or file object containing a list of
+            students' IDs to exempt from the syncing process
         """
         logger_name = '.'.join([__name__, self.__class__.__name__])
         self.logger = logging.getLogger(logger_name)
         self._all_students = set()
-        self.apex_index = {}
+        self.apex_index: Dict[str, ApexStudent] = {}
         if exclude is None:
             self.exclude = []
         elif isinstance(str, exclude):
