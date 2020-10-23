@@ -388,7 +388,7 @@ class ApexSynchronizer(object):
                 self.logger.debug(f'Student {st.apex.import_user_id} will be'
                                   'updated to match PowerSchool records.')
                 st.update_apex()
-                to_update.append(st.apex)
+                to_update.append(st.powerschool)
 
         return to_update
 
