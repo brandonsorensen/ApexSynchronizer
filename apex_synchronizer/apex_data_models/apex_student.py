@@ -1,11 +1,11 @@
 import logging
 import requests
-from typing import Collection, List, Optional, Union
+from typing import Collection, List, Optional, Set, Union
 from urllib.parse import urljoin
 
 from requests import Response
 
-from .apex_data_object import ApexNumericId, ApexUser
+from .apex_data_object import ApexUser
 from .apex_classroom import ApexClassroom
 from .utils import (BASE_URL, make_userid, check_args)
 from .. import exceptions
@@ -18,8 +18,6 @@ class ApexStudent(ApexUser):
     """
     Represents a student in the Apex database.
 
-    :param Union[str, int] import_user_id: identifier for the database,
-        common to Apex and PowerSchool
     :param Union[str, int] import_org_id: the school to which the
         student belongs
     :param str first_name: the student's first/given name
@@ -49,7 +47,7 @@ class ApexStudent(ApexUser):
                  middle_name: str, last_name: str, email: str,
                  grade_level: int, eduid: int = None, 
                  coach_emails: List[str] = None):
-        # We don't like middle schoolers going to middle school
+        # We don't like middle-schoolers going to middle school
         if int(import_org_id) == 615:
             import_org_id = 616
         super().__init__(
@@ -94,6 +92,10 @@ class ApexStudent(ApexUser):
         url = urljoin(self.url + '/', str(self.import_user_id))
         url = urljoin(url + '/', 'classrooms')
         return url
+
+    @property
+    def optional_headings(self) -> Set[str]:
+        return super().optional_headings | {'login_pw', 'coach_emails'}
 
     def enroll(self, classroom: Union[ApexClassroom, int],
                token: TokenType = None,
@@ -257,7 +259,11 @@ class ApexStudent(ApexUser):
 
     def to_json(self) -> dict:
         d = super().to_json()
-        d['CoachEmails'] = ','.join(d['CoachEmails'])
+        if d['CoachEmails']:
+            d['CoachEmails'] = ','.join(d['CoachEmails'])
+        else:
+            # Can't pass empty string to Apex; the arg is optional
+            del d['CoachEmails']
         return d
 
     @classmethod
@@ -303,4 +309,3 @@ def _delete_student_batch(students: Collection[ApexStudent],
         responses.append(r)
 
     return responses
-

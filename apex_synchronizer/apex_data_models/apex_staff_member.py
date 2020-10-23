@@ -46,8 +46,6 @@ class ApexStaffMember(ApexUser):
     def __init__(self, import_org_id: int, first_name: str,
                  middle_name: str, last_name: str, email: str):
         email_lower = email.lower().strip() if email else None
-        if middle_name == 'null':
-            middle_name = None
         super().__init__(
             import_org_id=import_org_id, first_name=first_name,
             middle_name=middle_name, last_name=last_name, email=email,
