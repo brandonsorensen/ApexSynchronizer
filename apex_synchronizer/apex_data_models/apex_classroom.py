@@ -1,7 +1,7 @@
 from abc import ABCMeta
 from datetime import datetime
 from requests import Response
-from typing import Collection, Dict, List, Optional, Sequence, Union
+from typing import Collection, Dict, List, Optional, Set, Sequence, Union
 from urllib.parse import urljoin, urlparse
 import json
 import logging
@@ -67,8 +67,8 @@ class ApexClassroom(ApexNumericId, ApexDataObject,
     :param str program_code: the program to which the classroom belongs
     """
 
-    url = urljoin(adm_utils.BASE_URL, 'classrooms')
-    role = 'T'
+    main_id = 'ImportClassroomId'
+    optional_headings: Set[str] = {}
     ps2apex_field_map = {
         'first_day': 'classroom_start_date',
         'teacher_id': 'import_user_id',
@@ -79,7 +79,8 @@ class ApexClassroom(ApexNumericId, ApexDataObject,
         'apex_program_code': 'product_codes'
     }
     post_heading = 'classroomEntries'
-    main_id = 'ImportClassroomId'
+    role = 'T'
+    url: str = urljoin(adm_utils.BASE_URL, 'classrooms')
 
     def __init__(self, import_org_id: int, import_classroom_id: int,
                  classroom_name: str, product_codes: [str],

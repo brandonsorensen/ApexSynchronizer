@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from time import sleep
-from typing import Collection, Dict, List, Tuple, Union
+from typing import Any, Collection, Dict, List, Set, Tuple, Union
 from urllib.parse import urljoin
 import json
 import logging
@@ -69,7 +69,16 @@ class ApexDataObject(ABC):
 
     @property
     @abstractmethod
-    def ps2apex_field_map(self) -> dict:
+    def optional_headings(self) -> Set[str]:
+        """
+        The subset of the instance attributes that are optional
+        in the Apex API. Can be an empty set.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def ps2apex_field_map(self) -> Dict[str, str]:
         """
         A mapping from field names return by PowerSchool queries to
         their respective Apex JSON fields for each class.
@@ -131,9 +140,6 @@ class ApexDataObject(ABC):
 
         :param token: Apex access token
         :param session: an existing Apex session
-        :param main_id: the idenitifying class attribute: ImportUserId
-            for `ApexStudent` and `ApexStaffMember` objects,
-            ImportClassroomId for `ApexClassroom` objects
         :return: the response from the PUT operation.
         """
         agent = check_args(token, session)
@@ -147,18 +153,23 @@ class ApexDataObject(ABC):
         r = agent.put(url=url, headers=header, data=json.dumps(payload))
         return r
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> Dict[str, Any]:
         """Converts attributes to a dictionary."""
         return self.__dict__
 
-    def to_json(self) -> dict:
+    def to_json(self) -> Dict[str, str]:
         """
         Converts instance attributes to dictionary and modifies their
-        contents to prepare them for submission to the Apex API.
+        contents to prepare them for submission to the Apex API. Note
+        that this returns a dictionary, NOT a JSON string that would
+        be returned, for example, from the `json` module's `dumps`
+        function.
         """
         json_obj = {}
         for key, value in self.to_dict().items():
             if value is None:
+                if key in self.optional_headings:
+                    continue
                 value = 'null'
             if isinstance(value, int):
                 value = str(value)
@@ -201,7 +212,7 @@ class ApexDataObject(ABC):
         Gets the ApexDataObject corresponding to a given ImportId.
 
         :param token: ApexAccessToken
-        :param session: an exising Apex session
+        :param session: an existing Apex session
         :param import_id: the ImportId of the object
         :return: an ApexDataObject corresponding to the given ImportId
         """
@@ -218,8 +229,8 @@ class ApexDataObject(ABC):
 
         try:
             return cls._parse_get_response(r)
-        except KeyError:
-            raise exceptions.ApexIncompleteDataException()
+        except KeyError as ke:
+            raise exceptions.ApexIncompleteDataException() from ke
 
     @classmethod
     def get_all(cls, token: TokenType = None, archived: bool = False,
@@ -229,7 +240,6 @@ class ApexDataObject(ABC):
 
         :param token: Apex access token
         :param session: an existing Apex session
-        :param bool ids_only: Whether to only return IDs
         :param archived: whether or not to return archived objects
         :return: a list containing all objects of this type in the Apex
             database
@@ -245,7 +255,6 @@ class ApexDataObject(ABC):
 
         :param token: Apex access token
         :param session: an existing Apex session
-        :param bool ids_only: Whether to only return IDs
         :param archived: whether or not to return archived objects
         :return: a list containing all objects of this type in the Apex
             database
@@ -491,7 +500,7 @@ class ApexDataObject(ABC):
         returned by the `_get_response`, validates it, and returns an
         instance of the corresponding class.
 
-        :param Response r: the reponse returned by the `_get_response`
+        :param Response r: the response returned by the `_get_response`
             method.
         :return: an instance of type `cls` corresponding to the JSON
             object in `r`.
@@ -592,11 +601,21 @@ class ApexUser(ApexDataObject, ABC):
     semantic purpose.
     """
 
+    optional_headings = {'middle_name'}
+
     def __init__(self, import_org_id: int, first_name: str,
                  middle_name: str, last_name: str, email: str,
                  login_id: str):
         self.first_name = first_name.strip() if first_name else first_name
         self.middle_name = middle_name.strip() if middle_name else middle_name
+        if middle_name:
+            if middle_name.lower() in 'null':
+                self.middle_name = None
+            else:
+                self.middle_name = middle_name.strip()
+        else:
+            self.middle_name = None
+
         self.last_name = last_name.strip() if last_name else last_name
 
         if not email:
