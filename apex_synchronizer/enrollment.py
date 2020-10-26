@@ -215,9 +215,13 @@ class PSEnrollment(BaseEnrollment):
                 self.logger.debug(f'Could not create ApexStudent "{email}" '
                                   'from PowerSchool object.')
                 continue
-            if email and email not in self._student2classrooms.keys():
+
+            if email not in self._student2classrooms.keys():
                 self._student2classrooms[student.import_user_id] = set()
-                self.apex_index[student.import_user_id] = student
+                # Removes coach emails for students not enrolled in a class
+                student.coach_emails = []
+
+            self.apex_index[student.import_user_id] = student
 
     @property
     def classroom2students(self) -> dict:
