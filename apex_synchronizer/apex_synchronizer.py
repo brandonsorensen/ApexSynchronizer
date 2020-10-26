@@ -30,7 +30,7 @@ class StudentTuple(object):
     a PowerSchool student JSON-object.
     """
     apex: ApexStudent = None
-    powerschool: PSStudent = None
+    powerschool: ApexStudent = None
 
     def __iter__(self):
         return iter((self.apex, self.powerschool))
@@ -44,8 +44,7 @@ class StudentTuple(object):
         if self.powerschool.import_org_id == 615:
             self.powerschool.import_org_id += 1
         return (
-            self.apex.import_user_id == self.powerschool.import_user_id
-            and self.apex.import_org_id == self.powerschool.import_org_id
+            self.apex == self.powerschool
         )
 
     def update_apex(self):
@@ -77,7 +76,10 @@ class ApexSynchronizer(object):
         self.apex_enroll, self.ps_enroll = self._init_enrollment(exclude)
 
     def __del__(self):
-        if not self._dry_run:
+        try:
+            if not self._dry_run:
+                return
+        except AttributeError:
             return
 
         with open('dry_run_info.json', 'w+') as f:
@@ -110,7 +112,7 @@ class ApexSynchronizer(object):
             self._operations['sync_roster'] = {
                 'to_enroll': list(to_enroll),
                 'to_withdraw': list(to_withdraw),
-                'to_update': list(to_update)
+                'to_update': [s.import_user_id for s in to_update]
             }
             return
 
@@ -344,8 +346,8 @@ class ApexSynchronizer(object):
         f.write('status:\n' + json.dumps(method_status, indent=2) + '\n')
         f.close()
 
-    def _enroll_students(self, student_ids: Collection[int]):
-        apex_students = init_students_for_ids(student_ids)
+    def _enroll_students(self, student_ids: Collection[str]):
+        apex_students = self._init_students_for_ids(student_ids)
         if len(apex_students) > 0:
             self._post_students(apex_students)
 
@@ -386,7 +388,7 @@ class ApexSynchronizer(object):
                 self.logger.debug(f'Student {st.apex.import_user_id} will be'
                                   'updated to match PowerSchool records.')
                 st.update_apex()
-                to_update.append(st.apex)
+                to_update.append(st.powerschool)
 
         return to_update
 
@@ -427,6 +429,30 @@ class ApexSynchronizer(object):
                 self.logger.debug(e)
         self.logger.info(f'Successfully retrieved {len(self.ps_staff)} '
                          'ps_staff members from PowerSchool.')
+
+    def _init_students_for_ids(self, student_ids: Collection[str]) \
+            -> List[ApexStudent]:
+        """
+        Iterates over the PowerSchool rosters and creates ApexStudent
+        objects out of the intersection between the IDs in `student_ids` and
+        the PowerSchool students.
+
+        :param student_ids: student EDUIDs
+        :return: the students in both PowerSchool and the given last as
+            `ApexStudent` objects
+        """
+        self.logger.info(f'Found {len(student_ids)} students in PowerSchool '
+                         'not enrolled in Apex.')
+        apex_students: List[ApexStudent] = []
+        for id_ in student_ids:
+            try:
+                student = self.ps_enroll.apex_index[id_]
+                apex_students.append(student)
+            except KeyError:
+                self.logger.debug('Could not create ApexStudent object for '
+                                  f'ID "{id_}". Cannot be added.')
+
+        return apex_students
 
     def _has_enrollment(self):
         try:
@@ -603,47 +629,3 @@ class ApexSynchronizer(object):
             self.logger.info(f'Successfully withdrew {n_withdrawn}/'
                              f'{len(to_withdraw)} students from {c_id}.')
         return n_withdrawn
-
-
-def init_students_for_ids(student_ids: Collection[int]) -> List[ApexStudent]:
-    """
-    Iterates over the PowerSchool rosters and creates ApexStudent
-    objects out of the intersection between the IDs in `student_ids` and
-    the PowerSchool students.
-
-    :param student_ids: student EDUIDs
-    :return: the students in both PowerSchool and the given last as
-        `ApexStudent` objects
-    """
-    logger = logging.getLogger(__name__)
-    logger.info(f'Found {len(student_ids)} students in PowerSchool not'
-                'enrolled in Apex.')
-    ps_json = fetch_students()
-    apex_students = []
-    seen_eduids = set()
-    for obj in ps_json:
-        eduid = obj['tables']['students']['eduid']
-        if not eduid:
-            last_name = obj['tables']['students']['last_name']
-            first_name = obj['tables']['students']['first_name']
-            logger.info(f'Student "{first_name} {last_name}" does not have an '
-                        'EDUID. Skipping...')
-            continue
-
-        eduid = int(eduid)
-        if eduid in student_ids:
-            if eduid in seen_eduids:
-                logger.debug(f'Duplicate EDUID \"{eduid}\". Skipping...')
-                continue
-            try:
-                logger.info(f'Creating student for EDUID {eduid}')
-                apex_student = ApexStudent.from_powerschool(obj)
-                seen_eduids.add(eduid)
-                apex_students.append(apex_student)
-            except ApexNoEmailException:
-                logger.info(f'Student with EDUID "{eduid}" has no email.'
-                            'Skipping...')
-            except ApexMalformedEmailException as e:
-                logger.info(e)
-
-    return apex_students

@@ -12,6 +12,7 @@
 			<column column="STUDENTS.STATE_STUDENTNUMBER">EDUID</column>
 			<column column="STUDENTS.GRADE_LEVEL">GRADE_LEVEL</column>
 			<column column="STUDENTS.SCHOOLID">SCHOOL_ID</column>
+			<column column="STUDENTS.GUARDIANEMAIL">COACH_EMAIL</column>
 			<column column="U_DEF_EXT_STUDENTS.STUDENTEMAIL">EMAIL</column>
  		</columns>
         <sql>
@@ -24,6 +25,7 @@
 						students.State_StudentNumber,
 						students.Grade_Level,
 						students.schoolid,
+						students.guardianemail,
 						u_def_ext_students.studentemail
 				FROM    students
 						INNER JOIN u_def_ext_students

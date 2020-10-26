@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict, KeysView
 from dataclasses import dataclass
-from typing import Iterable, List, Set, Union
+from typing import Dict, TextIO, Iterable, List, Set, Union
 import logging
 
 import requests
@@ -21,22 +21,23 @@ class BaseEnrollment(ABC):
     both Apex and PowerSchool can adhere.
     """
 
-    def __init__(self, exclude=None):
+    def __init__(self, exclude: Union[str, TextIO, Iterable] = None):
         """
-        :param Union[str, IO] exclude: a list, path to a file containing,
-            or file object containing a list of students IDs to exempt
-            from the syncing process
+        :param Union[str, TextIO, Iterable] exclude: a list, path to a
+            file containing, or file object containing a list of
+            students' IDs to exempt from the syncing process
         """
         logger_name = '.'.join([__name__, self.__class__.__name__])
         self.logger = logging.getLogger(logger_name)
         self._all_students = set()
+        self.apex_index: Dict[str, ApexStudent] = {}
         if exclude is None:
             self.exclude = []
         elif isinstance(str, exclude):
             try:
                 self.exclude = [l.strip() for l in open(exclude, 'r')]
             except FileNotFoundError:
-                self.logger(f'Could not find file \"{exclude}\".')
+                self.logger.debug(f'Could not find file \"{exclude}\".')
                 self.exclude = []
         else:
             try:
@@ -102,7 +103,7 @@ class BaseEnrollment(ABC):
         return self.student2classrooms.keys()
 
     @property
-    def students(self) -> Set:
+    def students(self) -> Set[ApexStudent]:
         """
         Returns a complete roster encompassing all students in the form
         of data objects, i.e. `ApexStudent` or dict/JSON objects.
@@ -160,7 +161,8 @@ class PSEnrollment(BaseEnrollment):
             sec_id = int(entry['section_id'])
             email = entry['email']
             if email in self.exclude:
-                self.debug(f'Student with ID \"{email}\" in exclude list.')
+                self.logger.debug(f'Student with ID \"{email}\" in '
+                                  f'exclude list.')
                 continue
 
             if org_id not in SCHOOL_CODE_MAP.keys():
@@ -194,7 +196,8 @@ class PSEnrollment(BaseEnrollment):
         for entry in json_obj:
             email = entry['email']
             if email in self.exclude:
-                self.debug(f'Student with ID \"{email}\" in exclude list.')
+                self.logger.debug(f'Student with ID \"{email}\" in '
+                                  'exclude list.')
                 continue
             org_id = entry['school_id']
             if not all((email, org_id)):
@@ -205,9 +208,20 @@ class PSEnrollment(BaseEnrollment):
             grade_level = int(entry['grade_level'])
             if org_id == 615 and grade_level not in range(5, 9):
                 continue
-            student = PSStudent(email, org_id)
-            if email and email not in self._student2classrooms.keys():
+            try:
+                student = ApexStudent.from_powerschool(json_obj=entry,
+                                                       already_flat=True)
+            except exceptions.ApexError as e:
+                self.logger.debug(f'Could not create ApexStudent "{email}" '
+                                  'from PowerSchool object.')
+                continue
+
+            if email not in self._student2classrooms.keys():
                 self._student2classrooms[student.import_user_id] = set()
+                # Removes coach emails for students not enrolled in a class
+                student.coach_emails = []
+
+            self.apex_index[student.import_user_id] = student
 
     @property
     def classroom2students(self) -> dict:
@@ -216,6 +230,10 @@ class PSEnrollment(BaseEnrollment):
     @property
     def student2classrooms(self) -> dict:
         return self._student2classrooms
+
+    @property
+    def students(self) -> Set[ApexStudent]:
+        return set(self.apex_index.values())
 
     @property
     def classrooms(self):
@@ -252,9 +270,9 @@ class ApexEnrollment(BaseEnrollment):
                                                             session=session)
             self.logger.info('Retrieved Apex student information')
         self.logger.debug('Creating ApexStudent index')
-        self._apex_index = {student.import_user_id: student
-                            for student in self._all_students
-                            if student.import_user_id not in self.exclude}
+        self.apex_index = {student.import_user_id: student
+                           for student in self._all_students
+                           if student.import_user_id not in self.exclude}
         self.logger.info('Getting all Apex classrooms.')
         self._classroom_index = {int(c.import_classroom_id): c
                                  for c in ApexClassroom.get_all(session=session)}
@@ -262,7 +280,7 @@ class ApexEnrollment(BaseEnrollment):
         self.logger.info('Getting enrollment information for all relevant '
                          'students.')
         self._student2classrooms = (
-            adm.apex_classroom.get_classrooms_for_eduids(set(self._apex_index),
+            adm.apex_classroom.get_classrooms_for_eduids(set(self.apex_index),
                                                          session=session,
                                                          return_empty=True,
                                                          ids_only=True)
@@ -350,7 +368,7 @@ class ApexEnrollment(BaseEnrollment):
             self.withdraw_student(s, classroom)
 
         del self._student2classrooms[s_id]
-        del self._apex_index[s_id]
+        del self.apex_index[s_id]
         self.logger.debug(f'Successfully disenrolled student "{s_id}".')
 
     def get_classroom_for_id(self, c_id: int) -> ApexClassroom:
@@ -360,13 +378,13 @@ class ApexEnrollment(BaseEnrollment):
             raise KeyError(c_id)
 
     def get_student_for_id(self, user_id: str) -> ApexStudent:
-        return self._apex_index[user_id]
+        return self.apex_index[user_id]
 
     def update_classroom(self, c: ApexClassroom):
         self._classroom_index[int(c.import_classroom_id)] = c
 
     def update_student(self, s: ApexStudent):
-        self._apex_index[s.import_user_id] = s
+        self.apex_index[s.import_user_id] = s
 
     def withdraw_student(self, s: ApexStudent, c: ApexClassroom):
         """Withdraws student from a given classroom."""

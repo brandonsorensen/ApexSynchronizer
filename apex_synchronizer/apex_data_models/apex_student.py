@@ -1,11 +1,11 @@
 import logging
 import requests
-from typing import Collection, List, Optional, Union
+from typing import Collection, List, Optional, Set, Union
 from urllib.parse import urljoin
 
 from requests import Response
 
-from .apex_data_object import ApexNumericId, ApexUser
+from .apex_data_object import ApexUser
 from .apex_classroom import ApexClassroom
 from .utils import (BASE_URL, make_userid, check_args)
 from .. import exceptions
@@ -18,8 +18,6 @@ class ApexStudent(ApexUser):
     """
     Represents a student in the Apex database.
 
-    :param Union[str, int] import_user_id: identifier for the database,
-        common to Apex and PowerSchool
     :param Union[str, int] import_org_id: the school to which the
         student belongs
     :param str first_name: the student's first/given name
@@ -40,14 +38,18 @@ class ApexStudent(ApexUser):
         'middle_name': 'middle_name',
         'last_name': 'last_name',
         'grade_level': 'grade_level',
-        'email': 'email'
+        'email': 'email',
+        'coach_email': 'coach_emails'
     }
     max_batch_size = 2000
 
+    _coach_schools = (615, 616)
+
     def __init__(self, import_org_id: int, first_name: str,
                  middle_name: str, last_name: str, email: str,
-                 grade_level: int, eduid: int = None):
-        # We don't like middle schoolers going to middle school
+                 grade_level: int, eduid: int = None, 
+                 coach_emails: List[str] = None):
+        # We don't like middle-schoolers going to middle school
         if int(import_org_id) == 615:
             import_org_id = 616
         super().__init__(
@@ -55,15 +57,48 @@ class ApexStudent(ApexUser):
             middle_name=middle_name, last_name=last_name,
             email=email, login_id=make_userid(first_name, last_name)
         )
-        self.grade_level = int(grade_level) if grade_level \
-                           else grade_level
-        self.login_pw = int(eduid) if eduid else None
+        self.grade_level = (int(grade_level) if grade_level
+                            else grade_level)
+        if (coach_emails is None
+                or self.import_org_id not in self._coach_schools):
+            self.coach_emails = []
+        else:
+            self.coach_emails = coach_emails
+        try:
+            self.login_pw = int(eduid)
+        except (ValueError, TypeError):
+            self.login_pw = eduid
+
+    def __eq__(self, other):
+        if isinstance(other, ApexStudent):
+            this_json = self.to_json()
+            other_json = other.to_json()
+
+            for obj in this_json, other_json:
+                # We don't want the password in the comparison
+                if 'LoginPw' in obj:
+                    del obj['LoginPw']
+
+            return this_json == other_json
+
+        return False
+
+    def __hash__(self):
+        return hash((
+            self.import_user_id,
+            self.import_org_id,
+            self.grade_level,
+        ))
 
     @property
     def classroom_url(self) -> str:
         url = urljoin(self.url + '/', str(self.import_user_id))
         url = urljoin(url + '/', 'classrooms')
         return url
+
+    @property
+    def optional_headings(self) -> Set[str]:
+        return super().optional_headings | {'login_pw', 'coach_emails'}
 
     def enroll(self, classroom: Union[ApexClassroom, int],
                token: TokenType = None,
@@ -220,7 +255,19 @@ class ApexStudent(ApexUser):
                 raise exceptions.ApexNoEmailException(eduid)
             raise e
 
+        if kwargs['coach_emails'] is not None:
+            kwargs['coach_emails'] = kwargs['coach_emails'].split(',')
+
         return cls(**kwargs)
+
+    def to_json(self) -> dict:
+        d = super().to_json()
+        if d['CoachEmails']:
+            d['CoachEmails'] = ','.join(d['CoachEmails'])
+        else:
+            # Can't pass empty string to Apex; the arg is optional
+            del d['CoachEmails']
+        return d
 
     @classmethod
     def _delete_id_batch(cls, eduids: Collection[str], token: TokenType,
@@ -265,4 +312,3 @@ def _delete_student_batch(students: Collection[ApexStudent],
         responses.append(r)
 
     return responses
-
