@@ -92,6 +92,8 @@ class ApexStudent(ApexUser):
             # We don't want the password in the comparison
             if 'login_pw' in obj:
                 del obj['login_pw']
+            # We don't care about the order
+            obj['coach_emails'] = set(obj['coach_emails'])
 
         exact_match = this_json == other_json
         if exact_match:
