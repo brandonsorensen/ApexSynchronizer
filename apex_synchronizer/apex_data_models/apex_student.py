@@ -1,5 +1,6 @@
 import logging
 import requests
+from copy import deepcopy as copy
 from typing import Collection, List, Optional, Set, Union
 from urllib.parse import urljoin
 
@@ -84,16 +85,20 @@ class ApexStudent(ApexUser):
         if not isinstance(other, ApexStudent):
             return False
 
-        this_json = self.to_json()
-        other_json = other.to_json()
+        this_json = self.to_dict()
+        other_json = other.to_dict()
 
         for obj in this_json, other_json:
             # We don't want the password in the comparison
-            if 'LoginPw' in obj:
-                del obj['LoginPw']
+            if 'login_pw' in obj:
+                del obj['login_pw']
+
+        exact_match = this_json == other_json
+        if exact_match:
+            return True
 
         if powerschool is None:
-            return this_json == other_json
+            return exact_match
 
         if powerschool not in 'lr':
             raise ValueError('powerschool must be either `l` or `r`, '
@@ -104,17 +109,12 @@ class ApexStudent(ApexUser):
         else:
             ps = other
             apex = self
-
-        ps_json = apex.to_json()
-        apex_json = ps.to_json()
+        ps = copy(ps)
 
         if set(apex.coach_emails) - set(ps.coach_emails):
-            try:
-                ps_json['CoachEmails'] = apex_json['CoachEmails']
-            except KeyError:
-                pass
+            ps.coach_emails = apex.coach_emails
 
-        return ps_json == apex_json
+        return apex == ps
 
     def __hash__(self):
         return hash((
