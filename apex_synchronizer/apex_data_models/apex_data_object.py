@@ -155,7 +155,7 @@ class ApexDataObject(ABC):
 
     def to_dict(self) -> Dict[str, Any]:
         """Converts attributes to a dictionary."""
-        return self.__dict__
+        return self.__dict__.copy()
 
     def to_json(self) -> Dict[str, str]:
         """
