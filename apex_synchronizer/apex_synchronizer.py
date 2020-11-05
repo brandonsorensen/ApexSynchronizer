@@ -315,7 +315,8 @@ class ApexSynchronizer(object):
             else:
                 self.logger.info('No classrooms were added to Apex.')
 
-        self._operations['sync_classrooms'] = dict(class_ops)
+        if self._dry_run:
+            self._operations['sync_classrooms'] = dict(class_ops)
 
     def run_schedule(self, s: ApexSchedule):
         """
