@@ -16,9 +16,8 @@ from .apex_data_models import ApexStudent, ApexClassroom, ApexStaffMember
 from .apex_data_models.apex_classroom import walk_ps_sections
 from .apex_schedule import ApexSchedule
 from .apex_session import ApexSession
-from .enrollment import ApexEnrollment, PSEnrollment, PSStudent
-from .exceptions import ApexNoEmailException, ApexMalformedEmailException
-from .ps_agent import fetch_students, fetch_staff
+from .enrollment import ApexEnrollment, PSEnrollment
+from .ps_agent import fetch_staff
 
 PICKLE_DIR = Path('serial')
 
@@ -43,9 +42,8 @@ class StudentTuple(object):
             return False
         if self.powerschool.import_org_id == 615:
             self.powerschool.import_org_id += 1
-        return (
-            self.apex == self.powerschool
-        )
+
+        return self.apex.__eq__(self.powerschool, powerschool='r')
 
     def update_apex(self):
         if self.all():
@@ -101,6 +99,8 @@ class ApexSynchronizer(object):
     def sync_rosters(self):
         self.logger.info('Beginning roster synchronization.')
         self.logger.info('Comparing enrollment information.')
+        if self._dry_run:
+            self._operations['sync_roster'] = {}
         to_enroll = self.ps_roster - self.apex_roster
         to_withdraw = self.apex_roster - self.ps_roster
         to_update = self._find_conflicts()
@@ -109,11 +109,10 @@ class ApexSynchronizer(object):
             return
 
         if self._dry_run:
-            self._operations['sync_roster'] = {
+            self._operations['sync_roster'].update({
                 'to_enroll': list(to_enroll),
                 'to_withdraw': list(to_withdraw),
-                'to_update': [s.import_user_id for s in to_update]
-            }
+            })
             return
 
         if len(to_enroll) > 0:
@@ -384,12 +383,34 @@ class ApexSynchronizer(object):
 
         self.logger.debug('Searching for mismatching records.')
         to_update = []
+        change_log = {}
         for st in transfer_map.values():
             if st.all() and not st.matching():
                 self.logger.debug(f'Student {st.apex.import_user_id} will be'
                                   'updated to match PowerSchool records.')
+                apex_json = st.apex.to_json()
+                ps_json = st.powerschool.to_json()
+                apex_only = apex_json.keys() - ps_json.keys()
+                ps_only = ps_json.keys() - apex_json.keys()
+                conflict = {k: (apex_json[k], ps_json[k])
+                            for k in ps_json.keys() & apex_json.keys()
+                            if k != 'LoginPw'
+                            and apex_json[k] != ps_json[k]}
+                for k in ps_only:
+                    conflict[k] = (None, ps_json[k])
+                for k in apex_only:
+                    conflict[k] = (apex_json[k], None)
+                if 'LoginPw' in conflict.keys():
+                    del conflict['LoginPw']
+                for k, (apex_value, ps_value) in conflict.items():
+                    conflict[k] = {'apex': apex_value,
+                                   'powerschool': ps_value}
+                change_log[st.apex.import_user_id] = conflict
                 st.update_apex()
                 to_update.append(st.powerschool)
+
+        if self._dry_run:
+            self._operations['sync_roster']['to_update'] = change_log
 
         return to_update
 

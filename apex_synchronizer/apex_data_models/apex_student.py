@@ -63,25 +63,58 @@ class ApexStudent(ApexUser):
                 or self.import_org_id not in self._coach_schools):
             self.coach_emails = []
         else:
-            self.coach_emails = coach_emails
+            self.coach_emails = clean_coach_email(coach_emails)
         try:
             self.login_pw = int(eduid)
         except (ValueError, TypeError):
             self.login_pw = eduid
 
-    def __eq__(self, other):
-        if isinstance(other, ApexStudent):
-            this_json = self.to_json()
-            other_json = other.to_json()
+    def __eq__(self, other, powerschool: str = None):
+        """
+        :param other: another ApexStudent object
+        :param powerschool: can be either 'l', 'r' or None. If it is
+            None, coach emails will be expected to match exactly. The
+            values 'l' and 'r' specify which side of the comparison
+            contains a student created from PowerSchool. This allows
+            comparisons to ignore coaches that are in Apex but not in
+            PowerSchool. Coach emails cannot be removed from Apex, so
+            there is little utility in saying that two `ApexStudent`
+            objects are different if this is the only difference.
+        """
+        if not isinstance(other, ApexStudent):
+            return False
 
-            for obj in this_json, other_json:
-                # We don't want the password in the comparison
-                if 'LoginPw' in obj:
-                    del obj['LoginPw']
+        this_json = self.to_json()
+        other_json = other.to_json()
 
+        for obj in this_json, other_json:
+            # We don't want the password in the comparison
+            if 'LoginPw' in obj:
+                del obj['LoginPw']
+
+        if powerschool is None:
             return this_json == other_json
 
-        return False
+        if powerschool not in 'lr':
+            raise ValueError('powerschool must be either `l` or `r`, '
+                             f'not `{powerschool}`')
+        if powerschool == 'l':
+            ps = self
+            apex = other
+        else:
+            ps = other
+            apex = self
+
+        ps_json = apex.to_json()
+        apex_json = ps.to_json()
+
+        if set(apex.coach_emails) - set(ps.coach_emails):
+            try:
+                ps_json['CoachEmails'] = apex_json['CoachEmails']
+            except KeyError:
+                pass
+
+        return ps_json == apex_json
 
     def __hash__(self):
         return hash((
@@ -256,7 +289,7 @@ class ApexStudent(ApexUser):
             raise e
 
         if kwargs['coach_emails'] is not None:
-            kwargs['coach_emails'] = kwargs['coach_emails'].split(',')
+            kwargs['coach_emails'] = clean_coach_email(kwargs['coach_emails'])
 
         return cls(**kwargs)
 
@@ -296,6 +329,15 @@ class ApexStudent(ApexUser):
         kwargs['import_org_id'] = json_obj['Organizations'][0]['ImportOrgId']
 
         return cls(**kwargs)
+
+
+def clean_coach_email(emails: Union[str, List[str], None]) -> List[str]:
+    if isinstance(emails, str):
+        return [email.strip() for email in emails.split(',')]
+    elif isinstance(emails, List):
+        return [email.strip() for email in emails]
+    else:
+        return []
 
 
 def _delete_student_batch(students: Collection[ApexStudent],
