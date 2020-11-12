@@ -86,7 +86,9 @@ class ApexClassroom(ApexNumericId, ApexDataObject,
                  classroom_name: str, product_codes: [str],
                  import_user_id: str,
                  classroom_start_date: str, program_code: str):
-        super().__init__(import_user_id=import_user_id.lower().strip(),
+        if import_user_id is not None:
+            import_user_id = import_user_id.lower().strip()
+        super().__init__(import_user_id=import_user_id,
                          import_org_id=import_org_id)
         try:
             self.import_classroom_id = int(import_classroom_id)
