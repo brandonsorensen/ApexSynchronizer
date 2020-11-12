@@ -327,11 +327,11 @@ class ApexSynchronizer(object):
         pretty_string = json.dumps(s.to_dict(), indent=2)
         self.logger.info('Received the following ApexSchedule\n'
                          + pretty_string)
-        method_status = {}
-        f = open('last_sync_info.txt', 'w+')
-        f.write('time: ' + str(datetime.now()) + '\n')
-        f.write('schedule:\n' + pretty_string + '\n')
+        output = {}
+        output['time'] = str(datetime.now())
+        output['schedule'] = pretty_string
 
+        method_status = {}
         for method_name, execute in s.to_dict().items():
             if execute:
                 method_status[method_name] = 'started'
@@ -343,8 +343,8 @@ class ApexSynchronizer(object):
                 except exceptions.ApexError:
                     method_status[method_name] = 'failed'
 
-        f.write('status:\n' + json.dumps(method_status, indent=2) + '\n')
-        f.close()
+        output['status'] = method_status
+        json.dump(output, open('last_sync_info.json', 'w+'))
 
     def _enroll_students(self, student_ids: Collection[str]):
         apex_students = self._init_students_for_ids(student_ids)
