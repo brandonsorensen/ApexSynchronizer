@@ -295,7 +295,7 @@ class ApexSynchronizer(object):
                 total += 1
 
         if self._dry_run:
-            class_ops['to_post'] = to_post
+            class_ops['to_post'] = [cr.to_dict() for cr in to_post]
 
         self.logger.info(f'Updated {updated} classrooms.')
         self.logger.info(f'Posting {len(to_post)} classrooms.')
