@@ -140,6 +140,28 @@ class ApexClassroom(ApexNumericId, ApexDataObject,
 
         self.enroll(new_teacher, token=token, session=session)
 
+    def delete_from_apex(self, token: TokenType = None,
+                         session: requests.Session = None) -> Response:
+        """
+        Deletes this object from the Apex database
+
+        :param token: Apex access token
+        :param session: an existing Apex session
+        :return: the response from the DELETE operation
+        """
+        agent = check_args(token, session)
+        custom_args = {
+            'classroomId': str(self.import_user_id),
+        }
+        url = urljoin(self.url + '/', str(self.import_classroom_id))
+        if isinstance(agent, requests.Session):
+            agent.headers.update(custom_args)
+            r = agent.delete(url=url)
+        else:
+            header = get_header(token, custom_args)
+            r = agent.delete(url=url, headers=header)
+        return r
+
     def enroll(self, objs: Union[Sequence[ApexUser], ApexUser],
                token: TokenType = None,
                session: requests.Session = None) -> Response:
