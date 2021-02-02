@@ -12,7 +12,7 @@ from . import utils as adm_utils
 from .apex_data_object import ApexDataObject, ApexNumericId, ApexUser
 from .apex_staff_member import ApexStaffMember
 from .page_walker import PageWalker
-from .utils import check_args
+from .utils import check_args, PS_OUTPUT_FORMAT
 from .. import exceptions, utils
 from ..apex_session import TokenType
 from ..ps_agent import course2program_code, fetch_staff, fetch_classrooms
@@ -139,6 +139,37 @@ class ApexClassroom(ApexNumericId, ApexDataObject,
             return
 
         self.enroll(new_teacher, token=token, session=session)
+
+    def copy(self, new_id: int, token: TokenType = None,
+             session: requests.Session = None) -> Response:
+        """
+        Copies the class settings to a new classroom ID. Changes
+
+        :param token: Apex access token
+        :param session: an existing Apex session
+        :return: the response from the DELETE operation
+        :return: the response from the PUT operation
+        """
+        # TODO
+        agent = check_args(token, session)
+        payload = {
+            "ImportOrgId": str(self.import_org_id),
+            "ClassroomName": self.classroom_name,
+            "IsPrimary": True,
+            "ProductCodes": self.product_codes,
+            "ImportUserId": str(self.import_user_id),
+            "ClassroomStartDate": self.classroom_start_date.strftime(
+                PS_OUTPUT_FORMAT
+            )
+        }
+        url = urljoin(self.url + '/', str(new_id))
+        if not isinstance(session, requests.Session):
+            header = get_header(token)
+        else:
+            header = None
+
+        r = agent.put(url=url, headers=header, data=json.dumps(payload))
+        return r
 
     def delete_from_apex(self, token: TokenType = None,
                          session: requests.Session = None) -> Response:
