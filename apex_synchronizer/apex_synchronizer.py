@@ -189,6 +189,8 @@ class ApexSynchronizer(object):
                 continue
 
             to_enroll = student_list - apex_roster
+            to_withdraw = apex_roster - student_list
+
             ineligible = self._find_ineligible_enrollments(to_enroll)
             if len(ineligible) > 0:
                 to_enroll -= ineligible
@@ -196,26 +198,32 @@ class ApexSynchronizer(object):
                                   f' {ineligible}')
             if len(to_enroll) == 0:
                 self.logger.info('No eligible student to enroll.')
-                continue
-
-            self.logger.info(f'Adding {len(to_enroll)} students to classroom '
-                             + str(c_id))
-
-            apex_to_enroll = [self.apex_enroll.get_student_for_id(id_)
-                              for id_ in to_enroll]
-            if self._dry_run:
-                op = {'to_enroll': list(to_enroll)}
-                self._operations['sync_classroom_enrollment'] = op
-                n_updates = 0
             else:
-                n_updates = self._add_enrollments(to_enroll=apex_to_enroll,
-                                                  classroom=apex_classroom)
-            n_entries_changed += n_updates
+                self.logger.info(f'Adding {len(to_enroll)} students to classroom '
+                                 + str(c_id))
 
-            to_withdraw = apex_roster - student_list
+                apex_to_enroll = [self.apex_enroll.get_student_for_id(id_)
+                                  for id_ in to_enroll]
+                if self._dry_run:
+                    op = {'to_enroll': list(to_enroll)}
+                    self._operations['sync_classroom_enrollment'] = op
+                    n_updates = 0
+                else:
+                    n_updates = self._add_enrollments(to_enroll=apex_to_enroll,
+                                                      classroom=apex_classroom)
+                n_entries_changed += n_updates
+
             if to_withdraw and self._dry_run:
-                op = self._operations['sync_classroom_enrollment']
-                op['to_withdraw'] = list(to_withdraw)
+                try:
+                    op = self._operations['sync_classroom_enrollment']
+                    if 'to_withdraw' in op.keys():
+                        op['to_withdraw'][c_id] = list(to_withdraw)
+                    else:
+                        op['to_withdraw'] = {c_id: list(to_withdraw)}
+                except KeyError:
+                    self._operations['sync_classroom_enrollment'] = {
+                        'to_withdraw': {c_id: list(to_withdraw)}
+                    }
                 n_withdrawn = 0
             else:
                 n_withdrawn = self._withdraw_enrollments(classroom=apex_classroom,

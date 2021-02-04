@@ -522,6 +522,7 @@ class ApexClassroom(ApexNumericId, ApexDataObject,
 def get_classrooms_for_eduids(eduids: Collection[int], token: TokenType = None,
                               session: requests.Session = None,
                               ids_only: bool = False,
+                              active_only: bool = True,
                               return_empty: bool = False) \
         -> Dict[int, List[Union[int, ApexClassroom]]]:
     logger = logging.getLogger(__name__)
@@ -537,6 +538,7 @@ def get_classrooms_for_eduids(eduids: Collection[int], token: TokenType = None,
         logger.info(f'{i + 1}/{len(eduids)} students')
 
         url = url_for_eduid(eduid)
+        url += f'?isActiveOnly={str(active_only).lower()}'
         try:
             eduid_classrooms = _get_classroom_for_eduid(url, token=token,
                                                         session=session,
@@ -656,11 +658,9 @@ def _get_classroom_for_eduid(url: str, token: TokenType = None,
     check_args(token, session)
     logger = logging.getLogger(__name__)
     ret_val = []
-    custom_args = {'isActiveOnly': 'true'}
     walker = PageWalker(logger=logger, session=session)
 
-    for i, page_response in enumerate(walker.walk(url,
-                                                  custom_args=custom_args)):
+    for i, page_response in enumerate(walker.walk(url)):
         try:
             page_response.raise_for_status()
         except requests.exceptions.HTTPError:
