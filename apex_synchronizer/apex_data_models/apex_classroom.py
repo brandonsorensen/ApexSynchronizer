@@ -1,5 +1,6 @@
 from abc import ABCMeta
 from datetime import datetime
+from enum import Enum
 from requests import Response
 from typing import Collection, Dict, List, Optional, Set, Sequence, Union
 from urllib.parse import urljoin, urlparse
@@ -476,7 +477,8 @@ class ApexClassroom(ApexNumericId, ApexDataObject,
 
         ret_val = []
 
-        for i, (section, progress) in enumerate(walk_ps_sections(archived)):
+        for i, (section, progress) in enumerate(walk_ps_sections(archived,
+                                                                 filter_date=False)):
             try:
                 section_id = section['section_id']
                 apex_obj = cls.get(section_id, token=token, session=session)
@@ -632,7 +634,14 @@ def teacher_fuzzy_match(t1: str, org: Union[str, int] = None,
     return teachers[argmax]
 
 
-def walk_ps_sections(archived: bool):
+def walk_ps_sections(archived: bool, filter_date: bool):
+    """
+    Generator function that walks over all sections currently in PowerSchool.
+
+    :param archived: whether to include archived sections
+    :param filter_date: whether to return sections whose term's last day
+        has already occurred.
+    """
     logger = logging.getLogger(__name__)
 
     ps_classrooms = fetch_classrooms()
@@ -642,7 +651,9 @@ def walk_ps_sections(archived: bool):
 
     for i, section in enumerate(map(utils.flatten_ps_json, ps_classrooms)):
         try:
-            if not archived and section['RoleStatus'] == 'Archived':
+            end_date = datetime.strptime(section['last_day'], PS_OUTPUT_FORMAT)
+            if (not archived and section['RoleStatus'] == 'Archived')\
+                    or (filter_date and end_date < datetime.now()):
                 continue
         except KeyError:
             logger.debug('JSON object does not contain "RoleStatus"')

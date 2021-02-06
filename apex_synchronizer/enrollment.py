@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict, KeysView
+from datetime import datetime
 from dataclasses import dataclass
 from typing import Dict, TextIO, Iterable, List, Set, Union
 import logging
@@ -8,6 +9,7 @@ import requests
 
 from . import exceptions
 from .apex_data_models import ApexStudent, ApexClassroom, SCHOOL_CODE_MAP
+from .apex_data_models.utils import PS_OUTPUT_FORMAT
 from .apex_session import ApexSession
 from .ps_agent import fetch_enrollment, fetch_students
 from .utils import flatten_ps_json
@@ -156,6 +158,11 @@ class PSEnrollment(BaseEnrollment):
 
         self.logger.info('Iterating over enrollment.')
         for i, entry in enumerate(json_obj):
+            last_day = datetime.strptime(entry['last_day'],
+                                         PS_OUTPUT_FORMAT).date()
+            if last_day < datetime.now().date():
+                # Skips classes that have already ended
+                continue
             eduid = int(entry['eduid'])
             org_id = int(entry['school_id'])
             sec_id = int(entry['section_id'])

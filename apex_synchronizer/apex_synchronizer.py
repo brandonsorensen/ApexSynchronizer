@@ -205,8 +205,17 @@ class ApexSynchronizer(object):
                 apex_to_enroll = [self.apex_enroll.get_student_for_id(id_)
                                   for id_ in to_enroll]
                 if self._dry_run:
-                    op = {'to_enroll': list(to_enroll)}
-                    self._operations['sync_classroom_enrollment'] = op
+                    # TODO: Make this a defaultdict
+                    try:
+                        op = self._operations['sync_classroom_enrollment']
+                        if 'to_enroll' in op.keys():
+                            op['to_enroll'][c_id] = list(to_enroll)
+                        else:
+                            op['to_enroll'] = {c_id: list(to_enroll)}
+                    except KeyError:
+                        self._operations['sync_classroom_enrollment'] = {
+                            'to_enroll': {c_id: list(to_enroll)}
+                        }
                     n_updates = 0
                 else:
                     n_updates = self._add_enrollments(to_enroll=apex_to_enroll,
@@ -240,7 +249,8 @@ class ApexSynchronizer(object):
         updated = 0
         to_post = []
         class_ops = defaultdict(list)
-        for i, (section, progress) in enumerate(walk_ps_sections(archived=False)):
+        for i, (section, progress) in enumerate(walk_ps_sections(archived=False,
+                                                                 filter_date=False)):
             try:
                 """
                 This will get checked again below, but if we can

@@ -172,7 +172,8 @@ class ApexStudent(ApexUser):
         """
         agent = check_args(token, session)
         if isinstance(agent, requests.Session):
-            r = agent.get(url=self.classroom_url, params={'isActiveOnly': True})
+            r = agent.get(url=self.classroom_url,
+                          params={'isActiveOnly': active_only})
         else:
             header = get_header(token)
             r = agent.get(url=self.classroom_url, headers=header,
