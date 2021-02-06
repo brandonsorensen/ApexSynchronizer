@@ -50,6 +50,7 @@
 			<column column="TEACHERS.MIDDLE_NAME">TEACHER_MIDDLE_NAME</column>
 			<column column="TEACHERS.LAST_NAME">TEACHER_LAST_NAME</column>
 			<column column="TERMS.FIRSTDAY">FIRST_DAY</column>
+			<column column="TERMS.LASTDAY">LAST_DAY</column>
 			<column column="SECTIONS.DEPENDENT_SECS">APEX_PROGRAM_CODE</column>
  		</columns>
         <sql>
@@ -63,6 +64,7 @@
 					   t.middle_name,
 					   t.last_name, 
 					   terms.firstday,
+					   terms.lastday,
 					   s.dependent_secs
 				FROM   sections s 
 					   LEFT JOIN courses c 
@@ -116,13 +118,15 @@
 			<column column="STUDENTS.SCHOOLID">SCHOOL_ID</column>
 			<column column="U_DEF_EXT_STUDENTS.STUDENTEMAIL">EMAIL</column>
 			<column column="CC.SECTIONID">SECTION_ID</column>
+			<column column="TERMS.LASTDAY">LAST_DAY</column>
  		</columns>
         <sql>
 			<![CDATA[
-				SELECT students.State_StudentNumber,
+				SELECT DISTINCT students.State_StudentNumber,
 					   students.SchoolID,
 					   u_def_ext_students.studentemail,
-					   cc.sectionid
+					   cc.sectionid,
+					   terms.lastday
 				FROM   cc
 					   INNER JOIN students
 							   ON cc.studentid = students.id
@@ -130,11 +134,13 @@
 							   ON students.dcid = u_def_ext_students.studentsdcid
 					   INNER JOIN courses
 					   		   ON cc.course_number = courses.course_number
+					   INNER JOIN terms 
+					   		   ON cc.termid = terms.id
+							   		AND cc.schoolid = terms.schoolid
 				WHERE  cc.schoolid = 616
 					   AND students.enroll_status = 0
 					   AND courses.course_name LIKE '%(APEX)'
-				GROUP  BY students.State_StudentNumber, students.SchoolID,
-						  u_def_ext_students.studentemail, cc.sectionid
+					   AND to_date(terms.lastday) > sysdate
 				ORDER  BY students.State_StudentNumber
 			]]>
         </sql>
