@@ -329,7 +329,21 @@ class ApexStudent(ApexUser):
         kwargs, json_obj = cls._init_kwargs_from_get(r)
         # Just returns the first organization in the list
         # Students should only be assigned to a single org
-        kwargs['import_org_id'] = json_obj['Organizations'][0]['ImportOrgId']
+        orgs = json_obj['Organizations']
+        has_active_org = False
+        for org in orgs:
+            try:
+                is_active = org['Role']['Status'] == 'Active'
+            except KeyError:
+                raise exceptions.ApexMalformedJsonException(json_obj)
+            if is_active:
+                has_active_org = True
+                kwargs['import_org_id'] = org['ImportOrgId']
+                break  # Returning the first active organization.
+                # TODO: Implement support for multiple organizations.
+
+        if not has_active_org:
+            raise exceptions.ApexNoActiveOrganizationException(json_obj)
 
         return cls(**kwargs)
 

@@ -224,6 +224,16 @@ class ApexIncompleteDataException(ApexError):
         return self.msg + ':\n' + str(self.json_obj)
 
 
+class ApexNoActiveOrganizationException(ApexIncompleteDataException):
+    """
+    When a user is not enrolled in any organization.
+    This should not be possible, but catching it anyway just in case.
+    """
+    def __str__(self):
+        return f'Apex object {self.json_obj} is not enrolled in any' \
+               'organizations.'
+
+
 class ApexNoTeacherException(ApexIncompleteDataException):
     """
     To be raised when a class fetched from the Apex API does not have a
