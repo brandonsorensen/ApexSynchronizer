@@ -291,10 +291,15 @@ class ApexSynchronizer(object):
                         class_ops['to_update'].append(ps_cr.import_classroom_id)
                     else:
                         r = ps_cr.put_to_apex(session=self.session)
-                        self.logger.info('Received response: '
-                                         + str(r.status_code))
-                        apex_cr.update(ps_cr, session=self.session)
-                        self.apex_enroll.update_classroom(ps_cr)
+                        try:
+                            r.raise_for_status()
+                            self.logger.debug('Updated classrooms with ID '
+                                              f'{ps_cr.import_classroom_id}.')
+                            apex_cr.update(ps_cr, session=self.session)
+                            self.apex_enroll.update_classroom(ps_cr)
+                        except requests.exceptions.HTTPError:
+                            self.logger.exception('Received bad response: '
+                                                  + str(r.status_code))
                     updated += 1
             except KeyError:
                 raise exceptions.ApexMalformedJsonException(section)
