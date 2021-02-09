@@ -123,8 +123,12 @@ class ApexSynchronizer(object):
         if len(to_update) > 0:
             for student in to_update:
                 r = student.put_to_apex(session=self.session)
-                self.logger.info('Received response from PUT call:\n'
-                                 + str(r.text))
+                try:
+                    r.raise_for_status()
+                    self.logger.info(f'Updated record for {student.import_user_id}.')
+                except requests.HTTPError:
+                    self.logger.exception('Received error response from PUT call:\n'
+                                          + str(r.text))
         else:
             self.logger.info('All records match one another. None to update.')
 
