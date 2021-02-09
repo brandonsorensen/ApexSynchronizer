@@ -540,25 +540,29 @@ def get_classrooms_for_eduids(eduids: Collection[int], token: TokenType = None,
 
     def url_for_eduid(eduid_: int) -> str:
         url_ = urljoin(base_url, str(eduid_))
-        return urljoin(url_ + '/', 'classrooms')
+        url_ = urljoin(url_ + '/', 'classrooms')
+        return url_ + f'?isActiveOnly={str(active_only).lower()}'
 
     classrooms = {}
+    futures = []
     logger.info(f'Getting classrooms for {len(eduids)} students.')
-    for i, eduid in enumerate(eduids):
-        logger.info(f'{i + 1}/{len(eduids)} students')
+    with ThreadPoolExecutor() as executor:
+        for eduid_ in eduids:
+            future = executor.submit(_get_classroom_for_eduid,
+                                     url_for_eduid(eduid_),
+                                     token, session, ids_only)
+            futures.append(future)
 
-        url = url_for_eduid(eduid)
-        url += f'?isActiveOnly={str(active_only).lower()}'
+    for i, (eduid, future) in enumerate(zip(eduids, futures)):
+        logger.info(f'{i + 1}/{len(eduids)} students')
         try:
-            eduid_classrooms = _get_classroom_for_eduid(url, token=token,
-                                                        session=session,
-                                                        ids_only=ids_only)
+            eduid_classrooms = future.result()
         except exceptions.ApexObjectNotFoundException:
-            logger.info('Could not find student or student is not enrolled in '
-                        'any Apex classes: ' + str(eduid))
+            logger.debug('Could not find student or student is not enrolled in '
+                         'any Apex classes: ' + str(eduid))
             eduid_classrooms = []
         except exceptions.ApexNoEnrollmentsError as e:
-            logger.info(str(e))
+            logger.debug(str(e))
             eduid_classrooms = []
         except exceptions.ApexError:
             logger.exception('Received generic Apex error:\n')
