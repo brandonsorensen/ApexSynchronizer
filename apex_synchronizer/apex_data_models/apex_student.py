@@ -224,6 +224,36 @@ class ApexStudent(ApexUser):
 
         return ret_val
 
+    def get_reports(self, classroom_id: int, session: requests.Session = None,
+                    token: TokenType = None) -> List[dict]:
+        """
+        Gets activity-level score information for the given classroom.
+
+        :param classroom_id: the ID of the relevant classroom
+        :param session: existing Apex session
+        :param token: an Apex access token
+        :return: a list of JSON objects as Python dict objects
+        """
+        agent = check_args(token, session)
+        url = urljoin(BASE_URL,
+                      f'classrooms/{classroom_id}/students/'
+                      f'{self.import_user_id}/reports')
+
+        if isinstance(agent, requests.Session):
+            r = agent.get(url=url)
+        else:
+            r = agent.get(url=url, headers=get_header(token))
+
+        try:
+            r.raise_for_status()
+            if r.status_code == 204:
+                return [{}]
+            return r.json()
+        except requests.exceptions.HTTPError:
+            raise exceptions.ApexObjectNotFoundException(
+               classroom_id
+            )
+
     def transfer(self, old_classroom_id: str, new_classroom_id: str,
                  new_org_id: str = None, token: TokenType = None,
                  session: requests.Session = None) -> Response:
