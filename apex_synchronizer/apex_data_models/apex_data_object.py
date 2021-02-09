@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from time import sleep
 from typing import Any, Collection, Dict, List, Set, Tuple, Union
 from urllib.parse import urljoin
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 import logging
 import re
@@ -508,6 +509,70 @@ class ApexDataObject(ABC):
         pass
 
     @classmethod
+    def _parse_response_json(cls, i: int, n_objs: int, obj: dict,
+                             page_number: int,
+                             all_objs: List[Union['ApexDataObject', int]],
+                             archived: bool = False, ids_only: bool = False,
+                             token: TokenType = None,
+                             session: requests.Session = None):
+        """
+        Parses the individual objects in the JSON response.
+
+        :param i: the index of the object in the collection of JSON objs
+        :param n_objs: the total number of objs on the page
+        :param obj:
+        :param page_number: the page number of the response
+        :param all_objs: the global list of all objects collected
+            thus far
+        :param archived: whether to return archived objects
+        :param ids_only: whether to return on the IDs
+        :return: a list of all objects or their IDs.
+        :return:
+        """
+        logger = logging.getLogger(__name__)
+        progress = f'page {int(page_number) + 1}:{i + 1}/{n_objs}' \
+                   f':total {len(all_objs) + 1}'
+        try:
+            if not archived:
+                try:
+                    if obj['RoleStatus'] == 'Archived':
+                        return # Don't return archived
+                except KeyError:
+                    pass
+            iuid = obj[cls.main_id]
+            if issubclass(cls, ApexNumericId):
+                try:
+                    iuid = int(iuid)
+                except TypeError:
+                    logger.debug(f'Object with ID "{iuid}" cannot be '
+                                 'created because its ID is invalid.')
+                    return
+
+            if not iuid:
+                logger.info('Object has no ImportUserId. Skipping...')
+                return
+
+            if ids_only:
+                logger.info(f'{progress}:Adding ImportUserId {iuid}.')
+                all_objs.append(iuid)
+            else:
+                logger.info(f'{progress}:Creating {cls.__name__} '
+                            f'with ImportUserId {iuid}')
+                apex_obj = cls.get(import_id=iuid, token=token,
+                                   session=session)
+                all_objs.append(apex_obj)
+        except exceptions.ApexObjectNotFoundException:
+            error_msg = f'Could not retrieve object of type {cls.__name__} \
+                        bearing ImportID {obj[cls.main_id]}. Skipping object'
+            logger.debug(error_msg)
+        except (exceptions.ApexIncompleteDataException,
+                exceptions.ApexMalformedEmailException,
+                exceptions.ApexUnrecognizedOrganizationError) as e:
+            logger.debug(e)
+        except exceptions.ApexError:
+            logger.exception('Received Apex error:')
+
+    @classmethod
     def _parse_response_page(cls, json_objs: Collection[dict], page_number: int,
                              all_objs: List[Union['ApexDataObject', int]],
                              archived: bool = False, ids_only: bool = False,
@@ -530,48 +595,12 @@ class ApexDataObject(ABC):
         :return: a list of all objects or their IDs.
         """
         logger = logging.getLogger(__name__)
-        for i, obj in enumerate(json_objs):
-            progress = f'page {int(page_number) + 1}:{i + 1}/{len(json_objs)}' \
-                       f':total {len(all_objs) + 1}'
-            try:
-                if not archived:
-                    try:
-                        if obj['RoleStatus'] == 'Archived':
-                            continue  # Don't return archived
-                    except KeyError:
-                        pass
-                iuid = obj[cls.main_id]
-                if issubclass(cls, ApexNumericId):
-                    try:
-                        iuid = int(iuid)
-                    except TypeError:
-                        logger.debug(f'Object with ID "{iuid}" cannot be '
-                                     'created because its ID is invalid.')
-                        continue
-
-                if not iuid:
-                    logger.info('Object has no ImportUserId. Skipping...')
-                    continue
-
-                if ids_only:
-                    logger.info(f'{progress}:Adding ImportUserId {iuid}.')
-                    all_objs.append(iuid)
-                else:
-                    logger.info(f'{progress}:Creating {cls.__name__} '
-                                f'with ImportUserId {iuid}')
-                    apex_obj = cls.get(import_id=iuid, token=token,
-                                       session=session)
-                    all_objs.append(apex_obj)
-            except exceptions.ApexObjectNotFoundException:
-                error_msg = f'Could not retrieve object of type {cls.__name__} \
-                            bearing ImportID {obj[cls.main_id]}. Skipping object'
-                logger.debug(error_msg)
-            except (exceptions.ApexIncompleteDataException,
-                    exceptions.ApexMalformedEmailException,
-                    exceptions.ApexUnrecognizedOrganizationError) as e:
-                logger.debug(e)
-            except exceptions.ApexError:
-                logger.exception('Received Apex error:')
+        with ThreadPoolExecutor() as executor:
+            for i, obj in enumerate(json_objs):
+                executor.submit(cls._parse_response_json,
+                                i, len(json_objs), obj, page_number,
+                                all_objs, archived, ids_only, token,
+                                session)
 
 
 class ApexNumericId(ApexDataObject, ABC):

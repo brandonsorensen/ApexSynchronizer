@@ -1,6 +1,6 @@
 from abc import ABCMeta
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
-from enum import Enum
 from requests import Response
 from typing import Collection, Dict, List, Optional, Set, Sequence, Union
 from urllib.parse import urljoin, urlparse
@@ -463,7 +463,7 @@ class ApexClassroom(ApexNumericId, ApexDataObject,
 
         Note: Because the Apex API does not provide a GET operation
         that returns all classrooms, fetching only IDs does not yield
-        any performance boost. All classrooms must stll be fetched
+        any performance boost. All classrooms must still be fetched
         individually.
 
         :param token: Apex access token
@@ -475,29 +475,37 @@ class ApexClassroom(ApexNumericId, ApexDataObject,
         """
         logger = logging.getLogger(__name__)
 
-        ret_val = []
+        args = ((section, ids_only, session, token, progress)
+                for (section, progress) in walk_ps_sections(archived, filter_date=False))
 
-        for i, (section, progress) in enumerate(walk_ps_sections(archived,
-                                                                 filter_date=False)):
-            try:
-                section_id = section['section_id']
-                apex_obj = cls.get(section_id, token=token, session=session)
-                ret_val.append(int(apex_obj.import_classroom_id) if ids_only
-                               else apex_obj)
-                logger.info(f'{progress}:Created ApexClassroom for '
-                            f'SectionID {section_id}')
-            except KeyError:
-                raise exceptions.ApexMalformedJsonException(section)
-            except exceptions.ApexIncompleteDataException as e:
-                logger.info(f'{progress}:{e}')
-            except exceptions.ApexObjectNotFoundException:
-                msg = (f'{progress}:PowerSchool section indexed by '
-                       f'{section["section_id"]} could not be found in Apex. '
-                       'Skipping classroom.')
-                logger.info(msg)
+        executor = ThreadPoolExecutor()
+        ret_val = [cr for cr in executor.map(lambda arg: cls._fetch_apex_classroom(*arg), args)
+                   if cr is not None]
+        executor.shutdown()
 
         logger.info(f'Returning {len(ret_val)} ApexClassroom objects.')
         return ret_val
+
+    @classmethod
+    def _fetch_apex_classroom(cls, section: dict, id_only: bool,
+                              session: requests.Session, token: TokenType,
+                              progress: str) -> Union['ApexClassroom', int]:
+        logger = logging.getLogger(__name__)
+        try:
+            section_id = section['section_id']
+            apex_obj = cls.get(section_id, token=token, session=session)
+            logger.info(f'{progress}:Created ApexClassroom for '
+                        f'SectionID {section_id}')
+            return int(apex_obj.import_classroom_id) if id_only else apex_obj
+        except KeyError:
+            raise exceptions.ApexMalformedJsonException(section)
+        except exceptions.ApexIncompleteDataException as e:
+            logger.info(f'{progress}:{e}')
+        except exceptions.ApexObjectNotFoundException:
+            msg = (f'{progress}:PowerSchool section indexed by '
+                   f'{section["section_id"]} could not be found in Apex. '
+                   'Skipping classroom.')
+            logger.info(msg)
 
     @classmethod
     def _parse_get_response(cls, r: Response) -> 'ApexClassroom':
