@@ -281,14 +281,15 @@ class ApexDataObject(ABC):
         :return: a collection of ApexDataObjects from the Apex database
         """
         ret_val = []
-
-        for id_ in import_ids:
-            try:
-                ret_val.append(cls.get(import_id=id_, token=token,
-                                       session=session))
-            except exceptions.ApexError as e:
-                if not ignore_errors:
-                    raise e
+        args = ((id_, token, session) for id_ in import_ids)
+        with ThreadPoolExecutor() as executor:
+            futures = executor.map(lambda arg: cls.get(*arg), args)
+            for result in futures:
+                try:
+                    ret_val.append(result)
+                except exceptions.ApexError as e:
+                    if not ignore_errors:
+                        raise e
 
         return ret_val
 
