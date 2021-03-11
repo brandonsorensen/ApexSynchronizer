@@ -452,7 +452,7 @@ class ApexSynchronizer(object):
                 st.update_apex()
                 to_update.append(st.powerschool)
 
-        if self._dry_run:
+        if self._dry_run and change_log:
             self._operations['sync_roster']['to_update'] = change_log
 
         return to_update
