@@ -46,6 +46,7 @@ def main():
     sync_agent = ApexSynchronizer()
     try:
         sync_agent.run_schedule(schedule)
+        sync_agent.save()
     except exceptions.ApexError:
         logger.exception('Could not finish sync.')
 

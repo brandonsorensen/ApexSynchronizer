@@ -73,7 +73,17 @@ class ApexSynchronizer(object):
         self.apex_staff = set()
         self.apex_enroll, self.ps_enroll = self._init_enrollment(exclude)
 
-    def __del__(self):
+    def save(self):
+        """
+        Has no effect when the `APEX_DRY_RUN` environment variable is not
+        set to 1. Writes the operations that would have been executed in
+        a "live" run to a JSON file.
+
+        Note: This function was originally the magic function `__del__`,
+        but in newer versions of Python, it ran into a bug in which
+        the global `open` function was no longer in the namespace
+        during object deconstruction.
+        """
         try:
             if not self._dry_run:
                 return
