@@ -331,7 +331,7 @@ class ApexSynchronizer(object):
             finally:
                 total += 1
 
-        if self._dry_run:
+        if self._dry_run and len(to_post) > 0:
             ops = []
             for cr in to_post:
                 as_dict = cr.to_dict()
