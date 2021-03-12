@@ -109,8 +109,6 @@ class ApexSynchronizer(object):
     def sync_rosters(self):
         self.logger.info('Beginning roster synchronization.')
         self.logger.info('Comparing enrollment information.')
-        if self._dry_run:
-            self._operations['sync_roster'] = {}
         to_enroll = self.ps_roster - self.apex_roster
         to_withdraw = self.apex_roster - self.ps_roster
         to_update = self._find_conflicts()
@@ -119,10 +117,11 @@ class ApexSynchronizer(object):
             return
 
         if self._dry_run:
-            self._operations['sync_roster'].update({
-                'to_enroll': list(to_enroll),
-                'to_withdraw': list(to_withdraw),
-            })
+            if len(to_enroll) > 0:
+                ops['to_enroll'] = list(to_enroll)
+            if len(to_withdraw) > 0:
+                ops['to_withdraw'] = list(to_withdraw)
+            self._operations['sync_roster'] = ops
             return
 
         if len(to_enroll) > 0:
