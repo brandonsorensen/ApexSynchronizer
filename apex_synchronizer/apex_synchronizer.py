@@ -1,6 +1,5 @@
 from collections import defaultdict, KeysView
 from dataclasses import dataclass
-from datetime import datetime
 from os import environ
 from pathlib import Path
 from typing import Collection, List, Tuple, Set
@@ -8,6 +7,7 @@ import json
 import logging
 import os
 import pickle
+import time
 
 import requests
 
@@ -373,7 +373,7 @@ class ApexSynchronizer(object):
         self.logger.info('Received the following ApexSchedule\n'
                          + pretty_string)
         output = {}
-        output['time'] = str(datetime.now())
+        output['time'] = time.strftime('%Y-%m-%d %H:%M:%S %Z')
         output['schedule'] = as_dict
 
         method_status = {}
