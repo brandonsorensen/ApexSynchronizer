@@ -117,11 +117,13 @@ class ApexSynchronizer(object):
             return
 
         if self._dry_run:
+            ops = {}
             if len(to_enroll) > 0:
                 ops['to_enroll'] = list(to_enroll)
             if len(to_withdraw) > 0:
                 ops['to_withdraw'] = list(to_withdraw)
-            self._operations['sync_roster'] = ops
+            if len(ops) > 0:
+                self._operations['sync_roster'] = ops
             return
 
         if len(to_enroll) > 0:
