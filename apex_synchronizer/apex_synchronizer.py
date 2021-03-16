@@ -368,12 +368,13 @@ class ApexSynchronizer(object):
 
         :param s: an ApexSchedule object
         """
-        pretty_string = json.dumps(s.to_dict(), indent=2)
+        as_dict = s.to_dict()
+        pretty_string = json.dumps(as_dict, indent=2)
         self.logger.info('Received the following ApexSchedule\n'
                          + pretty_string)
         output = {}
         output['time'] = str(datetime.now())
-        output['schedule'] = pretty_string
+        output['schedule'] = as_dict
 
         method_status = {}
         for method_name, execute in s.to_dict().items():
