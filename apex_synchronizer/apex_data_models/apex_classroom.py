@@ -1,12 +1,14 @@
 from abc import ABCMeta
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from requests import Response
+from dataclasses import dataclass
+from enum import Enum
 from typing import Collection, Dict, List, Optional, Set, Sequence, Union
 from urllib.parse import urljoin, urlparse
 import json
 import logging
 
+from requests import Response
 import requests
 
 from . import utils as adm_utils
@@ -514,9 +516,9 @@ class ApexClassroom(ApexNumericId, ApexDataObject,
         org_id = int(kwargs['import_org_id'])
         kwargs['program_code'] = course2program_code[org_id]
         kwargs['classroom_name'] = json_obj['ClassroomName']
-        date = datetime.strptime(kwargs['classroom_start_date'],
-                                 adm_utils.APEX_DATETIME_FORMAT)
-        kwargs['classroom_start_date'] = date.strftime(
+        start_date = datetime.strptime(kwargs['classroom_start_date'],
+                                       adm_utils.APEX_DATETIME_FORMAT)
+        kwargs['classroom_start_date'] = start_date.strftime(
             adm_utils.PS_DATETIME_FORMAT
         )
         if not json_obj['PrimaryTeacher']:
@@ -527,6 +529,28 @@ class ApexClassroom(ApexNumericId, ApexDataObject,
         kwargs['import_user_id'] = teacher.import_user_id
 
         return cls(**kwargs)
+
+
+class EnrollmentStatus(Enum):
+    active = 'Active'
+    complete = 'Complete'
+    withdrawn = 'Withdrawn'
+
+    @classmethod
+    def from_string(cls, s) -> 'EnrollmentStatus':
+        return {
+            'active': cls.active,
+            'complete': cls.complete,
+            'withdrawn': cls.withdrawn
+        }[s.lower()]
+
+
+
+@dataclass
+class EnrollmentRecord(object):
+    completion_date: datetime
+    classroom_id: int
+    status: EnrollmentStatus
 
 
 def get_classrooms_for_eduids(eduids: Collection[int], token: TokenType = None,
