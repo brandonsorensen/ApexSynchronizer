@@ -143,35 +143,34 @@ class ApexClassroom(ApexNumericId, ApexDataObject,
 
         self.enroll(new_teacher, token=token, session=session)
 
-    def copy(self, new_id: int, token: TokenType = None,
+    def copy(self, new_id: int, new_program_code: str = None,
+            token: TokenType = None,
              session: requests.Session = None) -> Response:
         """
         Copies the class settings to a new classroom ID. Changes
 
         :param token: Apex access token
         :param session: an existing Apex session
-        :return: the response from the DELETE operation
-        :return: the response from the PUT operation
+        :return: the response from the POST operation
         """
         # TODO
         agent = check_args(token, session)
         payload = {
             "ImportOrgId": str(self.import_org_id),
             "ClassroomName": self.classroom_name,
-            "IsPrimary": True,
-            "ProductCodes": self.product_codes,
             "ImportUserId": str(self.import_user_id),
-            "ClassroomStartDate": self.classroom_start_date.strftime(
-                PS_OUTPUT_FORMAT
-            )
+            "NewImportClassroomId": str(new_id),
+            "ProgramCode": (self.program_code if new_program_code is None
+                            else new_program_code)
         }
-        url = urljoin(self.url + '/', str(new_id))
+        url = urljoin(self.url + '/', str(self.import_classroom_id))
+        url = urljoin(url + '/', 'copy')
         if not isinstance(session, requests.Session):
             header = get_header(token)
         else:
             header = None
 
-        r = agent.put(url=url, headers=header, data=json.dumps(payload))
+        r = agent.post(url=url, headers=header, data=json.dumps(payload))
         return r
 
     def delete_from_apex(self, token: TokenType = None,
