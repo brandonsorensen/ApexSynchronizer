@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from time import sleep
 from typing import Any, Collection, Dict, List, Set, Tuple, Union
 from urllib.parse import urljoin
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 import json
 import logging
 import re
@@ -595,7 +595,6 @@ class ApexDataObject(ABC):
         :param ids_only: whether to return on the IDs
         :return: a list of all objects or their IDs.
         """
-        logger = logging.getLogger(__name__)
         with ThreadPoolExecutor() as executor:
             for i, obj in enumerate(json_objs):
                 executor.submit(cls._parse_response_json,
