@@ -1,14 +1,15 @@
 import logging
 import requests
 from copy import deepcopy as copy
+from datetime import datetime
 from typing import Collection, List, Optional, Set, Union
 from urllib.parse import urljoin
 
 from requests import Response
 
 from .apex_data_object import ApexUser
-from .apex_classroom import ApexClassroom
-from .utils import (BASE_URL, make_userid, check_args)
+from .apex_classroom import ApexClassroom, EnrollmentRecord, EnrollmentStatus
+from .utils import APEX_DATETIME_FORMAT, BASE_URL, check_args, make_userid
 from .. import exceptions
 from ..apex_session import TokenType
 from ..utils import get_header
@@ -102,7 +103,7 @@ class ApexStudent(ApexUser):
         if powerschool is None:
             return exact_match
 
-        if powerschool not in 'lr':
+        if powerschool not in ('l', 'r'):
             raise ValueError('powerschool must be either `l` or `r`, '
                              f'not `{powerschool}`')
         if powerschool == 'l':
@@ -170,28 +171,10 @@ class ApexStudent(ApexUser):
             is enrolled
         :rtype: List[int]
         """
-        agent = check_args(token, session)
-        if isinstance(agent, requests.Session):
-            r = agent.get(url=self.classroom_url,
-                          params={'isActiveOnly': active_only})
-        else:
-            header = get_header(token)
-            r = agent.get(url=self.classroom_url, headers=header,
-                          params={'isActiveOnly': active_only})
-        try:
-            r.raise_for_status()
-            ret_val = []
-            for student in r.json():
-                c_id = student['ImportClassroomId']
-                if not c_id:
-                    continue
-                ret_val.append(int(c_id))
-            return ret_val
-
-        except requests.exceptions.HTTPError:
-            return []
-        except KeyError:
-            raise exceptions.ApexMalformedJsonException(r.json())
+        enrollment_records = self._get_completion_dates(
+            active_only, token, session
+        )
+        return [record.classroom_id for record in enrollment_records]
 
     def get_enrollments(self, active_only: bool = True, token: TokenType = None,
                         session: requests.Session = None) \
@@ -377,12 +360,49 @@ class ApexStudent(ApexUser):
 
         return cls(**kwargs)
 
+    def _get_completion_dates(self, active_only: bool,
+                              token: TokenType = None,
+                              session: requests.Session = None) \
+            -> List[EnrollmentRecord]:
+
+        agent = check_args(token, session)
+        if isinstance(agent, requests.Session):
+            r = agent.get(url=self.classroom_url,
+                          params={'isActiveOnly': active_only})
+        else:
+            header = get_header(token)
+            r = agent.get(url=self.classroom_url, headers=header,
+                          params={'isActiveOnly': active_only})
+        try:
+            r.raise_for_status()
+            ret_val = []
+            for cr in r.json():
+                status = EnrollmentStatus.from_string(
+                    cr['EnrollmentStatus']
+                )
+                c_id = cr['ImportClassroomId']
+                if not c_id:
+                    continue
+                completion_date = cr['CompletedDate']
+                if completion_date is not None:
+                    completion_date = datetime.strptime(
+                        completion_date, APEX_DATETIME_FORMAT
+                    )
+                ret_val.append(EnrollmentRecord(completion_date, int(c_id),
+                                                status))
+            return ret_val
+
+        except requests.exceptions.HTTPError:
+            return []
+        except KeyError:
+            raise exceptions.ApexMalformedJsonException(r.jlistson())
+
 
 def clean_coach_email(emails: Union[str, List[str], None]) -> List[str]:
     if isinstance(emails, str):
-        return [email.strip() for email in emails.split(',')]
+        return [email.strip() for email in emails.split(',') if email]
     elif isinstance(emails, List):
-        return [email.strip() for email in emails]
+        return [email.strip() for email in emails if email]
     else:
         return []
 
