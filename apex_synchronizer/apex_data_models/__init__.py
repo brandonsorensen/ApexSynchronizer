@@ -22,7 +22,8 @@ can be found in the docstrings of those modules.
 """
 
 from .apex_data_object import ApexDataObject
-from .apex_student import ApexStudent
 from .apex_classroom import ApexClassroom, get_classrooms_for_eduids
+from .apex_grade_report import ApexGradeReport
 from .apex_staff_member import ApexStaffMember
+from .apex_student import ApexStudent
 from .utils import BASE_URL, School, SCHOOL_CODE_MAP

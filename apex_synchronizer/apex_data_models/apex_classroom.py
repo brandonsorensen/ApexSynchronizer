@@ -1,12 +1,14 @@
 from abc import ABCMeta
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from requests import Response
+from dataclasses import dataclass
+from enum import Enum
 from typing import Collection, Dict, List, Optional, Set, Sequence, Union
 from urllib.parse import urljoin, urlparse
 import json
 import logging
 
+from requests import Response
 import requests
 
 from . import utils as adm_utils
@@ -141,35 +143,34 @@ class ApexClassroom(ApexNumericId, ApexDataObject,
 
         self.enroll(new_teacher, token=token, session=session)
 
-    def copy(self, new_id: int, token: TokenType = None,
+    def copy(self, new_id: int, new_program_code: str = None,
+            token: TokenType = None,
              session: requests.Session = None) -> Response:
         """
         Copies the class settings to a new classroom ID. Changes
 
         :param token: Apex access token
         :param session: an existing Apex session
-        :return: the response from the DELETE operation
-        :return: the response from the PUT operation
+        :return: the response from the POST operation
         """
         # TODO
         agent = check_args(token, session)
         payload = {
             "ImportOrgId": str(self.import_org_id),
             "ClassroomName": self.classroom_name,
-            "IsPrimary": True,
-            "ProductCodes": self.product_codes,
             "ImportUserId": str(self.import_user_id),
-            "ClassroomStartDate": self.classroom_start_date.strftime(
-                PS_OUTPUT_FORMAT
-            )
+            "NewImportClassroomId": str(new_id),
+            "ProgramCode": (self.program_code if new_program_code is None
+                            else new_program_code)
         }
-        url = urljoin(self.url + '/', str(new_id))
+        url = urljoin(self.url + '/', str(self.import_classroom_id))
+        url = urljoin(url + '/', 'copy')
         if not isinstance(session, requests.Session):
             header = get_header(token)
         else:
             header = None
 
-        r = agent.put(url=url, headers=header, data=json.dumps(payload))
+        r = agent.post(url=url, headers=header, data=json.dumps(payload))
         return r
 
     def delete_from_apex(self, token: TokenType = None,
@@ -514,9 +515,9 @@ class ApexClassroom(ApexNumericId, ApexDataObject,
         org_id = int(kwargs['import_org_id'])
         kwargs['program_code'] = course2program_code[org_id]
         kwargs['classroom_name'] = json_obj['ClassroomName']
-        date = datetime.strptime(kwargs['classroom_start_date'],
-                                 adm_utils.APEX_DATETIME_FORMAT)
-        kwargs['classroom_start_date'] = date.strftime(
+        start_date = datetime.strptime(kwargs['classroom_start_date'],
+                                       adm_utils.APEX_DATETIME_FORMAT)
+        kwargs['classroom_start_date'] = start_date.strftime(
             adm_utils.PS_DATETIME_FORMAT
         )
         if not json_obj['PrimaryTeacher']:
@@ -527,6 +528,28 @@ class ApexClassroom(ApexNumericId, ApexDataObject,
         kwargs['import_user_id'] = teacher.import_user_id
 
         return cls(**kwargs)
+
+
+class EnrollmentStatus(Enum):
+    active = 'Active'
+    complete = 'Complete'
+    withdrawn = 'Withdrawn'
+
+    @classmethod
+    def from_string(cls, s) -> 'EnrollmentStatus':
+        return {
+            'active': cls.active,
+            'complete': cls.complete,
+            'withdrawn': cls.withdrawn
+        }[s.lower()]
+
+
+
+@dataclass
+class EnrollmentRecord(object):
+    completion_date: datetime
+    classroom_id: int
+    status: EnrollmentStatus
 
 
 def get_classrooms_for_eduids(eduids: Collection[int], token: TokenType = None,
