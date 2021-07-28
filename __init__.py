@@ -1,3 +1,3 @@
 from apex_synchronizer import (
-        adm, ApexSession, ApexSynchronizer
+        adm, ApexSession, ApexSynchronizer, ps_agent
 )
