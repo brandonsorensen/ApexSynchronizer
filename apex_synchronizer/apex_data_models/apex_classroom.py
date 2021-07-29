@@ -282,7 +282,9 @@ class ApexClassroom(ApexNumericId, ApexDataObject,
             if r.status_code == 204:
                 return [{}]
             return r.json()
-        except requests.exceptions.HTTPError:
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 401:
+                raise exceptions.ApexNotAuthorizedError()
             raise exceptions.ApexObjectNotFoundException(
                 self.import_classroom_id
             )
