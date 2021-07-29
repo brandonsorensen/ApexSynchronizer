@@ -280,7 +280,7 @@ class ApexClassroom(ApexNumericId, ApexDataObject,
         try:
             r.raise_for_status()
             if r.status_code == 204:
-                return [{}]
+                return []
             return r.json()
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 401:
