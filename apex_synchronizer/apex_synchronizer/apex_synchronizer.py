@@ -95,9 +95,9 @@ class ApexSynchronizer(object):
         the global `open` function was no longer in the namespace
         during object deconstruction.
         """
-        with open('dry_run_info.json', 'w+') as f:
+        with open('sync_operations.json', 'w+') as f:
             self.operations['dry_run'] = self.dry_run
-            self.operations['runtime'] = (datetime.now()
+            self.operations['checkpoint_time'] = (datetime.now()
                                           .strftime('%Y-%m-%d %H:%M:%S %Z'))
             json.dump(self.operations, f)
 
