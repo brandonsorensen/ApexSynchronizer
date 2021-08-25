@@ -495,18 +495,18 @@ class ApexClassroom(ApexNumericId, ApexDataObject,
         try:
             section_id = section['section_id']
             apex_obj = cls.get(section_id, token=token, session=session)
-            logger.info(f'{progress}:Created ApexClassroom for '
-                        f'SectionID {section_id}')
+            logger.debug(f'{progress}:Created ApexClassroom for '
+                         f'SectionID {section_id}')
             return int(apex_obj.import_classroom_id) if id_only else apex_obj
         except KeyError:
             raise exceptions.ApexMalformedJsonException(section)
         except exceptions.ApexIncompleteDataException as e:
-            logger.info(f'{progress}:{e}')
+            logger.debug(f'{progress}:{e}')
         except exceptions.ApexObjectNotFoundException:
             msg = (f'{progress}:PowerSchool section indexed by '
                    f'{section["section_id"]} could not be found in Apex. '
                    'Skipping classroom.')
-            logger.info(msg)
+            logger.debug(msg)
 
     @classmethod
     def _parse_get_response(cls, r: Response) -> 'ApexClassroom':
@@ -577,7 +577,7 @@ def get_classrooms_for_eduids(eduids: Collection[int], token: TokenType = None,
             futures.append(future)
 
     for i, (eduid, future) in enumerate(zip(eduids, futures)):
-        logger.info(f'{i + 1}/{len(eduids)} students')
+        logger.debug(f'{i + 1}/{len(eduids)} students')
         try:
             eduid_classrooms = future.result()
         except exceptions.ApexObjectNotFoundException:

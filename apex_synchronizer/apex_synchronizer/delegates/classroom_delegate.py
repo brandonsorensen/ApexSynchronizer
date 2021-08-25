@@ -81,8 +81,8 @@ class ClassroomDelegate(SyncDelegate):
                 # Check equality, update if inconsistent
                 apex_cr, ps_cr = self.get_classrooms(section)
                 if not self.classrooms_equal(apex_cr, ps_cr):
-                    self.logger.info('Updating record '
-                                     + str(ps_cr.import_classroom_id))
+                    self.logger.debug('Internal update for record '
+                                      f'"{ps_cr.import_classroom_id}"')
                     self.class_ops['to_update'].append(
                         ps_cr.import_classroom_id
                     )
@@ -131,7 +131,10 @@ class ClassroomDelegate(SyncDelegate):
                              'Skipping.\n' + str(section))
         self.logger.info(f'{self.progress}:Attempting to fetch classroom with'
                          f' ID {section_id}.')
-        apex_cr = ApexClassroom.get(section_id, session=self.sync.session)
+        try:
+            apex_cr = self.sync.apex_enroll.classroom_index[int(section_id)]
+        except KeyError:
+            raise exceptions.ApexObjectNotFoundException(section_id)
         ps_cr = ApexClassroom.from_powerschool(section,
                                                already_flat=True)
         self.logger.info(f'{self.progress}:Classroom found.')
