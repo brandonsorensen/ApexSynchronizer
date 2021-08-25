@@ -289,8 +289,8 @@ class ApexEnrollment(BaseEnrollment):
                            for student in self._all_students
                            if student.import_user_id not in self.exclude}
         self.logger.info('Getting all Apex classrooms.')
-        self._classroom_index = {int(c.import_classroom_id): c
-                                 for c in ApexClassroom.get_all(session=session)}
+        self.classroom_index = {int(c.import_classroom_id): c
+                                for c in ApexClassroom.get_all(session=session)}
 
         self.logger.info('Getting enrollment information for all relevant '
                          'students.')
@@ -388,7 +388,7 @@ class ApexEnrollment(BaseEnrollment):
 
     def get_classroom_for_id(self, c_id: int) -> ApexClassroom:
         try:
-            return self._classroom_index[int(c_id)]
+            return self.classroom_index[int(c_id)]
         except ValueError:
             raise KeyError(c_id)
 
@@ -396,7 +396,7 @@ class ApexEnrollment(BaseEnrollment):
         return self.apex_index[user_id]
 
     def update_classroom(self, c: ApexClassroom):
-        self._classroom_index[int(c.import_classroom_id)] = c
+        self.classroom_index[int(c.import_classroom_id)] = c
 
     def update_student(self, s: ApexStudent):
         self.apex_index[s.import_user_id] = s
@@ -419,5 +419,5 @@ class ApexEnrollment(BaseEnrollment):
     @property
     def classrooms(self) -> Set:
         """Returns all classroom objects."""
-        return set(self._classroom_index.values())
+        return set(self.classroom_index.values())
 
