@@ -47,7 +47,8 @@ class ApexSession(requests.Session):
         return self._access_token
 
     def update_token(self):
-        self.logger.debug('Old token expired. Generating new one.')
+        if self._access_token is not None:
+            self.logger.debug('Old token expired. Generating new one.')
         self._access_token = ApexAccessToken.get_new_token()
         self.headers.update(
             apex_synchronizer.utils.get_header(self._access_token)
@@ -86,7 +87,7 @@ class ApexAccessToken(object):
             client_id = os.environ['CONSUMER_KEY']
             secret_key = os.environ['SECRET_KEY']
         except KeyError:
-            raise EnvironmentError('ClientID or secret key are not in'
+            raise EnvironmentError('ClientID or secret key are not in '
                                    'the environment.')
 
         logger = logging.getLogger(__name__)
