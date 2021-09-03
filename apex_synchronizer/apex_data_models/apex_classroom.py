@@ -144,7 +144,7 @@ class ApexClassroom(ApexNumericId, ApexDataObject,
         self.enroll(new_teacher, token=token, session=session)
 
     def copy(self, new_id: int, new_program_code: str = None,
-            token: TokenType = None,
+             token: TokenType = None,
              session: requests.Session = None) -> Response:
         """
         Copies the class settings to a new classroom ID. Changes

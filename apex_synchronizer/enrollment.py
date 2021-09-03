@@ -142,7 +142,10 @@ class PSEnrollment(BaseEnrollment):
         super().__init__(exclude=exclude)
         if ps_json is None:
             self.logger.debug('Fetching enrollment')
-            ps_json = fetch_enrollment()
+            try:
+                ps_json = fetch_enrollment()
+            except exceptions.PSEmptyQueryException:
+                ps_json = []
 
         self._all_entries: Set[EnrollmentEntry] = set()
         self._parse_enrollment_json(map(flatten_ps_json, ps_json))
@@ -163,9 +166,14 @@ class PSEnrollment(BaseEnrollment):
             if last_day < datetime.now().date():
                 # Skips classes that have already ended
                 continue
-            eduid = int(entry['eduid'])
-            org_id = int(entry['school_id'])
-            sec_id = int(entry['section_id'])
+            try:
+                eduid = int(entry['eduid'])
+                org_id = int(entry['school_id'])
+                sec_id = int(entry['section_id'])
+            except (TypeError, ValueError) as e:
+                self.logger.debug(f'Could not add entry {entry} '
+                                  'due to invalid ID(s).')
+                continue
             email = entry['email']
             if email in self.exclude:
                 self.logger.debug(f'Student with ID \"{email}\" in '
