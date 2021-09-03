@@ -80,6 +80,7 @@ class PowerQuery(object):
         url = urljoin(os.environ['PS_URL'], self.BASE_QUERY_URL + self.url_ext)
 
         r = requests.post(url, headers=header, params=payload)
+        r.raise_for_status()
         logger.info('PowerQuery returns with status ' + str(r.status_code))
         try:
             return r.json()['record']
