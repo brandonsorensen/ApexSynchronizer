@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import ClassVar, Dict, List
+from typing import ClassVar, Dict, List, Optional
 
 from .utils import APEX_DATETIME_FORMAT
 
@@ -43,6 +43,7 @@ class ApexGradeReport(object):
 	# class to the keys given by the Apex JSON objects
 	_translation_pairs: ClassVar[List[KeyPair]] = [
 		KeyPair(*pair) for pair in [
+			('import_classroom_id', 'ImportClassroomId', False),
 			('import_user_id', 'ImportUserId', False),
 			('start_date', 'StudentStartDate', True),
 			('product_code', 'ProductCode', False),
@@ -53,13 +54,14 @@ class ApexGradeReport(object):
 		]
 	]
 
+	import_classroom_id: int
 	import_user_id: str
 	start_date: datetime
 	last_activity: datetime
 	product_code: str
 	grade_to_date: float
-	final_grade: float
 	work_quality: float
+	final_grade: Optional[float]
 
 	def __post_init__(self):
 		"""
@@ -73,6 +75,11 @@ class ApexGradeReport(object):
 				as_dt = datetime.strptime(date, APEX_DATETIME_FORMAT)
 				self.__setattr__(attr, as_dt)
 
+		try:
+			self.final_grade = float(self.final_grade)
+		except (TypeError, ValueError):
+			self.final_grade = None
+
 	@property
 	def status(self) -> ClassStatus:
 		""" Whether the student has finished the class yet."""
@@ -82,7 +89,8 @@ class ApexGradeReport(object):
 			return ClassStatus.COMPLETED
 
 	@classmethod
-	def from_apex_json(cls, json_obj: Dict) -> 'ApexGradeReport':
+	def from_apex_json(cls, json_obj: Dict,
+					   import_classroom_id: int) -> 'ApexGradeReport':
 		"""
 		Creates an `ApexGradeReport` object from the JSON response
 		(provided as a `dict` object) returned by a call to the Apex
@@ -92,6 +100,7 @@ class ApexGradeReport(object):
 								API
 		:return: equivalent validated `ApexGradeReport` object
 		"""
+		json_obj['ImportClassroomId'] = import_classroom_id
 		kwargs = {}
 		for pair in cls._translation_pairs:
 			kwargs[pair.internal] = json_obj[pair.apex]
