@@ -115,7 +115,7 @@ class ApexGradeReport(object):
 		out = {}
 		for pair in self._translation_pairs:
 			val = getattr(self, pair.internal)
-			if pair.is_date:
+			if pair.is_date and val is not None:
 				val = datetime.strftime(val, APEX_DATETIME_FORMAT)
 			out[pair.apex] = val
 
