@@ -273,6 +273,7 @@ class ApexClassroom(ApexNumericId, ApexDataObject,
         url = urljoin(self.url + '/', str(self.import_classroom_id))
         url = urljoin(url + '/', 'reports')
         if isinstance(agent, requests.Session):
+            agent.headers['page'] = '1'
             r = agent.get(url=url)
         else:
             r = agent.get(url=url, headers=get_header(token))
