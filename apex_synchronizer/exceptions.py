@@ -221,7 +221,7 @@ class ApexIncompleteDataException(ApexError):
     def __str__(self):
         if self.json_obj is None:
             return self.msg + '.'
-        return self.msg + ':\n' + str(self.json_obj)
+        return self.msg + ' | ' + str(self.json_obj)
 
 
 class ApexNoActiveOrganizationException(ApexIncompleteDataException):

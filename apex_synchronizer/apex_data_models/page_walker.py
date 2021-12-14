@@ -67,8 +67,8 @@ class PageWalker(object):
             yield r
             raise StopIteration
         while current_page <= total_pages:
-            self.logger.info(f'Reading page {current_page}/{total_pages} '
-                             'of get_all response.')
+            self.logger.debug(f'Reading page {current_page}/{total_pages} '
+                              'of get_all response.')
             yield r
             current_page += 1
             self.session.headers['page'] = str(current_page)

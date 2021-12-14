@@ -370,7 +370,7 @@ class ApexDataObject(ABC):
                 sleep(1)
                 logger.debug('Batch still processing...')
                 logger.debug(f'{expire_at - datetime.now()} seconds remaining...')
-                logger.debug('Received JSON response:\n' + msg)
+                logger.debug('Received JSON response:' + msg)
                 r = cls.check_batch_status(status_token, session=session)
                 msg = r.json()['Message']
                 processing = (msg.lower()
@@ -550,14 +550,14 @@ class ApexDataObject(ABC):
                     return
 
             if not iuid:
-                logger.info('Object has no ImportUserId. Skipping...')
+                logger.debug('Object has no ImportUserId. Skipping...')
                 return
 
             if ids_only:
-                logger.info(f'{progress}:Adding ImportUserId {iuid}.')
+                logger.debug(f'{progress}:Adding ImportUserId {iuid}.')
                 all_objs.append(iuid)
             else:
-                logger.info(f'{progress}:Creating {cls.__name__} '
+                logger.debug(f'{progress}:Creating {cls.__name__} '
                             f'with ImportUserId {iuid}')
                 apex_obj = cls.get(import_id=iuid, token=token,
                                    session=session)
@@ -565,11 +565,11 @@ class ApexDataObject(ABC):
         except exceptions.ApexObjectNotFoundException:
             error_msg = f'Could not retrieve object of type {cls.__name__} \
                         bearing ImportID {obj[cls.main_id]}. Skipping object'
-            logger.debug(error_msg)
+            logger.error(error_msg)
         except (exceptions.ApexIncompleteDataException,
                 exceptions.ApexMalformedEmailException,
                 exceptions.ApexUnrecognizedOrganizationError) as e:
-            logger.debug(e)
+            logger.error(e)
         except exceptions.ApexError:
             logger.exception('Received Apex error:')
 
