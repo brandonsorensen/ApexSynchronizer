@@ -87,8 +87,8 @@ class ApexClassroom(ApexNumericId, ApexDataObject,
 
     def __init__(self, import_org_id: int, import_classroom_id: int,
                  classroom_name: str, product_codes: [str],
-                 import_user_id: str,
-                 classroom_start_date: str, program_code: str):
+                 import_user_id: str, classroom_start_date: str,
+                 program_code: str, active: bool):
         if import_user_id is not None:
             import_user_id = import_user_id.lower().strip()
         super().__init__(import_user_id=import_user_id,
@@ -114,6 +114,7 @@ class ApexClassroom(ApexNumericId, ApexDataObject,
         except ValueError:
             raise exceptions.ApexDatetimeException(classroom_start_date)
         self.program_code = program_code
+        self.active = active
 
     def change_teacher(self, new_teacher: Union['ApexStaffMember', str],
                        token: TokenType = None,
@@ -425,6 +426,7 @@ class ApexClassroom(ApexNumericId, ApexDataObject,
                                   adm_utils.PS_OUTPUT_FORMAT)
         apex_dt = ps_dt.strftime(adm_utils.PS_DATETIME_FORMAT)
         kwargs['classroom_start_date'] = apex_dt
+        kwargs['Active'] = True
 
         return cls(**kwargs)
 
@@ -498,18 +500,18 @@ class ApexClassroom(ApexNumericId, ApexDataObject,
         try:
             section_id = section['section_id']
             apex_obj = cls.get(section_id, token=token, session=session)
-            logger.info(f'{progress}:Created ApexClassroom for '
+            logger.debug(f'{progress}:Created ApexClassroom for '
                         f'SectionID {section_id}')
             return int(apex_obj.import_classroom_id) if id_only else apex_obj
         except KeyError:
             raise exceptions.ApexMalformedJsonException(section)
         except exceptions.ApexIncompleteDataException as e:
-            logger.info(f'{progress}:{e}')
+            logger.error(f'{progress}:{e}')
         except exceptions.ApexObjectNotFoundException:
             msg = (f'{progress}:PowerSchool section indexed by '
                    f'{section["section_id"]} could not be found in Apex. '
                    'Skipping classroom.')
-            logger.info(msg)
+            logger.error(msg)
 
     @classmethod
     def _parse_get_response(cls, r: Response) -> 'ApexClassroom':
@@ -529,6 +531,7 @@ class ApexClassroom(ApexNumericId, ApexDataObject,
                                       org=org_id,
                                       teachers=cls.all_ps_teachers)
         kwargs['import_user_id'] = teacher.import_user_id
+        kwargs['active'] = json_obj['ClassroomStatus'] == 'Active'
 
         return cls(**kwargs)
 
