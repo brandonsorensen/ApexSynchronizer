@@ -81,7 +81,7 @@ class PowerQuery(object):
 
         r = requests.post(url, headers=header, params=payload)
         r.raise_for_status()
-        logger.info('PowerQuery returns with status ' + str(r.status_code))
+        logger.debug('PowerQuery returns with status ' + str(r.status_code))
         try:
             return r.json()['record']
         except KeyError as e:

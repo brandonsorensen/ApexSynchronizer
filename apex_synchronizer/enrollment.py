@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from collections import defaultdict, KeysView
+from collections import defaultdict
+from collections.abc import KeysView
 from datetime import datetime
 from dataclasses import dataclass
 from typing import Dict, TextIO, Iterable, List, Set, Union

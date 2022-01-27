@@ -1,6 +1,6 @@
 import re
 
-from .apex_session import ApexSession, TokenType
+from .apex_session import TokenType
 
 CAMEL_REG = re.compile(r'(?<!^)(?=[A-Z])')
 
