@@ -426,7 +426,7 @@ class ApexClassroom(ApexNumericId, ApexDataObject,
                                   adm_utils.PS_OUTPUT_FORMAT)
         apex_dt = ps_dt.strftime(adm_utils.PS_DATETIME_FORMAT)
         kwargs['classroom_start_date'] = apex_dt
-        kwargs['Active'] = True
+        kwargs['active'] = True
 
         return cls(**kwargs)
 
