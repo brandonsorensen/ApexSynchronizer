@@ -346,7 +346,16 @@ class ApexDataObject(ABC):
 
         agent = check_args(token, session)
         url = cls.url if len(objects) <= 50 else urljoin(cls.url + '/', 'batch')
-        payload = json.dumps({cls.post_heading: [c.to_json() for c in objects]})
+        payload = []
+        for c in objects:
+            json_obj = c.to_json()
+            try:
+                # Don't want active field in POST payload
+                del json_obj['Active']
+            except KeyError:
+                pass
+            payload.append(json_obj)
+        payload = json.dumps({cls.post_heading: payload})
 
         header = get_header(token) if not isinstance(agent, requests.Session) \
             else None
