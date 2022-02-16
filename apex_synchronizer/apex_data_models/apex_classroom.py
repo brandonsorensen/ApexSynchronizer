@@ -104,7 +104,7 @@ class ApexClassroom(ApexNumericId, ApexDataObject,
             raise exceptions.InvalidIDException(import_classroom_id,
                                                 self.__class__)
         self.classroom_name = classroom_name
-        self.product_codes = product_codes
+        self.product_codes = [str(code).strip() for code in product_codes]
         if not self.product_codes:
             raise exceptions.NoProductCodesException(self.import_classroom_id)
         try:
